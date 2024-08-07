@@ -29,8 +29,14 @@ export function IncidentColoring() {
 };
 
   useEffect(() => {
-    incidentList.map((incident, index) => {
-      if (!incident) return null;
+    const processIncidents = async () => {
+      
+      for (const [index, incidentPromise] of incidentList.entries()) {
+        
+        const holderIncident = await Promise.resolve(incidentPromise);
+      if (!holderIncident) return null;
+      console.log('ProcessIncidents', holderIncident);
+      const incident = JSON.parse(holderIncident);
       const colorSets = getColorForIncident(incident);
       const incidentIntensityTimeCap = intensityTotalTimes[incident.intensity];
       const incidentTimestamp = new Date(incident.timestamp);
@@ -44,15 +50,14 @@ export function IncidentColoring() {
       }
       const endIndex = Math.min(colorKey + parseInt(incident.intensity) * 12, colorSets.length);
       const incidentBackgroundColorArray = colorSets.slice(colorKey, endIndex);
-      console.log(incidentBackgroundColorArray);
+      
       setcolorChangeArrayOfArrays(prevColors => {
-        if (prevColors.length > index) {
-          return prevColors;
-        }
         return [...prevColors, incidentBackgroundColorArray];
       });
-    });
+      }
+    };
     
+    processIncidents()
   }, [incidentList]);
 
 

@@ -1,6 +1,6 @@
 import AWS from 'aws-sdk';
 import * as FileSystem from 'expo-file-system';
-import { useIncident } from '@/context/IncidentContext';
+import { Platform } from 'react-native';
 
 const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
     const transformedDict = {
@@ -15,6 +15,7 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
       if (!d || !selectedIndexes.includes(index)) {
         return;
       }
+      console.log('Dict:', d);
       transformedDict.sentiment_label.push(d.sentiment_label);
       transformedDict.intensity.push(d.intensity);
       transformedDict.speech_to_text.push(d.speech_to_text);
@@ -24,18 +25,22 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
     return transformedDict;
   }
 
-  export async function getMeditation(selectedIndexes: number[]) {
-    const { incidentList } = useIncident();
+  export async function BackendMeditationCall(selectedIndexes: number[], resolvedIncidents, musicList) {
+    let dict = resolvedIncidents;
+    if (selectedIndexes.length > 1) {
+      dict = getTransformedDict(resolvedIncidents, selectedIndexes);
+    }
     const data_audio = {
       inference_type: "meditation",
       audio: "NotAvailable",
       prompt: "NotAvailable",
-      input_data: JSON.stringify(getTransformedDict(incidentList, selectedIndexes)),
+      music_list: musicList,
+      input_data: dict,
     };
   
   const serializedData = JSON.stringify(data_audio);
-  const awsId = '';
-  const awsSecret = '';
+  const awsId = 'AKIAZF4BCYP6R3HIBGEQ';
+  const awsSecret = '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';
   const awsRegion = 'us-west-1';
   
   try {
@@ -50,40 +55,59 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
       InvocationType: 'RequestResponse',
       Payload: serializedData,
     };
-    lambda.invoke(params, (err, data) => {
-      if (err) {
-        console.error(`An error occurred: ${err}`);
-      } else {
-        const responsePayload = JSON.parse(data.Payload).body  
-        return saveResponeBase64(responsePayload.toString());
-      }
+    
+    const responsePayload = await new Promise((resolve, reject) => {
+      lambda.invoke(params, (err, data) => {
+        if (err) {
+          reject(`An error occurred: ${err}`);
+        } else {
+          resolve(JSON.parse(data.Payload).body);
+        }
+      });
     });
-  } catch (e) {
+    let correctedResponse = responsePayload.replace(/'/g, '"').replace(/b"([^"]*)"/g, '"$1"');
+    try {
+      const test = JSON.parse(correctedResponse);
+      const uri = await saveResponeBase64(test.base64);
+      const music_list = test.music_list;
+      return { responseMeditationURI: uri, responseMusicList: music_list };
+    } catch (e) {
+      console.error(`An error occurred: ${e}`);
+    }
+  }
+  catch (e) {
     console.error(`An error occurred: ${e}`);
   }
   return null;
 }
+  
 
 const saveResponeBase64 = async (responsePayload: string) => {
   try {
-  
-    const splitPayload = responsePayload.split("64': b'");
-    if (splitPayload.length < 2) {
-      throw new Error('The responsePayload does not contain the expected "64\': b\'" delimiter');
+    if (Platform.OS === 'web') {
+      // Web platform
+      const byteCharacters = atob(responsePayload);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+      console.log('File saved successfully:', url);
+      return url;
+    } else {
+      // Mobile platform
+      const filePath = `${FileSystem.documentDirectory}output.mp3`;
+      console.log('Saving file to:', filePath);
+      await FileSystem.writeAsStringAsync(filePath, responsePayload, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('File saved successfully:', filePath);
+      return filePath;
     }
-    const base64Part = splitPayload[1];
-    const trimmedBase64Part = base64Part.slice(0, -2);
-    
-    const filePath = `${FileSystem.documentDirectory}output.mp3`;
-    console.log('Saving file to:', filePath);
-    await FileSystem.writeAsStringAsync(filePath, trimmedBase64Part, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    console.log('File saved successfully:', filePath);
-    return filePath;
-  
-  }catch (error) {
+  } catch (error) {
     console.error('Error handling the audio file:', error);
     return null;
   }
-}
+};

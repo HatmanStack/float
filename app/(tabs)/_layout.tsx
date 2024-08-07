@@ -6,7 +6,6 @@ import { IncidentSave } from '@/components/LocalFileLoadAndSave';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useState } from 'react';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -25,7 +24,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} />
+            <TabBarIcon name={focused ? 'head-plus' : 'head-plus-outline'} color={color} />
           ),
         }}
       />
@@ -34,7 +33,7 @@ export default function TabLayout() {
         options={{
           title: 'Discovery',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'list' : 'list-outline'} color={color} />
+            <TabBarIcon name={focused ? 'view-list' : 'view-list-outline'} color={color} />
           ),
         }}
       />
