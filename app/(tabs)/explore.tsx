@@ -1,21 +1,24 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { Collapsible } from '@/components/Collapsible';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { getMeditation } from '@/components/BackendMeditationCall'
+import { BackendMeditationCall } from '@/components/BackendMeditationCall'
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useIncident } from '@/context/IncidentContext';
-
+import Guidance from '@/components/ScreenComponents/Guidance';
+import IncidentItem from '@/components/ScreenComponents/IncidentItem';
+import MeditationControls from '@/components/ScreenComponents/MeditationControls';
+import playMeditation from '@/components/PlayMeditation';
 
 export default function TabTwoScreen() {
-  const { incidentList, colorChangeSingleArray } = useIncident();
+  const { incidentList, colorChangeSingleArray, musicList, setMusicList } = useIncident();
   const [renderKey, setRenderKey] = useState(0);
   const [selectedIndexes, setSelctedIndexes] = useState([]);
-  const [meditationURI, setMeditationURI] = useState(null);
-  const [isCalling, setIsCalling] = useState<null | 'calling'>(null);
-  const [isPlaying, setIsPlaying] = useState<null | 'playing'>(null);
+  const [resolvedIncidents, setResolvedIncidents] = useState([]);
+  const [meditationURI, setMeditationURI] = useState('');
+  const [isCalling, setIsCalling] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   useEffect(() => {
     if (renderKey < incidentList.length) {
@@ -37,20 +40,39 @@ export default function TabTwoScreen() {
   }
 
   useEffect(() => {
-    if(isCalling) {
-      getMeditation(selectedIndexes).then((response) => {
-        setMeditationURI(response);
-      });
-      setIsCalling(null);
-    }
+    const resolveIncidents = async () => {
+      const resolved = await Promise.all(incidentList);
+      console.log('Resolved incidents:', resolved);
+      setResolvedIncidents(resolved);
+    };
+
+    resolveIncidents();
+  }, [incidentList]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (isCalling) {
+        try {
+          const response = await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList);
+          console.log('Response:', response);
+          setMeditationURI(response.responseMeditationURI);
+          setMusicList(response.responseMusicList);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        } finally {
+          setIsCalling(false);
+        }
+      }
+    };
+
+    fetchData();
   }, [isCalling]);
 
   const handleMeditationCall = () => {
-    console.log('called')
     if (selectedIndexes.length === 0) {
       return;
     }
-    setIsCalling('calling');
+    setIsCalling(true);
   }
 
   useEffect(() => {
@@ -62,34 +84,12 @@ export default function TabTwoScreen() {
 
   const handlePlayMeditation = () => {
     console.log('play');
-    if (!meditationURI){
+    if (!meditationURI) {
       return;
     }
-    setIsPlaying('playing')
-  }
-
-const playMeditation = async () => {
-  try {
-    const { sound } = await Audio.Sound.createAsync({ uri: meditationURI });
-    sound.setOnPlaybackStatusUpdate(async (status) => {
-      if (status.didJustFinish) {
-        console.log('Audio file finished playing');
-        try {
-          await FileSystem.deleteAsync(meditationURI);
-          console.log('File deleted successfully');
-        } catch (error) {
-          console.error('Error deleting the file:', error);
-        }
-        setIsPlaying(null); 
-        setMeditationURI(null);
-      }
-    });
-    await sound.playAsync();
-    console.log('Playing the file:', meditationURI);
-  } catch (error) {
-    console.error('Error handling the audio file:', error);
-  }
-};
+    setIsPlaying(true);
+    playMeditation(meditationURI, setIsPlaying, setMeditationURI); // Call the playMeditation function
+  };
 
   return (
     <ParallaxScrollView
@@ -98,58 +98,28 @@ const playMeditation = async () => {
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Discovery</ThemedText>
       </ThemedView>
-      <Collapsible title="Guidance">
-        <ThemedText type="body">Tap on the text to view the incident details</ThemedText>
-        <ThemedText type="body">This selects the incident</ThemedText>
-        <ThemedText type="body">You can select up to 3 incidents at a time</ThemedText>
-        <ThemedText type="body">Tap on generate to create a personal meditation about the selected incidents</ThemedText>
-        <ThemedText type="body">The color change of the incident represents how much time has past</ThemedText>
-        <ThemedText type="body">The green incidents are ready to be dealt with</ThemedText>
-      </Collapsible>
-      
-      {incidentList.map((incident, index) => {
-        if (!incident) return null;
-        const generatedText = incident.sentiment_label;
-        const timestamp = new Date(incident.timestamp).toLocaleString();
-        const displayText = selectedIndexes.includes(index) ? incident.user_summary : `${generatedText} - ${timestamp}`;
-
-        return (
-          <Pressable onPress={handlePress(index)} key={`${timestamp}-${renderKey}`} style={{ backgroundColor: colorChangeSingleArray[index] || '#FFFFFF', 
-  padding: selectedIndexes.includes(index) ? 50 : 30 }}>
-            <ThemedText  style={{ color: '#ffffff' }}>
-            {displayText}
-            </ThemedText>
-            <Collapsible title="Details">
-              <ThemedText type="body">{incident.intensity}</ThemedText>
-              <ThemedText type="body">{incident.summary}</ThemedText>
-            </Collapsible>
-          </Pressable>
-        );
-      })}
-      
-      {isCalling || isPlaying ? (
-      <ActivityIndicator size="large" color="#B58392"  />
-        ) : (
-          meditationURI ? (
-            <Pressable onPress={handlePlayMeditation}
-              style={({ pressed }) => [
-                {backgroundColor: pressed ? "#958DA5" : "#9DA58D"},
-                styles.button
-              ]}>{({ pressed }) => (
-              <ThemedText type="generate">{pressed ? "MEDITATE!" : "Play"}</ThemedText>
-            )}
-            </Pressable>
-          ) : (
-            <Pressable onPress={handleMeditationCall}
-            style={({ pressed }) => [
-              { backgroundColor: pressed ? "#958DA5" : "#9DA58D" },
-              styles.button 
-            ]}>{({ pressed }) => (
-              <ThemedText type="generate">{pressed ? "GENERATING!" : "Generate"}</ThemedText>
-            )}
-            </Pressable>
-          )
-        )}
+      <Guidance />
+    {resolvedIncidents.map((stringIncident, index) => {
+      if (!stringIncident || stringIncident.length === undefined) return null;
+      const incident = JSON.parse(stringIncident);
+      return (
+        <IncidentItem
+          key={index}
+          incident={incident}
+          index={index}
+          selectedIndexes={selectedIndexes}
+          handlePress={handlePress}
+          colorChangeSingleArray={colorChangeSingleArray}
+        />
+      );
+    })}
+    <MeditationControls
+      isCalling={isCalling}
+      isPlaying={isPlaying}
+      meditationURI={meditationURI}
+      handlePlayMeditation={handlePlayMeditation}
+      handleMeditationCall={handleMeditationCall}
+    />
     </ParallaxScrollView>
   );
 }
@@ -164,11 +134,5 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
-  },
-  button: {
-    padding: 20,
-    borderRadius: 20,
-    width: 200,
-    alignSelf: 'center'
   }
 });
