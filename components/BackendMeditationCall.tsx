@@ -39,8 +39,8 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
     };
   
   const serializedData = JSON.stringify(data_audio);
-  const awsId = 'AKIAZF4BCYP6R3HIBGEQ';
-  const awsSecret = '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';
+  const awsId = '';
+  const awsSecret = '';
   const awsRegion = 'us-west-1';
   
   try {

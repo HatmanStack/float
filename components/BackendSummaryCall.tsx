@@ -10,8 +10,8 @@ export async function BackendSummaryCall(recordingURI: any, separateTextPrompt: 
   console.log('data:', data);
   const serializedData = JSON.stringify(data);
 
-  const awsId = 'AKIAZF4BCYP6R3HIBGEQ';
-  const awsSecret = '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';
+  const awsId = '';
+  const awsSecret = '';
   const awsRegion = 'us-west-1';
   
   try {
