@@ -5,13 +5,13 @@ export default ({ config }) => ({
   expo: {
     name: "audio-emotion-detection",
     slug: "audio-emotion-detection",
-    version: "1.0.4",
+    version: "1.0.6",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/self_improvement_48dp.png",
     scheme: "myapp",
     userInterfaceStyle: "automatic",
     splash: {
-      image: "./assets/images/splash.png",
+      image: "./assets/images/self_improvement_splash.png",
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
@@ -20,10 +20,11 @@ export default ({ config }) => ({
       supportsTablet: true
     },
     android: {
-      versionCode: 4,
+      versionCode: 6,
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        foregroundImage: "./assets/images/self_improvement_48dp.png",
+        backgroundColor: "#A1BE95",
+        monochromeImage: "./assets/images/self_improvement_48dp.png"
       },
       package: "com.hatmanstack.audioemotiondetection"
     },
@@ -41,7 +42,7 @@ export default ({ config }) => ({
     web: {
       bundler: "metro",
       output: "static",
-      favicon: "./assets/images/favicon.png"
+      favicon: "./assets/images/self_improvement_48dp.png"
     },
     plugins: [
       "expo-router"
@@ -74,6 +75,10 @@ export default ({ config }) => ({
     },
     updates: {
       url: "https://u.expo.dev/6153244b-98d4-4cca-b254-a0b6c8cefe83"
-    }
+    },
+    assetBundlePatterns: [
+      "**/*",
+      "./assets/fonts/*.otf"  
+    ]
   }
 });

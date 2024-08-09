@@ -7,7 +7,7 @@ export async function BackendSummaryCall(recordingURI: any, separateTextPrompt: 
     prompt: separateTextPrompt && separateTextPrompt.length > 0 ? separateTextPrompt : 'NotAvailable',
     input_data: "NotAvailable",
   };
-  console.log('data:', data);
+  
   const serializedData = JSON.stringify(data);
 
   const awsId = '';
@@ -16,6 +16,7 @@ export async function BackendSummaryCall(recordingURI: any, separateTextPrompt: 
   
   try {
     const response = await invokeLambdaFunction(serializedData, awsId, awsSecret, awsRegion);
+    
     return response;
   } catch (error) {
     console.error('Error invoking Lambda function:', error);
@@ -37,22 +38,25 @@ async function invokeLambdaFunction(serializedData: string, awsId: string, awsSe
       Payload: serializedData,
     };
 
-    return new Promise((resolve, reject) => {
-      lambda.invoke(params, (err, data) => {
-        if (err) {
-          console.error(`An error occurred: ${err}`);
-          reject(err);
-        } else {
-          const responsePayload = JSON.parse(JSON.parse(data.Payload).body);
-          responsePayload.timestamp = new Date().toISOString();
-          responsePayload.color_key = 0;
-          console.log('responsePayload:', responsePayload);
-          resolve(JSON.stringify(responsePayload));
-        }
+    
+      const data = await new Promise((resolve, reject) => {
+        lambda.invoke(params, (err, data) => {
+          if (err) {
+            console.error(`An error occurred: ${err}`);
+            reject(err);
+          } else {
+            resolve(data);
+          }
+        });
       });
-    });
-  } catch (e) {
-    console.error(`An error occurred: ${e}`);
-    throw e;
-  }
+  
+      const responsePayload = JSON.parse(JSON.parse(data.Payload).body);
+      responsePayload.timestamp = new Date().toISOString();
+      responsePayload.color_key = 0;
+      
+      return responsePayload;
+    } catch (e) {
+      console.error('Error handling lambda invocation:', e);
+      // Handle the error as needed
+    }
 }
