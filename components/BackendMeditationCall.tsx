@@ -30,6 +30,8 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
     if (selectedIndexes.length > 1) {
       dict = getTransformedDict(resolvedIncidents, selectedIndexes);
     }
+    console.log('Dict:', dict);
+    console.log('Music List:', musicList);
     const data_audio = {
       inference_type: "meditation",
       audio: "NotAvailable",
@@ -37,7 +39,7 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
       music_list: musicList,
       input_data: dict,
     };
-  
+  console.log('Data:', data_audio);
   const serializedData = JSON.stringify(data_audio);
   const awsId = '';
   const awsSecret = '';

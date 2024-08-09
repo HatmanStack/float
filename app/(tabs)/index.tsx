@@ -1,14 +1,16 @@
-import { Image, TextInput, StyleSheet, ActivityIndicator, Pressable, useColorScheme } from 'react-native';
+import { Image, TextInput, StyleSheet, useColorScheme } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import  RecordButton  from '@/components/ScreenComponents/RecordButton';
+import  SubmitButton  from '@/components/ScreenComponents/SubmitButton';
 import { StartRecording, StopRecording } from '@/components/AudioRecording';
 import { BackendSummaryCall } from '@/components/BackendSummaryCall';
 import { useIncident } from '@/context/IncidentContext';
 import { Audio } from 'expo-av';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
+
 
 export default function HomeScreen() {
   const [separateTextPrompt, setSeparateTextPrompt] = useState('');
@@ -18,6 +20,10 @@ export default function HomeScreen() {
   const [summaryCall, setSummaryCall] = useState(false);
   const { setIncidentList } = useIncident();
   const colorScheme = useColorScheme();
+  const { width, height } = useWindowDimensions();
+
+  useEffect(() => {
+  }, [width, height]);
 
   const handleStartRecording = async () => {
     try {
@@ -61,9 +67,9 @@ export default function HomeScreen() {
                 let response;
                 if (recording) {
                   const base64_file = await StopRecording(recording);
-                  response = BackendSummaryCall(base64_file, separateTextPrompt);
+                  response = await BackendSummaryCall(base64_file, separateTextPrompt);
                 } else {
-                  response = BackendSummaryCall(URI, separateTextPrompt) 
+                  response = await BackendSummaryCall(URI, separateTextPrompt) 
                 }
                 setSummaryCall(false);
                 setErrorText(false);
@@ -81,22 +87,19 @@ export default function HomeScreen() {
     fetchData();
 }, [summaryCall]);
 
-const imageSource = colorScheme === 'dark'
-    ? require('@/assets/images/self_improvement_white.svg')
-    : require('@/assets/images/self_improvement_dark.svg');
-
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
+      headerBackgroundColor={{ light: '#bfaeba', dark: '#60465a' }}
       headerImage={
         <Image
-          source={imageSource}
+          source={require('@/assets/images/self_improvement_dark.svg')}
           style={styles.Logo}
         />
-      }>
+      }
+      headerText={<ThemedText type="header">FLOAT</ThemedText>}>
+      
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Hey! How are you?</ThemedText>
-        <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Something Wrong? Tell me about it.</ThemedText>
@@ -111,28 +114,17 @@ const imageSource = colorScheme === 'dark'
           textAlignVertical="top"
           onChangeText={setSeparateTextPrompt}
         />
-        <ThemedView style={[styles.stepContainer, { flexDirection: 'row', justifyContent: 'space-evenly', margin : 30 }]}>
-        <ThemedView style={{flexDirection: 'column'}}>
-        <Pressable onPress={recording ? handleStopRecording : handleStartRecording}
-        style={({ pressed }) => [
-          { backgroundColor: pressed ? "#958DA5" : "#9DA58D" },
-          styles.button 
-        ]}>{({ pressed }) => (
-          <ThemedText type="generate">{recording ? pressed ? "STOP RECORDING": "Stop Recording" : pressed ? "RECORDING!" : "Record Audio"}</ThemedText>
-        )}
-        </Pressable>
-        {errorText && <ThemedText>Microphone is not available</ThemedText>}
-        {recording && <ThemedText>Recording...</ThemedText>}
-        </ThemedView>
-        {summaryCall ? <ActivityIndicator size="large" color="#B58392"  /> : 
-        <Pressable onPress={handleSummaryCall}
-        style={({ pressed }) => [
-          { backgroundColor: pressed ? "#958DA5" : "#9DA58D" },
-          styles.button 
-        ]}>{({ pressed }) => (
-          <ThemedText type="generate">{pressed ? "SUBMITTING!" : "Submit Incident"}</ThemedText>
-        )}
-        </Pressable>}
+        <ThemedView style={[styles.stepContainer, { flexDirection: 'row', justifyContent: 'space-evenly', margin: 30 }]}>
+          <RecordButton
+            recording={recording}
+            handleStartRecording={handleStartRecording}
+            handleStopRecording={handleStopRecording}
+            errorText={errorText}
+          />
+          <SubmitButton
+            summaryCall={summaryCall}
+            handleSummaryCall={handleSummaryCall}
+          />
         </ThemedView>
       </ThemedView>
     </ParallaxScrollView>
@@ -158,8 +150,8 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 200,
-    borderColor: 'gray',
-    borderWidth: 1,
+    borderColor: '#60465a',
+    borderWidth: 5,
     marginTop: 10,
     fontSize: 20,
     paddingHorizontal: 10,
