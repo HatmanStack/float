@@ -46,7 +46,7 @@ export function ThemedText({
       title: {
         fontSize: 20 * scale,
         fontWeight: "bold",
-        lineHeight: 20 * scale,  // Android Build : 20 // Web Build : 15
+        lineHeight: 20 * scale, 
       },
       subtitle: {
         fontSize: 15 * scale,
@@ -65,7 +65,7 @@ export function ThemedText({
         textAlign: "center",
       },
       header: {
-        fontSize: 25 * scale, // Android Build : 25 // Web Build : 75
+        fontSize: 75 * scale, 
         lineHeight: 8 * scale,
         fontFamily: "Logo",
       },

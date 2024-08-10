@@ -99,7 +99,7 @@ export default function HomeScreen() {
       headerImage={
         <MaterialIcons
           size={310}
-          name="self-improvement"
+          name="create"
           style={styles.headerImage}
         />
       }

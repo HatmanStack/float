@@ -1,4 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useWindowDimensions } from "react-native";
 import React, { useState, useEffect } from "react";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -9,13 +9,13 @@ import { useIncident } from "@/context/IncidentContext";
 import Guidance from "@/components/ScreenComponents/Guidance";
 import IncidentItem from "@/components/ScreenComponents/IncidentItem";
 import MeditationControls from "@/components/ScreenComponents/MeditationControls";
-import playMeditation from "@/components/PlayMeditation";
 import useStyles from "@/constants/StylesConstants";
 
 import {
   GestureHandlerRootView,
   Swipeable,
 } from "react-native-gesture-handler";
+
 
 export default function TabTwoScreen() {
   const {
@@ -30,7 +30,6 @@ export default function TabTwoScreen() {
   const [asyncDeleteIncident, setAsyncDeleteIncident] = useState(null);
   const [meditationURI, setMeditationURI] = useState("");
   const [isCalling, setIsCalling] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [openIndexes, setOpenIndexes] = useState({});
   const { width, height } = useWindowDimensions();
   const styles = useStyles();
@@ -87,21 +86,6 @@ export default function TabTwoScreen() {
   };
 
   useEffect(() => {
-    if (isPlaying) {
-      playMeditation();
-    }
-  }, [isPlaying]);
-
-  const handlePlayMeditation = () => {
-    console.log("play");
-    if (!meditationURI) {
-      return;
-    }
-    setIsPlaying(true);
-    playMeditation(meditationURI, setIsPlaying, setMeditationURI); // Call the playMeditation function
-  };
-
-  useEffect(() => {
     if (asyncDeleteIncident !== null) {
       setIncidentList((prevIncidents) =>
         prevIncidents.filter((_, i) => i !== asyncDeleteIncident)
@@ -132,7 +116,7 @@ export default function TabTwoScreen() {
       <ParallaxScrollView
         headerBackgroundColor={{ light: "#bfaeba", dark: "#60465a" }}
         headerImage={
-          <Ionicons size={310} name="list" style={styles.headerImage} />
+          <MaterialIcons size={310} name="self-improvement" style={styles.headerImage} />
         }
         headerText={<ThemedText type="header">FLOAT</ThemedText>}
       >
@@ -168,9 +152,7 @@ export default function TabTwoScreen() {
         })}
         <MeditationControls
           isCalling={isCalling}
-          isPlaying={isPlaying}
           meditationURI={meditationURI}
-          handlePlayMeditation={handlePlayMeditation}
           handleMeditationCall={handleMeditationCall}
         />
       </ParallaxScrollView>

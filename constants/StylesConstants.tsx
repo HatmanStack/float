@@ -7,7 +7,7 @@ const useStyles = () => {
   const buttonMarginTop = Platform.OS === "android" ? 60 : 30;
 
   const colorScheme = useColorScheme();
-  const headerImageColor = colorScheme === "light" ? "#FFFFF2" : "#808080";
+  const headerImageColor = colorScheme === "light" ? "#60465a" : "#bfaeba";
 
   return StyleSheet.create({
     button: {
