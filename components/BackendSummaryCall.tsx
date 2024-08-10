@@ -1,4 +1,5 @@
 import AWS from "aws-sdk";
+import Constants from 'expo-constants';
 
 export async function BackendSummaryCall(
   recordingURI: any,
@@ -16,9 +17,9 @@ export async function BackendSummaryCall(
 
   const serializedData = JSON.stringify(data);
 
-  const awsId = "AKIAZF4BCYP6R3HIBGEQ";
-  const awsSecret = "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";
-  const awsRegion = "us-west-1";
+  const awsId = Constants.manifest.extra.AWS_ID;
+  const awsSecret = Constants.manifest.extra.AWS_SECRET;
+  const awsRegion = Constants.manifest.extra.AWS_REGION;
 
   try {
     const response = await invokeLambdaFunction(
