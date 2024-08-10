@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactElement } from "react";
-import { StyleSheet, useColorScheme, View } from "react-native";
+import { StyleSheet, useColorScheme, View, Platform } from "react-native";
 import Animated, {
   interpolate,
   useAnimatedRef,
@@ -60,7 +60,13 @@ export default function ParallaxScrollView({
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {headerImage}
-            <View style={{ flex: 1, alignItems: "center", margin: 100 }}>
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                margin: Platform.OS === "android" ? 20 : 100,
+              }}
+            >
               {headerText}
             </View>
           </View>

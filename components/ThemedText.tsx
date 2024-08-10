@@ -3,6 +3,7 @@ import {
   type TextProps,
   StyleSheet,
   Dimensions,
+  Platform
 } from "react-native";
 
 import { useThemeColor } from "@/hooks/useThemeColor";
@@ -31,7 +32,7 @@ export function ThemedText({
 }: ThemedTextProps) {
   const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
   const window = Dimensions.get("window");
-
+  
   const getStyles = () => {
     const baseWidth = 500;
 
@@ -66,7 +67,11 @@ export function ThemedText({
       },
       header: {
         fontSize: 75 * scale, 
-        lineHeight: 8 * scale,
+        lineHeight: Platform.select({
+          web: 30 * scale,
+          android: 100,
+          default: 50,
+        }),
         fontFamily: "Logo",
       },
       details: {

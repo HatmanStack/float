@@ -5,7 +5,7 @@ export default ({ config }) => ({
   expo: {
     name: "Float",
     slug: "audio-emotion-detection",
-    version: "1.0.16",
+    version: "1.0.18",
     orientation: "portrait",
     icon: "./assets/images/self_improvement_icon.png",
     scheme: "myapp",
@@ -20,7 +20,7 @@ export default ({ config }) => ({
       supportsTablet: true
     },
     android: {
-      versionCode: 16,
+      versionCode: 18,
       adaptiveIcon: {
         foregroundImage: "./assets/images/self_improvement_icon.png",
         backgroundColor: "#A1BE95",
