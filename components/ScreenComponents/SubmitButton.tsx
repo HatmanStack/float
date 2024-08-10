@@ -1,30 +1,33 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, TextInput, View, StyleSheet } from 'react-native';
-import { ThemedText } from '@/components/ThemedText'; // Adjust the import according to your actual component library
-import { Colors } from '@/constants/Colors';
-import styles from '@/constants/StylesConstants'; 
+import React from "react";
+import { ActivityIndicator, Pressable } from "react-native";
+import { ThemedText } from "@/components/ThemedText"; // Adjust the import according to your actual component library
+import { Colors } from "@/constants/Colors";
+import useStyles from "@/constants/StylesConstants"; // Ensure correct import
 
+const SubmitButton = ({ summaryCall, handleSummaryCall }) => {
+  const styles = useStyles(); // Call useStyles inside the component
 
-
-const SubmitButton = ({ summaryCall, handleSummaryCall }) => (
-    summaryCall ? (
-      <ActivityIndicator size="large" color={Colors["activityIndicator"]} />
-    ) : (
-      <Pressable
-        onPress={handleSummaryCall}
-        style={({ pressed }) => [
-          { backgroundColor: pressed ? Colors["buttonPressed"] : Colors["buttonUnpressed"] },
-          styles.button
-        ]}
-      >
-        {({ pressed }) => (
-          <ThemedText type="generate">
-            {pressed ? "SUBMITTING!" : "Submit Incident"}
-          </ThemedText>
-        )}
-      </Pressable>
-    )
+  return summaryCall ? (
+    <ActivityIndicator size="large" color={Colors["activityIndicator"]} />
+  ) : (
+    <Pressable
+      onPress={handleSummaryCall}
+      style={({ pressed }) => [
+        {
+          backgroundColor: pressed
+            ? Colors["buttonPressed"]
+            : Colors["buttonUnpressed"],
+        },
+        styles.button, // Use the styles returned by useStyles
+      ]}
+    >
+      {({ pressed }) => (
+        <ThemedText type="generate">
+          {pressed ? "SUBMITTING!" : "Submit Incident"}
+        </ThemedText>
+      )}
+    </Pressable>
   );
+};
 
-
-  export default SubmitButton;
+export default SubmitButton;

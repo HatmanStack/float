@@ -16,6 +16,8 @@ export default function RootLayout() {
     Logo: require('../assets/fonts/Poppins-ExtraBold.ttf'),
   });
 
+
+
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
@@ -28,10 +30,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }}  />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+      
     </ThemeProvider>
   );
 }

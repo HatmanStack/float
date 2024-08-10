@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable } from 'react-native';
+import { Animated, Pressable, Platform } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Collapsible } from '@/components/Collapsible';
 import { ThemedView } from '@/components/ThemedView';
 import { useIncident } from '@/context/IncidentContext';
+import useStyles from "@/constants/StylesConstants";
+
     
 
 const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress, isOpen, toggleCollapsible }) => {
@@ -11,6 +13,7 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
   const { colorChangeArrayOfArrays } = useIncident();
   const displayText = selectedIndexes.includes(index) ? incident.user_summary : `${incident.user_short_summary} - ${timestamp}`;
   const [isSwiping, setIsSwiping] = useState(false);
+  const styles = useStyles();
   const [colors, setColors] = useState(['#fff', '#fff']);
   const colorAnim = useRef(new Animated.Value(0)).current;
   const colorChangeDuration = 500;
@@ -58,16 +61,23 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
     outputRange: colors,
   });
 
+  const onPressHandler = (index) => {
+    console.log("onPressHandler", index);
+    handlePress(index)(); // Call the returned function
+  };
+
   return (
-    <ThemedView style={{flexDirection: "row", justifyContent:"space-between" }}>
+    <ThemedView style={styles.incidentContainer}>
     <Animated.View style={{backgroundColor, width: '100%'}}>
     <Pressable 
-      onPress={handlePress(index)} 
+      onPress={() => onPressHandler(index)} 
       onPressIn={() => setIsSwiping(true)}
       onPressOut={() => setIsSwiping(false)}
       key={renderKey + 'selectedIndex'} 
       style={{ 
-        padding: selectedIndexes.includes(index) ? 50 : 30
+        padding: 30,
+        paddingTop: selectedIndexes.includes(index) ? 50 : 30,
+        paddingBottom: selectedIndexes.includes(index) ? 50 : 30,
         }}>
       <ThemedText type="details" style={{ color: '#ffffff' }}>
         {displayText}
@@ -75,21 +85,23 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
       
       {selectedIndexes.includes(index) && 
       <Collapsible 
-        title="Details" 
-        incidentColor={backgroundColor}
-        isOpen={isOpen} 
+        title="Details"
+        textType="incidentSubtitle"
+        /**{Web Build : incidentColor={backgroundColor} }*/
+        isOpen={isOpen}
         onToggle={toggleCollapsible}
       >
-        <ThemedText type="subtitle">Sentiment: <ThemedText type="details">{incident.sentiment_label}</ThemedText></ThemedText>
-        <ThemedText type="subtitle">Intensity: <ThemedText type="details">{incident.intensity}</ThemedText></ThemedText>
-        <ThemedText type="subtitle">Reasoning: <ThemedText type="details">{incident.summary}</ThemedText></ThemedText>
+        <ThemedText type="incidentSubtitle">Sentiment: <ThemedText type="incidentDetails">{incident.sentiment_label}</ThemedText></ThemedText>
+        <ThemedText type="incidentSubtitle">Intensity: <ThemedText type="incidentDetails">{incident.intensity}</ThemedText></ThemedText>
+        <ThemedText type="incidentSubtitle">Reasoning: <ThemedText type="incidentDetails">{incident.summary}</ThemedText></ThemedText>
         {incident.speech_to_text !== 'NotAvailable' && (
-          <ThemedText type="subtitle">Speech: <ThemedText type="details">{incident.speech_to_text}</ThemedText></ThemedText>
+          <ThemedText type="incidentSubtitle">Speech: <ThemedText type="incidentDetails">{incident.speech_to_text}</ThemedText></ThemedText>
         )}
         {incident.added_text !== 'NotAvailable' && (
-          <ThemedText type="subtitle">Text: <ThemedText type="details">{incident.added_text}</ThemedText></ThemedText>
+          <ThemedText type="incidentSubtitle">Text: <ThemedText type="incidentDetails">{incident.added_text}</ThemedText></ThemedText>
         )}
-      </Collapsible>}
+      </Collapsible>
+      }
     </Pressable>
         </Animated.View>
     </ThemedView>
