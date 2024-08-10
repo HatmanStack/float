@@ -3,11 +3,11 @@ import 'dotenv/config';
 
 export default ({ config }) => ({
   expo: {
-    name: "audio-emotion-detection",
+    name: "Float",
     slug: "audio-emotion-detection",
-    version: "1.0.6",
+    version: "1.0.16",
     orientation: "portrait",
-    icon: "./assets/images/self_improvement_48dp.png",
+    icon: "./assets/images/self_improvement_icon.png",
     scheme: "myapp",
     userInterfaceStyle: "automatic",
     splash: {
@@ -20,16 +20,16 @@ export default ({ config }) => ({
       supportsTablet: true
     },
     android: {
-      versionCode: 6,
+      versionCode: 16,
       adaptiveIcon: {
-        foregroundImage: "./assets/images/self_improvement_48dp.png",
+        foregroundImage: "./assets/images/self_improvement_icon.png",
         backgroundColor: "#A1BE95",
-        monochromeImage: "./assets/images/self_improvement_48dp.png"
+        monochromeImage: "./assets/images/self_improvement_icon.png"
       },
       package: "com.hatmanstack.audioemotiondetection"
     },
     extra: {
-      AWS_ID: process.env.AWS_ID,
+      	AWS_ID: process.env.AWS_ID,
           AWS_SECRET: process.env.AWS_SECRET,
           AWS_REGION: process.env.AWS_REGION,
       router: {
@@ -42,7 +42,7 @@ export default ({ config }) => ({
     web: {
       bundler: "metro",
       output: "static",
-      favicon: "./assets/images/self_improvement_48dp.png"
+      favicon: "./assets/images/self_improvement_web.png"
     },
     plugins: [
       "expo-router"
@@ -50,26 +50,7 @@ export default ({ config }) => ({
     experiments: {
       typedRoutes: true
     },
-    build: {
-      development: {
-        distribution: "internal",
-        android: {
-          buildType: "apk"
-        },
-        ios: {
-          simulator: true
-        }
-      },
-      production: {
-        distribution: "store",
-        android: {
-          buildType: "app-bundle"
-        },
-        ios: {
-          simulator: false
-        }
-      }
-    },
+   
     runtimeVersion: {
       policy: "appVersion"
     },

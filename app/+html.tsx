@@ -1,6 +1,5 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
-import * as Updates from 'expo-updates';
 
 /**
  * This file is web-only and used to configure the root HTML for every web page during static rendering.
