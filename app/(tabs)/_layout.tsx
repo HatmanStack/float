@@ -26,7 +26,7 @@ export default function TabLayout() {
             title: "Create",
             tabBarIcon: ({ color}) => (
               <TabBarIcon
-                name={"create"}
+                name={"settings-voice"}
                 color={color}
               />
             ),

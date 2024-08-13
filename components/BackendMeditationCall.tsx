@@ -1,7 +1,6 @@
 import AWS from "aws-sdk";
 import * as FileSystem from "expo-file-system";
 import { Platform } from "react-native";
-import Constants from 'expo-constants';
 
 const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
   const transformedDict = {
@@ -46,9 +45,9 @@ export async function BackendMeditationCall(
   };
   console.log("Data:", data_audio);
   const serializedData = JSON.stringify(data_audio);
-  const awsId = Constants.manifest.extra.AWS_ID;
-  const awsSecret = Constants.manifest.extra.AWS_SECRET;
-  const awsRegion = Constants.manifest.extra.AWS_REGION;
+  const awsId = process.env.EXPO_PUBLIC_AWS_ID;
+  const awsSecret = process.env.EXPO_PUBLIC_AWS_SECRET;
+  const awsRegion = process.env.EXPO_PUBLIC_AWS_REGION;
 
   try {
     const lambda = new AWS.Lambda({

@@ -35,7 +35,6 @@ function convertBlobToBase64(blob) {
 export async function StopRecording(recording) {
   try {
     if (recording) {
-      await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
 
       let base64_file;
@@ -53,8 +52,9 @@ export async function StopRecording(recording) {
         base64_file = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
+        await FileSystem.deleteAsync(uri);
       }
-
+      
       return base64_file;
     }
   } catch (error) {

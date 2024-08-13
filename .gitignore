@@ -4,7 +4,6 @@ node_modules/
 .vscode/
 android/
 dist/
-dist/
 npm-debug.*
 *.jks
 *.p8

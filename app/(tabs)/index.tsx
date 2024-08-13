@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const [URI, setURI] = useState("");
   const [errorText, setErrorText] = useState(false);
   const [summaryCall, setSummaryCall] = useState(false);
+  const [submitActivity, setSubmitActivity] = useState(false);
   const { setIncidentList } = useIncident();
   const { width, height } = useWindowDimensions();
   const styles = useStyles();
@@ -47,24 +48,28 @@ export default function HomeScreen() {
   };
 
   const handleStopRecording = async () => {
+    if (recording) {
+    await recording.stopAndUnloadAsync();
     const uri = await StopRecording(recording);
     setURI(uri);
     setRecording(null);
-    console.log("Recording stopped and stored at:", uri);
+    }
   };
 
   const handleSummaryCall = async () => {
     setSummaryCall(true);
+    setSubmitActivity(true);
   };
 
   useEffect(() => {
     if (summaryCall) {
+      setSummaryCall(false);
       const fetchData = async () => {
         if (!URI && !separateTextPrompt) {
           console.log(
             "Returning early due to null recording and empty separateTextPrompt"
           );
-          setSummaryCall(false);
+          
           return;
         }
         try {
@@ -78,14 +83,19 @@ export default function HomeScreen() {
           } else {
             response = await BackendSummaryCall(URI, separateTextPrompt);
           }
-          setIncidentList((prevList) => [response, ...prevList]);
-          setRecording(null);
-          setURI("");
-          setErrorText(false);
+          console.log("Response from summary lambda:", response);
+            setIncidentList((prevList) => [response, ...prevList]);
+            setRecording(null);
+            setURI("");
+            setSeparateTextPrompt("");
+            setErrorText(false);
+          
+          
+          
         } catch (error) {
           console.error("Failed to call summary lambda:", error);
         } finally {
-          setSummaryCall(false);
+          setSubmitActivity(false);
         }
       };
 
@@ -99,7 +109,7 @@ export default function HomeScreen() {
       headerImage={
         <MaterialIcons
           size={310}
-          name="create"
+          name="settings-voice"
           style={styles.headerImage}
         />
       }
@@ -130,7 +140,7 @@ export default function HomeScreen() {
             errorText={errorText}
           />
           <SubmitButton
-            summaryCall={summaryCall}
+            submitActivity={submitActivity}
             handleSummaryCall={handleSummaryCall}
           />
         </ThemedView>

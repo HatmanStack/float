@@ -4,14 +4,14 @@ import { ThemedText } from "@/components/ThemedText"; // Adjust the import accor
 import { Colors } from "@/constants/Colors";
 import useStyles from "@/constants/StylesConstants"; // Ensure correct import
 
-const SubmitButton = ({ summaryCall, handleSummaryCall }) => {
+const SubmitButton = ({ submitActivity, handleSummaryCall }) => {
   const styles = useStyles(); // Call useStyles inside the component
 
-  return summaryCall ? (
+  return submitActivity ? (
     <ActivityIndicator size="large" color={Colors["activityIndicator"]} />
   ) : (
     <Pressable
-      onPress={handleSummaryCall}
+      onPress={() => handleSummaryCall()}
       style={({ pressed }) => [
         {
           backgroundColor: pressed

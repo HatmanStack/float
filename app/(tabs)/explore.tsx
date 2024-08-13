@@ -153,6 +153,7 @@ export default function TabTwoScreen() {
         <MeditationControls
           isCalling={isCalling}
           meditationURI={meditationURI}
+          setMeditationURI={setMeditationURI}
           handleMeditationCall={handleMeditationCall}
         />
       </ParallaxScrollView>
