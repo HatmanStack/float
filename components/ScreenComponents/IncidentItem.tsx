@@ -87,7 +87,7 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
       <Collapsible 
         title="Details"
         textType="incidentSubtitle"
-        {...(Platform.OS === 'web' ? { incidentColor : {backgroundColor} } : {})}     
+        /** Necessary for Web Build { incidentColor = {backgroundColor} }*/ 
         isOpen={isOpen}
         onToggle={toggleCollapsible}
       >

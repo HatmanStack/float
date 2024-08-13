@@ -69,7 +69,7 @@ export function ThemedText({
         fontSize: 75 * scale, 
         lineHeight: Platform.select({
           web: 30 * scale,
-          android: 100,
+          android: 175,
           default: 50,
         }),
         fontFamily: "Logo",

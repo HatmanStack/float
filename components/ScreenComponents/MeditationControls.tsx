@@ -9,6 +9,7 @@ import { ThemedView } from "@/components/ThemedView";
 const MeditationControls = ({
   isCalling,
   meditationURI,
+  setMeditationURI,
   handleMeditationCall
 }) => {
   const [isPausing, setisPausing] = useState(false);
@@ -46,6 +47,7 @@ const MeditationControls = ({
             console.log("Audio file finished playing");
             setIsPlaying(false);
             setSound(null);
+            setMeditationURI('');
           }
         });
         await newSound.playAsync();

@@ -1,10 +1,10 @@
 import AWS from "aws-sdk";
-import Constants from 'expo-constants';
 
 export async function BackendSummaryCall(
   recordingURI: any,
   separateTextPrompt: string
 ) {
+  
   const data = {
     inference_type: "summary",
     audio: recordingURI ? recordingURI : "NotAvailable",
@@ -16,11 +16,11 @@ export async function BackendSummaryCall(
   };
 
   const serializedData = JSON.stringify(data);
-
-  const awsId = Constants.manifest.extra.AWS_ID;
-  const awsSecret = Constants.manifest.extra.AWS_SECRET;
-  const awsRegion = Constants.manifest.extra.AWS_REGION;
-
+  
+  const awsId = process.env.EXPO_PUBLIC_AWS_ID;
+  const awsSecret = process.env.EXPO_PUBLIC_AWS_SECRET;
+  const awsRegion = process.env.EXPO_PUBLIC_AWS_REGION;
+  
   try {
     const response = await invokeLambdaFunction(
       serializedData,

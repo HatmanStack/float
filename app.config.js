@@ -5,7 +5,7 @@ export default ({ config }) => ({
   expo: {
     name: "Float",
     slug: "audio-emotion-detection",
-    version: "1.0.18",
+    version: "1.0.23",
     orientation: "portrait",
     icon: "./assets/images/self_improvement_icon.png",
     scheme: "myapp",
@@ -20,7 +20,7 @@ export default ({ config }) => ({
       supportsTablet: true
     },
     android: {
-      versionCode: 18,
+      versionCode: 23,
       adaptiveIcon: {
         foregroundImage: "./assets/images/self_improvement_icon.png",
         backgroundColor: "#A1BE95",
@@ -29,9 +29,6 @@ export default ({ config }) => ({
       package: "com.hatmanstack.audioemotiondetection"
     },
     extra: {
-      	AWS_ID: process.env.AWS_ID,
-          AWS_SECRET: process.env.AWS_SECRET,
-          AWS_REGION: process.env.AWS_REGION,
       router: {
         origin: false
       },

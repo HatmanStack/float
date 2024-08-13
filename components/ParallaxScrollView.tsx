@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactElement } from "react";
 import { StyleSheet, useColorScheme, View, Platform } from "react-native";
+import { Dimensions } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedRef,
@@ -26,7 +27,7 @@ export default function ParallaxScrollView({
   const colorScheme = useColorScheme() ?? "light";
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
-
+  const windowWidth = Dimensions.get('window').width;
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -67,7 +68,7 @@ export default function ParallaxScrollView({
                 margin: Platform.OS === "android" ? 20 : 100,
               }}
             >
-              {headerText}
+              {windowWidth < 501 ? null : headerText}
             </View>
           </View>
         </Animated.View>

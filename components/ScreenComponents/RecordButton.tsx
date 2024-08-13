@@ -16,7 +16,7 @@ const RecordButton = ({
   return (
     <ThemedView style={{ flexDirection: "column" }}>
       <Pressable
-        onPress={recording ? handleStopRecording : handleStartRecording}
+        onPress={() => recording ? handleStopRecording() : handleStartRecording()}
         style={({ pressed }) => [
           {
             backgroundColor: pressed
