@@ -12,7 +12,7 @@ const RecordButton = ({
   errorText,
 }) => {
   const styles = useStyles(); // Call useStyles inside the component
-
+  
   return (
     <ThemedView style={{ flexDirection: "column" }}>
       <Pressable

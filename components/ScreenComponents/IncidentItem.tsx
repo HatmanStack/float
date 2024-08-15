@@ -65,7 +65,8 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
     console.log("onPressHandler", index);
     handlePress(index)(); // Call the returned function
   };
-
+  
+  
   return (
     <ThemedView style={styles.incidentContainer}>
     <Animated.View style={{backgroundColor, width: '100%'}}>
@@ -87,7 +88,7 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
       <Collapsible 
         title="Details"
         textType="incidentSubtitle"
-        /** Necessary for Web Build { incidentColor = {backgroundColor} }*/ 
+        incidentColor = {backgroundColor} 
         isOpen={isOpen}
         onToggle={toggleCollapsible}
       >

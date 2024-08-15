@@ -113,7 +113,7 @@ export default function HomeScreen() {
           style={styles.headerImage}
         />
       }
-      headerText={<ThemedText type="header">FLOAT</ThemedText>}
+      headerText={<ThemedText type="header">fLoAt</ThemedText>}
     >
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Hey! How are you?</ThemedText>

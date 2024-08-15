@@ -42,6 +42,7 @@ export async function BackendMeditationCall(
     prompt: "NotAvailable",
     music_list: musicList,
     input_data: dict,
+    user_id: "1234567"
   };
   console.log("Data:", data_audio);
   const serializedData = JSON.stringify(data_audio);
@@ -67,17 +68,17 @@ export async function BackendMeditationCall(
         if (err) {
           reject(`An error occurred: ${err}`);
         } else {
+          
           resolve(JSON.parse(data.Payload).body);
+          console.log(data.Payload)
         }
       });
     });
-    let correctedResponse = responsePayload
-      .replace(/'/g, '"')
-      .replace(/b"([^"]*)"/g, '"$1"');
-    try {
-      const test = JSON.parse(correctedResponse);
-      const uri = await saveResponeBase64(test.base64);
-      const music_list = test.music_list;
+    try{
+      console.log(responsePayload)
+      const response = JSON.parse(responsePayload);
+      const uri = await saveResponeBase64(response.base64);
+      const music_list = response.music_list;
       return { responseMeditationURI: uri, responseMusicList: music_list };
     } catch (e) {
       console.error(`An error occurred: ${e}`);
