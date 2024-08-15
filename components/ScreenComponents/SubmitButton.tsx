@@ -6,7 +6,7 @@ import useStyles from "@/constants/StylesConstants"; // Ensure correct import
 
 const SubmitButton = ({ submitActivity, handleSummaryCall }) => {
   const styles = useStyles(); // Call useStyles inside the component
-
+  
   return submitActivity ? (
     <ActivityIndicator size="large" color={Colors["activityIndicator"]} />
   ) : (
@@ -23,7 +23,7 @@ const SubmitButton = ({ submitActivity, handleSummaryCall }) => {
     >
       {({ pressed }) => (
         <ThemedText type="generate">
-          {pressed ? "SUBMITTING!" : "Submit Incident"}
+          {pressed ? "SUBMITTING!" : "Submit Float"}
         </ThemedText>
       )}
     </Pressable>

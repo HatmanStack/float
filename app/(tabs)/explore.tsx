@@ -1,6 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useWindowDimensions } from "react-native";
-import React, { useState, useEffect } from "react";
+import * as React from "react";
+import { useState, useEffect } from "react";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { BackendMeditationCall } from "@/components/BackendMeditationCall";
 import { ThemedText } from "@/components/ThemedText";
@@ -15,7 +16,6 @@ import {
   GestureHandlerRootView,
   Swipeable,
 } from "react-native-gesture-handler";
-
 
 export default function TabTwoScreen() {
   const {
@@ -118,7 +118,7 @@ export default function TabTwoScreen() {
         headerImage={
           <MaterialIcons size={310} name="self-improvement" style={styles.headerImage} />
         }
-        headerText={<ThemedText type="header">FLOAT</ThemedText>}
+        headerText={<ThemedText type="header">fLoAt</ThemedText>}
       >
         <ThemedView style={styles.titleContainer}>
           <ThemedText type="title">Discovery</ThemedText>
@@ -129,6 +129,7 @@ export default function TabTwoScreen() {
             handleDeleteIncident(index);
             return null;
           }
+          
           const timestamp = new Date(incident.timestamp).toLocaleString();
           const uniqueKey = timestamp + renderKey;
           return (

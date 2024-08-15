@@ -13,6 +13,7 @@ export async function BackendSummaryCall(
         ? separateTextPrompt
         : "NotAvailable",
     input_data: "NotAvailable",
+    user_id: "1234567"
   };
 
   const serializedData = JSON.stringify(data);
@@ -65,8 +66,19 @@ async function invokeLambdaFunction(
         }
       });
     });
-
-    const responsePayload = JSON.parse(JSON.parse(data.Payload).body);
+    
+    const responsePayloadString = JSON.parse(data.Payload).body;
+    console.log("TYPE OF:", typeof responsePayloadString);
+    console.log(responsePayloadString);
+    
+    let responsePayload;
+    try {
+        // Directly parse the JSON string
+        responsePayload = JSON.parse(responsePayloadString);
+        console.log("TYPE OF responsePayload:", typeof responsePayload); // Should log "object"
+    } catch (error) {
+        console.error('Error parsing responsePayload:', error);
+    }
     responsePayload.timestamp = new Date().toISOString();
     responsePayload.color_key = 0;
 

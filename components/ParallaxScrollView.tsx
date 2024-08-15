@@ -68,7 +68,7 @@ export default function ParallaxScrollView({
                 margin: Platform.OS === "android" ? 20 : 100,
               }}
             >
-              {windowWidth < 501 ? null : headerText}
+              {headerText}
             </View>
           </View>
         </Animated.View>
