@@ -46,28 +46,45 @@ def generate_color_gradient(start_hex, end_hex, num_colors):
     start_rgb = hex_to_rgb(start_hex)
     end_rgb = hex_to_rgb(end_hex)
 
-    color_steps = [(end_rgb[i] - start_rgb[i]) / (num_colors - 1) for i in range(3)]
+    #color_steps = [(end_rgb[i] - start_rgb[i]) / (num_colors - 1) for i in range(3)]
 
     # Generate sigmoid weights
     x = np.linspace(-6, 6, num_colors)
-    #weights = sigmoid(x)
-    weights = modified_sigmoid(x)
-    print(weights)
+    weights = sigmoid(x)
+    #weights = modified_sigmoid(x)
+    
     #weights = triangular_weights(num_colors, num_colors // 2)
     #weights = gaussian_weights(num_colors, num_colors // 2, num_colors / 4)
 
     
     colors = []
     for i in range(num_colors):
-        color = [int(start_rgb[j] + i * color_steps[j] ) for j in range(3)]
+        color = [int(start_rgb[j] + weights[i] * (end_rgb[j] - start_rgb[j])) for j in range(3)]
         colors.append(rgb_to_hex(color))
     
 
     return colors
 
+
+
 # Generate the color gradient
+labels = ["one", "two", "three", "four", "five"]
+holderDict = {}
+num_colors = [19, 40, 70, 110, 150, 190]
+space = [ 2, 4, 6, 8, 10]
+master_colors = generate_color_gradient('#818589', '#1CE815', 19)
+
+for i in range(len(space)):
+  color_array = []
+  for j in range(len(master_colors) - 1):
+    color_array.extend(generate_color_gradient(master_colors[j], master_colors[j+1], space[i]))
+    print(len(color_array))
+  holderDict[labels[i]] = color_array
+
+print(holderDict)
+'''
 num_colors = 19
-colors = generate_color_gradient('#FF0000', '#1CE815', num_colors)
+colors = generate_color_gradient('#818589', '#1CE815', num_colors)
 
 # Visualize the color swatches
 plt.figure(figsize=(8, 2))
@@ -86,3 +103,4 @@ for i, color in enumerate(colors):
 plt.subplots_adjust(wspace=0.2)
 plt.savefig('color_gradient.png')
 print(colors)
+'''

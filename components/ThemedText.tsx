@@ -38,7 +38,7 @@ export function ThemedText({
 
     let scale = window.width / baseWidth;
     scale = Math.min(Math.max(scale, 1), 1.58);
-    console.log(type)
+    
     return StyleSheet.create({
       default: {
         fontSize: 4 * scale,

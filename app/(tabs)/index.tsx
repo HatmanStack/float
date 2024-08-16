@@ -7,13 +7,13 @@ import { ThemedView } from "@/components/ThemedView";
 import RecordButton from "@/components/ScreenComponents/RecordButton";
 import SubmitButton from "@/components/ScreenComponents/SubmitButton";
 import { StartRecording, StopRecording } from "@/components/AudioRecording";
+import FloatNotifications from "@/components/Notifications";
 import { BackendSummaryCall } from "@/components/BackendSummaryCall";
 import { useIncident } from "@/context/IncidentContext";
 import { Audio } from "expo-av";
 import useStyles from "@/constants/StylesConstants";
-
-  
 import { Platform, useWindowDimensions } from "react-native";
+
 
 export default function HomeScreen() {
   const [separateTextPrompt, setSeparateTextPrompt] = useState("");
@@ -23,11 +23,12 @@ export default function HomeScreen() {
   const [summaryCall, setSummaryCall] = useState(false);
   const [submitActivity, setSubmitActivity] = useState(false);
   const { setIncidentList } = useIncident();
+  
   const { width, height } = useWindowDimensions();
   const styles = useStyles();
 
   useEffect(() => {}, [width, height]);
-
+  
   const handleStartRecording = async () => {
     try {
       if (Platform.OS === "web") {
@@ -69,16 +70,18 @@ export default function HomeScreen() {
           console.log(
             "Returning early due to null recording and empty separateTextPrompt"
           );
-          
+          setSubmitActivity(false);
           return;
         }
         try {
           let response;
           if (recording) {
             const base64_file = await StopRecording(recording);
+            console.log('User: ', JSON.stringify(user));
             response = await BackendSummaryCall(
               base64_file,
-              separateTextPrompt
+              separateTextPrompt,
+              user
             );
           } else {
             response = await BackendSummaryCall(URI, separateTextPrompt);
@@ -89,8 +92,6 @@ export default function HomeScreen() {
             setURI("");
             setSeparateTextPrompt("");
             setErrorText(false);
-          
-          
           
         } catch (error) {
           console.error("Failed to call summary lambda:", error);
@@ -104,6 +105,7 @@ export default function HomeScreen() {
   }, [summaryCall, URI, separateTextPrompt, recording, setIncidentList]);
 
   return (
+    
     <ParallaxScrollView
       headerBackgroundColor={{ light: "#bfaeba", dark: "#60465a" }}
       headerImage={
@@ -115,6 +117,7 @@ export default function HomeScreen() {
       }
       headerText={<ThemedText type="header">fLoAt</ThemedText>}
     >
+      <FloatNotifications/>
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Hey! How are you?</ThemedText>
       </ThemedView>

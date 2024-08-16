@@ -2,6 +2,7 @@ import AWS from "aws-sdk";
 import * as FileSystem from "expo-file-system";
 import { Platform } from "react-native";
 
+
 const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
   const transformedDict = {
     sentiment_label: [],
@@ -28,7 +29,8 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
 export async function BackendMeditationCall(
   selectedIndexes: number[],
   resolvedIncidents,
-  musicList
+  musicList,
+  user : any
 ) {
   let dict = resolvedIncidents;
   if (selectedIndexes.length > 1) {
@@ -36,13 +38,14 @@ export async function BackendMeditationCall(
   }
   console.log("Dict:", dict);
   console.log("Music List:", musicList);
+  
   const data_audio = {
     inference_type: "meditation",
     audio: "NotAvailable",
     prompt: "NotAvailable",
     music_list: musicList,
     input_data: dict,
-    user_id: "1234567"
+    user_id: user
   };
   console.log("Data:", data_audio);
   const serializedData = JSON.stringify(data_audio);
