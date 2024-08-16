@@ -1,17 +1,25 @@
 import { Tabs } from "expo-router";
 import React from "react";
+
 import { IncidentColoring } from "@/components/IncidentColoring";
 import { IncidentProvider } from "@/context/IncidentContext";
 import { IncidentSave } from "@/components/LocalFileLoadAndSave";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useAuth } from '@/context/AuthContext';
+import AuthScreen from "@/components/AuthScreen";
+
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
 
   return (
     <IncidentProvider>
+      
+      {!user ? (<AuthScreen />) :(
+        <>
       <IncidentColoring />
       <IncidentSave />
       <Tabs
@@ -45,6 +53,8 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+      </>)}
+      
     </IncidentProvider>
   );
 }

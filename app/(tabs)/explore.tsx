@@ -1,12 +1,14 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useWindowDimensions } from "react-native";
+import { useWindowDimensions, Platform } from "react-native";
 import * as React from "react";
 import { useState, useEffect } from "react";
+import * as Notifications from 'expo-notifications';
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { BackendMeditationCall } from "@/components/BackendMeditationCall";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useIncident } from "@/context/IncidentContext";
+import { useAuth } from '@/context/AuthContext';
 import Guidance from "@/components/ScreenComponents/Guidance";
 import IncidentItem from "@/components/ScreenComponents/IncidentItem";
 import MeditationControls from "@/components/ScreenComponents/MeditationControls";
@@ -32,6 +34,7 @@ export default function TabTwoScreen() {
   const [isCalling, setIsCalling] = useState(false);
   const [openIndexes, setOpenIndexes] = useState({});
   const { width, height } = useWindowDimensions();
+  const { user } = useAuth();
   const styles = useStyles();
   useEffect(() => {}, [width, height]);
 
@@ -63,7 +66,8 @@ export default function TabTwoScreen() {
           const response = await BackendMeditationCall(
             selectedIndexes,
             incidentList,
-            musicList
+            musicList,
+            user
           );
           setMeditationURI(response.responseMeditationURI);
           setMusicList(response.responseMusicList);
@@ -91,8 +95,16 @@ export default function TabTwoScreen() {
         prevIncidents.filter((_, i) => i !== asyncDeleteIncident)
       );
       setAsyncDeleteIncident(null);
+  
+      async function cancelScheduledNotification(notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
+        console.log('Notification canceled with ID:', notificationId);
+      }
+      if (Platform.OS !== 'web') {
+      cancelScheduledNotification(incidentList[asyncDeleteIncident].notificationId);
+      }
     }
-  }, [asyncDeleteIncident]);
+  }, [asyncDeleteIncident]);;
 
   const handleDeleteIncident = (index) => {
     setAsyncDeleteIncident(index);
