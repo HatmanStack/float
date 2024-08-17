@@ -42,7 +42,13 @@ export default ({ config }) => ({
       favicon: "./assets/images/self_improvement_web.png"
     },
     plugins: [
-      "expo-router"
+      "expo-router",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps._some_id_here_",
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true
