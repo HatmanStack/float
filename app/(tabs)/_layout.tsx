@@ -1,6 +1,5 @@
 import { Tabs } from "expo-router";
 import React from "react";
-
 import { IncidentColoring } from "@/components/IncidentColoring";
 import { IncidentProvider } from "@/context/IncidentContext";
 import { IncidentSave } from "@/components/LocalFileLoadAndSave";
