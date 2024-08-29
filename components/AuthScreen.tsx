@@ -23,45 +23,41 @@ const AuthScreen = () => {
   const colorScheme = useColorScheme();
   const backgroundAuthColor = colorScheme === "light" ? "#60465a" : "#bfaeba";
 
-  const googleLogin = () => {
-    if (Platform.OS === 'web') {  
-    useGoogleLogin({
-      onSuccess: async (tokenResponse) => {
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
         const userInfo = await axios.get(
           'https://www.googleapis.com/oauth2/v3/userinfo',
-          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } },
+          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
         );
-        await AsyncStorage.setItem("user", JSON.stringify(userInfo.data.email));
-        setUser(userInfo.data.email);
-      },
-      onError: errorResponse => console.log(errorResponse),
-    });
-  } 
-    if (Platform.OS === 'android') {
-      GoogleSignin.signIn()
-      .then((userInfo) => {
+        const googleUser = { id: userInfo.data.email, name: userInfo.data.email};
+        await AsyncStorage.setItem("user", JSON.stringify(googleUser));
+        console.log(googleUser)
+        setUser(googleUser);
+      } catch (error) {
+        console.error("Error fetching user info", error);
+      }
+    },
+    onError: (errorResponse) => console.error("Login error", errorResponse),
+  });
+
+  const handleGoogleLogin = async () => {
+    if (Platform.OS === 'web') {
+      try {
+        await googleLogin(); // Call the login function
+      } catch (error) {
+        console.error("Error during web login", error);
+      }
+    } else if (Platform.OS === 'android') {
+      try {
+        const userInfo = await GoogleSignin.signIn();
         console.log(userInfo);
         setUser(userInfo.user);
-      })
-      .catch((error) => {
-        console.log(error);
-    });
+      } catch (error) {
+        console.error("Google sign-in error", error);
+      }
     }
   };
-/** 
-const googleLogin = useGoogleLogin({
-  flow: 'auth-code',
-  onSuccess: async (codeResponse) => {
-      console.log(codeResponse);
-      const tokens = await axios.post(
-          'http://localhost:3001/auth/google', {
-              code: codeResponse.code,
-          });
-
-      console.log(tokens);
-  },
-  onError: errorResponse => console.log(errorResponse),
-});*/
 
   useEffect(() => {
     const loadUser = async () => {
@@ -159,10 +155,6 @@ const googleLogin = useGoogleLogin({
     
   );
 };
-
-
-
-
 
 const Tricky = () => {
   const [clientId, setClientId] = useState("");

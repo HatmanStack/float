@@ -13,6 +13,7 @@ import { useIncident } from "@/context/IncidentContext";
 import { Audio } from "expo-av";
 import useStyles from "@/constants/StylesConstants";
 import { Platform, useWindowDimensions } from "react-native";
+import { useAuth } from "@/context/AuthContext";
 
 
 export default function HomeScreen() {
@@ -23,6 +24,7 @@ export default function HomeScreen() {
   const [summaryCall, setSummaryCall] = useState(false);
   const [submitActivity, setSubmitActivity] = useState(false);
   const { setIncidentList } = useIncident();
+  const { user } = useAuth();
   
   const { width, height } = useWindowDimensions();
   const styles = useStyles();
@@ -77,14 +79,13 @@ export default function HomeScreen() {
           let response;
           if (recording) {
             const base64_file = await StopRecording(recording);
-            console.log('User: ', JSON.stringify(user));
             response = await BackendSummaryCall(
               base64_file,
               separateTextPrompt,
-              user
+              user.id
             );
           } else {
-            response = await BackendSummaryCall(URI, separateTextPrompt);
+            response = await BackendSummaryCall(URI, separateTextPrompt, user.id);
           }
           console.log("Response from summary lambda:", response);
             setIncidentList((prevList) => [response, ...prevList]);
