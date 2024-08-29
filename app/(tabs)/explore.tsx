@@ -67,7 +67,7 @@ export default function TabTwoScreen() {
             selectedIndexes,
             incidentList,
             musicList,
-            user
+            user.id
           );
           setMeditationURI(response.responseMeditationURI);
           setMusicList(response.responseMusicList);

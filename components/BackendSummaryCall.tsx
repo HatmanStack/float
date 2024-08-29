@@ -1,16 +1,12 @@
 import AWS from "aws-sdk";
 import * as Notifications from 'expo-notifications';
-import { useAuth } from "@/context/AuthContext";
 import { Platform } from "react-native";
 
 export async function BackendSummaryCall(
   recordingURI: any,
   separateTextPrompt: string,
-  user
+  user: string
 ) {
-  
-  console.log('Type: ', typeof user);
-  console.log('USER:   ', user);
   const data = {
     inference_type: "summary",
     audio: recordingURI ? recordingURI : "NotAvailable",
@@ -19,7 +15,7 @@ export async function BackendSummaryCall(
         ? separateTextPrompt
         : "NotAvailable",
     input_data: "NotAvailable",
-    user_id: "102837"
+    user_id: user
   };
 
   const serializedData = JSON.stringify(data);
