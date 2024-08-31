@@ -1,6 +1,7 @@
 import { Colors } from "@/constants/Colors";
 import { useEffect } from "react";
 import { useIncident } from "@/context/IncidentContext";
+import { getCurrentTime } from '@/constants/util';
 
 export function IncidentColoring() {
   const { incidentList, setColorChangeArrayOfArrays } = useIncident();
@@ -31,8 +32,7 @@ export function IncidentColoring() {
 
   useEffect(() => {
     const processIncidents = async () => {
-      setColorChangeArrayOfArrays([]);
-
+      let arrayHolder = [];
       for (const [index, incident] of incidentList.entries()) {
         if (!incident) return null;
         try {
@@ -40,7 +40,9 @@ export function IncidentColoring() {
           const incidentIntensityTimeCap =
             intensityTotalTimes[incident.intensity];
           const incidentTimestamp = new Date(incident.timestamp);
-          const currentTime = new Date();
+          const currentTime = getCurrentTime();
+          if(!currentTime) return null;
+          console.log(currentTime, incidentTimestamp)
           const timeDifference = Math.abs(
             currentTime.getTime() - incidentTimestamp.getTime()
           );
@@ -63,14 +65,14 @@ export function IncidentColoring() {
             colorKey,
             endIndex
           );
-          setColorChangeArrayOfArrays((prevColors) => {
-            return [...prevColors, incidentBackgroundColorArray];
-          });
+          
+          arrayHolder = [...arrayHolder, incidentBackgroundColorArray]; 
         } catch (error) {
           console.error("Invalid JSON:", error);
           return null;
         }
       }
+      setColorChangeArrayOfArrays(arrayHolder);
     };
 
     processIncidents();

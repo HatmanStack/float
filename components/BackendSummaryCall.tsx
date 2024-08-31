@@ -34,7 +34,7 @@ export async function BackendSummaryCall(
 
     return response;
   } catch (error) {
-    console.error("Error invoking Lambda function:", error);
+    console.log(`Error invoking Lambda function: ${error}`);
     throw error;
   }
 }
@@ -61,7 +61,6 @@ async function invokeLambdaFunction(
     const data = await new Promise((resolve, reject) => {
       lambda.invoke(params, (err, data) => {
         if (err) {
-          console.error(`An error occurred: ${err}`);
           reject(err);
         } else {
           resolve(data);
@@ -75,10 +74,10 @@ async function invokeLambdaFunction(
     try {
         // Directly parse the JSON string
         responsePayload = JSON.parse(responsePayloadString);
-        console.log("TYPE OF responsePayload:", typeof responsePayload); 
         
     } catch (error) {
-        console.error('Error parsing responsePayload:', error);
+        console.log(`Error parsing responsePayload: ${error}`);
+        throw error;
     }
     if (Platform.OS !== 'web') {
       responsePayload.notification_id = await schedulePushNotification(responsePayload.sentiment_label, responsePayload.intensity);
@@ -87,15 +86,13 @@ async function invokeLambdaFunction(
     responsePayload.color_key = 0;
     return responsePayload;
   } catch (e) {
-    console.error("Error handling lambda invocation:", e);
-    // Handle the error as needed
+    console.log(`Error handling lambda invocation: ${e}`);
+    throw e;
   }
 }
 
 async function schedulePushNotification(sentiment, intensity) {
-  console.log('Sentiment:', sentiment);
   const time_to_wait = ((38 * parseInt(intensity, 10))/4) * 60 * 60;
-  console.log('Time to wait:', time_to_wait);
   
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
@@ -105,6 +102,5 @@ async function schedulePushNotification(sentiment, intensity) {
     },
     trigger: { seconds: time_to_wait  }, // Schedule to trigger in 10 seconds
   });
-  console.log('Notification scheduled with ID:', notificationId);
   return notificationId;
 }

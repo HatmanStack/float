@@ -24,6 +24,7 @@
     "@react-oauth/google": "^0.12.1",
     "@testing-library/jest-dom": "^6.4.8",
     "@testing-library/react": "^16.0.0",
+    "@testing-library/react-native": "^12.6.1",
     "aws-sdk": "^2.1664.0",
     "axios": "^1.7.4",
     "dotenv": "^16.4.5",

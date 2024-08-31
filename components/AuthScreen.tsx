@@ -30,6 +30,7 @@ const AuthScreen = () => {
           'https://www.googleapis.com/oauth2/v3/userinfo',
           { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
         );
+        console.log(JSON.parse(userInfo))
         const googleUser = { id: userInfo.data.email, name: userInfo.data.email};
         await AsyncStorage.setItem("user", JSON.stringify(googleUser));
         console.log(googleUser)

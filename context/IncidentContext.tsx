@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-const IncidentContext = createContext(null);
+export const IncidentContext = createContext(null);
 
 export const IncidentProvider = ({ children }) => {
   const [incidentList, setIncidentList] = useState([]);

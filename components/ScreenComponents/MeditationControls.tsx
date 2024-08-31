@@ -17,7 +17,7 @@ const MeditationControls = ({
   const [isPlaying, setIsPlaying] = useState(false);
   
   const styles = useStyles();
-  console.log("MeditationControls", isCalling, isPlaying, meditationURI);
+  
 
   const handlePlayMeditation = async () => {
     try {
@@ -62,7 +62,7 @@ const MeditationControls = ({
 
   return isCalling ? (
     <ThemedView style={{ padding: 50 }}>
-      <ActivityIndicator size="large" color={Colors["activityIndicator"]} />
+      <ActivityIndicator size="large" color={Colors["activityIndicator"]} testID="activity-indicator"/>
     </ThemedView>
   ) : meditationURI ? (
     <Pressable
