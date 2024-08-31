@@ -16,7 +16,7 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
     if (!d || !selectedIndexes.includes(index)) {
       return;
     }
-    console.log("Dict:", d);
+    
     transformedDict.sentiment_label.push(d.sentiment_label);
     transformedDict.intensity.push(d.intensity);
     transformedDict.speech_to_text.push(d.speech_to_text);
@@ -36,8 +36,6 @@ export async function BackendMeditationCall(
   if (selectedIndexes.length > 1) {
     dict = getTransformedDict(resolvedIncidents, selectedIndexes);
   }
-  console.log("Dict:", dict);
-  console.log("Music List:", musicList);
   
   const data_audio = {
     inference_type: "meditation",
@@ -47,7 +45,7 @@ export async function BackendMeditationCall(
     input_data: dict,
     user_id: user
   };
-  console.log("Data:", data_audio);
+  
   const serializedData = JSON.stringify(data_audio);
   const awsId = process.env.EXPO_PUBLIC_AWS_ID;
   const awsSecret = process.env.EXPO_PUBLIC_AWS_SECRET;
@@ -71,9 +69,7 @@ export async function BackendMeditationCall(
         if (err) {
           reject(`An error occurred: ${err}`);
         } else {
-          
           resolve(JSON.parse(data.Payload).body);
-          console.log(data.Payload)
         }
       });
     });
@@ -85,9 +81,11 @@ export async function BackendMeditationCall(
       return { responseMeditationURI: uri, responseMusicList: music_list };
     } catch (e) {
       console.error(`An error occurred: ${e}`);
+      throw e;
     }
   } catch (e) {
     console.error(`An error occurred: ${e}`);
+    throw e;
   }
   return null;
 }
@@ -118,6 +116,6 @@ const saveResponeBase64 = async (responsePayload: string) => {
     }
   } catch (error) {
     console.error("Error handling the audio file:", error);
-    return null;
+    throw error;
   }
 };
