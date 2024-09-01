@@ -6,7 +6,7 @@ import { getCurrentTime } from '@/constants/util';
 export function IncidentColoring() {
   const { incidentList, setColorChangeArrayOfArrays } = useIncident();
 
-  const numberOfColorsToTransitionThrough = 3;
+  const numberOfColorsToTransitionThrough = 10;
 
   const intensityMapping = {
     "1": "one",
@@ -16,12 +16,12 @@ export function IncidentColoring() {
     "5": "five",
   };
   const intensityTotalTimes = {
-    1: [40, 600],
-    2: [78, 1170],
-    3: [116, 1740],
-    4: [154, 2310],
-    5: [192, 2880],
-  };
+    1: [40,600],
+    2: [70,1050],
+    3: [110,1650],
+    4: [150,2250],
+    5: [190,2850]
+  }
 
   const getColorForIncident = (incident) => {
     const colorSet =
@@ -37,28 +37,21 @@ export function IncidentColoring() {
         if (!incident) return null;
         try {
           const colorSets = getColorForIncident(incident);
-          const incidentIntensityTimeCap =
-            intensityTotalTimes[incident.intensity];
           const incidentTimestamp = new Date(incident.timestamp);
           const currentTime = getCurrentTime();
           if(!currentTime) return null;
-          console.log(currentTime, incidentTimestamp)
-          const timeDifference = Math.abs(
-            currentTime.getTime() - incidentTimestamp.getTime()
-          );
-          const timeDifferenceInMinutes = timeDifference / (1000 * 60);
-          const colorKey =
-            incidentIntensityTimeCap[0] -
-            Math.round(
-              (incidentIntensityTimeCap[1] - timeDifferenceInMinutes) / 15
-            );
+
+          const timeDifference = currentTime.getTime() - incidentTimestamp.getTime();
+          const timeDifferenceInMinutes = timeDifference / (1000 * 60);          
+          const colorKey = timeDifferenceInMinutes > intensityTotalTimes[incident.intensity][1] ? 
+          intensityTotalTimes[incident.intensity][0] :  timeDifferenceInMinutes / 15;
+
           if (colorKey !== incident.color_key) {
             incident.color_key = colorKey;
           }
-          const intensity =
-            incident.intensity === "1" ? "2" : incident.intensity;
+          
           const endIndex = Math.min(
-            colorKey + parseInt(intensity) * numberOfColorsToTransitionThrough,
+            colorKey + numberOfColorsToTransitionThrough,
             colorSets.length
           );
           const incidentBackgroundColorArray = colorSets.slice(

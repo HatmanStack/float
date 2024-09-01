@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 import MeditationControls from '@/components/ScreenComponents/MeditationControls';
 import { Audio } from 'expo-av';
@@ -100,7 +100,7 @@ describe('MeditationControls', () => {
     expect(screen.getByText('Pause')).toBeTruthy(); 
   });
 
-  /** 
+  
   it('pauses audio when "Pause" is pressed', async () => {
     render(
       <MeditationControls
@@ -116,24 +116,21 @@ describe('MeditationControls', () => {
     await waitFor(() => {
       expect(screen.getByText('Pause')).toBeTruthy();
     });
-  
-    // Ensure the sound object is defined
-    await waitFor(() => {
-      const sound = (Audio.Sound.createAsync as jest.Mock).mock.results[0]?.value?.sound;
-      console.log('Sound object:', sound); // Add logging
-      expect(sound).toBeDefined();
-    });
-  
-    fireEvent.press(screen.getByText('Pause')); // Then pause
-  
-    // Ensure pauseAsync is called
-    await waitFor(() => {
-      const sound = (Audio.Sound.createAsync as jest.Mock).mock.results[0]?.value?.sound;
-      console.log('Sound object before pause:', sound); // Add logging
-      expect(sound.pauseAsync).toHaveBeenCalled();
-    });
+    const { sound } = await Audio.Sound.createAsync({ uri: 'mocked-uri' }); 
+
+    expect(sound).toBeDefined();
+
+    await act(async () => { 
+      fireEvent.press(screen.getByText('Pause')); // Then pause
+    }); // Then pause
+    expect(sound.pauseAsync).toHaveBeenCalled();
   
     // Ensure the button text changes back to "Play"
-    expect(screen.getByText('Play')).toBeTruthy();});
-  // Add more tests for other scenarios and edge cases as needed*/
+    await waitFor(() => {
+      expect(screen.getByText('Play')).toBeTruthy();
+    });
+  }
+  );
+
+  // Add more tests for other scenarios and edge cases as needed
 });

@@ -24,13 +24,14 @@ const AuthScreen = () => {
   const backgroundAuthColor = colorScheme === "light" ? "#60465a" : "#bfaeba";
 
   const googleLogin = useGoogleLogin({
+    scope: 'email',
     onSuccess: async (tokenResponse) => {
       try {
         const userInfo = await axios.get(
           'https://www.googleapis.com/oauth2/v3/userinfo',
           { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
         );
-        console.log(JSON.parse(userInfo))
+        console.log(userInfo)
         const googleUser = { id: userInfo.data.email, name: userInfo.data.email};
         await AsyncStorage.setItem("user", JSON.stringify(googleUser));
         console.log(googleUser)
@@ -101,7 +102,7 @@ const AuthScreen = () => {
       {!user ? (
         <>
             <Pressable
-              onPress={() => googleLogin()}
+              onPress={() => handleGoogleLogin()}
               style={({ pressed }) => [
                 {
                   backgroundColor: pressed
@@ -115,8 +116,7 @@ const AuthScreen = () => {
                 <ThemedText
                 type="header"
                 style={[
-                  { fontSize: 25 },
-                  pressed && { textAlign: "center" },
+                  { fontSize: 25, textAlign: "center"}
                 ]}
               >
                   {pressed ? "GOOGLING!" : "GOOgle LOgin"}
@@ -138,8 +138,7 @@ const AuthScreen = () => {
                 <ThemedText
                 type="header"
                 style={[
-                  { fontSize: 25 },
-                  pressed && { textAlign: "center" },
+                  { fontSize: 25, textAlign: "center"}
                 ]}
               >
                   {pressed ? "GUEST!" : "Guest User"}
@@ -157,7 +156,7 @@ const AuthScreen = () => {
   );
 };
 
-const Tricky = () => {
+const customAuth = () => {
   const [clientId, setClientId] = useState("");
 
   useEffect(() => {
@@ -170,9 +169,9 @@ const Tricky = () => {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={clientId}>
+    <GoogleOAuthProvider clientId={clientId} >
       <AuthScreen />
     </GoogleOAuthProvider>
   );
 };
-export default Tricky;
+export default customAuth;

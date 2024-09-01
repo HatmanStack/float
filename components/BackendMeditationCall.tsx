@@ -69,22 +69,22 @@ export async function BackendMeditationCall(
         if (err) {
           reject(`An error occurred: ${err}`);
         } else {
-          resolve(JSON.parse(data.Payload).body);
+          const parsedData = JSON.parse(data.Payload); 
+          resolve(parsedData.body); 
         }
       });
     });
     try{
-      console.log(responsePayload)
-      const response = JSON.parse(responsePayload);
-      const uri = await saveResponeBase64(response.base64);
-      const music_list = response.music_list;
+      const responseParsed = JSON.parse(responsePayload);
+      const uri = await saveResponeBase64(responseParsed.base64);
+      const music_list = responseParsed.music_list;
       return { responseMeditationURI: uri, responseMusicList: music_list };
     } catch (e) {
-      console.error(`An error occurred: ${e}`);
+      console.log(`An error occurred: ${e}`);
       throw e;
     }
   } catch (e) {
-    console.error(`An error occurred: ${e}`);
+    console.log(`An error occurred: ${e}`);
     throw e;
   }
   return null;
@@ -93,7 +93,7 @@ export async function BackendMeditationCall(
 const saveResponeBase64 = async (responsePayload: string) => {
   try {
     if (Platform.OS === "web") {
-      
+      console.log(responsePayload)
       const byteCharacters = atob(responsePayload);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -104,8 +104,7 @@ const saveResponeBase64 = async (responsePayload: string) => {
       const url = URL.createObjectURL(blob);
       console.log("File saved successfully:", url);
       return url;
-    } else {
-      // Mobile platform
+    }
       const filePath = `${FileSystem.documentDirectory}output.mp3`;
       console.log("Saving file to:", filePath);
       await FileSystem.writeAsStringAsync(filePath, responsePayload, {
@@ -113,7 +112,7 @@ const saveResponeBase64 = async (responsePayload: string) => {
       });
       console.log("File saved successfully:", filePath);
       return filePath;
-    }
+    
   } catch (error) {
     console.error("Error handling the audio file:", error);
     throw error;

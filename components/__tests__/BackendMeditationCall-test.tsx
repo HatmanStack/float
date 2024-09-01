@@ -1,16 +1,21 @@
 import { BackendMeditationCall } from "@/components/BackendMeditationCall";
+import { Platform } from "react-native";
 
-// Mock AWS Lambda invoke function
+const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA';
+
 jest.mock("aws-sdk", () => ({
   Lambda: jest.fn(() => ({
     invoke: jest.fn((params, callback) => {
       const mockPayload = {
-        body: JSON.stringify({
-          base64: "mocked-base64-data",
-          music_list: ["music1", "music2"],
-        }),
+        Payload: JSON.stringify({ 
+          body: JSON.stringify({ // <-- Add an extra layer of JSON stringification
+            base64: mockBase64,
+            music_list: ["music1", "music2"], 
+          })
+        })
       };
-      callback(null, { Payload: mockPayload });// Simulate successful invocation
+      
+      callback(null,  mockPayload );// Simulate successful invocation
     }),
   })),
 }));
@@ -19,11 +24,15 @@ jest.mock("aws-sdk", () => ({
 jest.mock("expo-file-system", () => ({
   documentDirectory: "mock-directory/",
   writeAsStringAsync: jest.fn(() => Promise.resolve()),
+  EncodingType: {
+    Base64: 'base64', 
+  },
 }));
 
 describe("BackendMeditationCall", () => {
   it("should successfully invoke Lambda function and return response", async () => {
     const selectedIndexes = [0, 1];
+    
     const resolvedIncidents = [
       {
         sentiment_label: "Happy",
@@ -43,21 +52,16 @@ describe("BackendMeditationCall", () => {
     const musicList = ["music1", "music2"];
     const user = "testuser";
 
-    const response = await BackendMeditationCall(
+    const webResponse = await BackendMeditationCall(
       selectedIndexes,
       resolvedIncidents,
       musicList,
       user
     );
-
-    expect(response).toEqual({
-      responseMeditationURI:
-        typeof window !== "undefined"
-          ? "blob:null/mocked-blob-url" // Adjust for web
-          : "mock-directory/output.mp3", // Adjust for mobile
+    expect(webResponse).toEqual({
+      responseMeditationURI: "mock-directory/output.mp3", 
       responseMusicList: ["music1", "music2"],
     });
+   
   });
-
-  // Add more tests to cover error handling, different inputs, etc.
 });

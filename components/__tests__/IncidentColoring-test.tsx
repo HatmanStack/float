@@ -1,6 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { render, waitFor } from "@testing-library/react-native";
 import { IncidentColoring } from "@/components/IncidentColoring";
-import { Colors } from "@/constants/Colors";
 import { getCurrentTime } from '@/constants/util';
 import { IncidentContext, IncidentProvider } from "@/context/IncidentContext";
 import React from "react";
@@ -12,26 +11,24 @@ jest.mock('@/constants/util', () => ({
   getCurrentTime: jest.fn(), // Mock the function
 }));
 
-describe("IncidentColoring", () => {
-    
-      
+describe("IncidentColoring", () => {  
   const mockIncidentList = [
     {
       sentiment_label: "Happy",
       intensity: "3",
-      timestamp: "2023-10-26T11:00:00.000Z", // 1 hour ago
+      timestamp: "2023-10-26T11:00:00.000Z", 
       color_key: 0,
     },
     {
       sentiment_label: "Sad",
       intensity: "1",
-      timestamp: "2023-10-26T11:30:00.000Z", // 30 minutes ago
+      timestamp: "2023-10-26T11:30:00.000Z", 
       color_key: 0,
     },
     {
       sentiment_label: "Neutral",
       intensity: "5",
-      timestamp: "2023-10-26T10:00:00.000Z", // 2 hours ago
+      timestamp: "2023-10-26T10:00:00.000Z", 
       color_key: 0,
     },
   ];
@@ -42,6 +39,7 @@ describe("IncidentColoring", () => {
   
   beforeEach(() => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => mockDateNow.getTime());
+    (getCurrentTime as jest.Mock).mockReturnValue(mockDateNow);
   });
 
   afterEach(() => {
@@ -66,14 +64,14 @@ describe("IncidentColoring", () => {
     );
 
     await waitFor(() => {
-        expect(setColorChangeArrayOfArrays).toHaveBeenCalledTimes(1);
-      
-    expect(setColorChangeArrayOfArrays).toHaveBeenCalledWith(expect.arrayContaining([
-      expect.any(Array), 
+      expect(setColorChangeArrayOfArrays).toHaveBeenCalledTimes(1);    
+      expect(setColorChangeArrayOfArrays).toHaveBeenCalledWith(expect.arrayContaining([
         expect.any(Array), 
-        expect.any(Array)
-    ]));
-  });
+          expect.any(Array), 
+          expect.any(Array)
+      ]));
+    });
+
   });
 
   it("should update color key for incidents based on time difference", async () => {
@@ -90,12 +88,10 @@ describe("IncidentColoring", () => {
       </IncidentContext.Provider>,
       { wrapper }
     );
-    await waitFor(() => {
-        expect(incidentList[0].color_key).toBe(4);
-      });
+    
     // Check if color keys are updated
     expect(incidentList[0].color_key).toBe(4);
-    expect(incidentList[1].color_key).toBe(4);
-    expect(incidentList[2].color_key).toBe(2;);
+    expect(incidentList[1].color_key).toBe(2);
+    expect(incidentList[2].color_key).toBe(8);
   });
 });
