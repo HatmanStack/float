@@ -93,7 +93,6 @@ export async function BackendMeditationCall(
 const saveResponeBase64 = async (responsePayload: string) => {
   try {
     if (Platform.OS === "web") {
-      console.log(responsePayload)
       const byteCharacters = atob(responsePayload);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {

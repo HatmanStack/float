@@ -14,11 +14,9 @@ const MeditationControls = ({
 }) => {
   const [isPausing, setisPausing] = useState(false);
   const [sound, setSound] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   
   const styles = useStyles();
   
-
   const handlePlayMeditation = async () => {
     try {
       let uri = meditationURI;
@@ -45,13 +43,12 @@ const MeditationControls = ({
         newSound.setOnPlaybackStatusUpdate(async (status) => {
           if (status.didJustFinish) {
             console.log("Audio file finished playing");
-            setIsPlaying(false);
+            setisPausing(false);
             setSound(null);
             setMeditationURI('');
           }
         });
         await newSound.playAsync();
-        setIsPlaying(true);
         setisPausing(true);
         console.log("Playing the file:", uri);
       }
