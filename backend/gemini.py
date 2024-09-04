@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import pathlib
 import google.generativeai as genai
+import boto3
 from google.generativeai.types.safety_types import HarmCategory
 
 load_dotenv()
@@ -121,70 +122,155 @@ Remember:\
 - Use both provided sentiment analysis results to make an informed unified determination.\
 - Ensure the final sentiment label is one of the 7 provided labels.\
 - The intensity scale should be from 1 to 5.\
+- The format of your return should be only the json. There should be no additional formatting\
 \
-Here are the results from the audio and text prompts for synthesis:\
-- Audio Prompt Result:'
+Here are the results from the audio and text prompts for synthesis:'
 
 
-prompt_b = 'You are a meditation guide tasked with creating a personalized meditation transcript. \
-You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity, \
-speech-to-text, added_text, and summary.  Each index of the lists will refer to a different instance that was evaluated.\
-Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps \
-the user release them.  If there are specific incidents mentioned in the summaries recall them to the user to \
-help them visualize the instance and release it. If there are multiple instances of data, ensure that each instance \
-is acknowledged and released.\
-\
-JSON Data Format\
-  {\
-    "sentiment_label": ["<overall sentiment of the data>"],\
-    "intensity": ["<evaluated intensity of the sentiment_label>"],\
-    "speech_to_text": ["<if audio was used in the evaluation this is the speech-to-text output, it may be NotAvailable if there was only a text prompt>"],\
-    "added_text": ["<any additional text that was evaluated, it may be NotAvailable if there was only an audio file>"],\
-    "summary": ["<a summary of why the sentiment label and intensity were selected>"]\
-    "user_summary":["<a summary of in First Person about the incident>"]\
-    "user_short_summary":["<a summary of just a few words to describe the incident>"]\
-  }\
-\
-Instructions:\
-1. Evaluate the Data: Consider all the provided data points for each instance, including the sentiment_label, \
-intensity, speech-to-text, added_text, and summary.\
-2. Identify Specific Instances: Focus on specific instances mentioned in the summaries that need to be \
-addressed in the meditation. \
-3. Create the Meditation Transcript: Develop a meditation script that guides \
-the user through releasing each identified instance. Ensure the tone is calming and supportive. \
-Include pauses at relevant intervals using the format: <break time="x.xs" />.\
-Example Input:\
-\
-  {\
-    "sentiment_label": ["Angry", "Sad"],\
-    "intensity": ["3", "5"],\
-    "speech_to_text": ["I got into an argument with a close friend.","NotAvailable],\
-    "added_text": ["NotAvailable","I feel overwhelmed by everything happening at work."],\
-    "summary": ["The individual is experiencing medium intensity anger due to a recent argument with a close friend.","The individual feels a high level of sadness due to being overwhelmed at work."]\
-    "user_summary":["I\'m upset about a friend","I\'m feeling down because of work" ]\
-    "user_short_summary":["Domestic Friction", "Work Stress"]\
-  }\
-\
-Example Output:\
-\
-Welcome to this meditation session. Take a deep breath in, and as you exhale, allow yourself to fully arrive in this moment. <break time="4.0s" />\
-\
-Let\'s begin by acknowledging any frustration or stress in your life. Understand that these incidents aren\'t happening to us. They are part of the world in\
-the same way as rain or fresh cut grass.  <break time="7.0s" />\
-Inhale deeply, and as you exhale, visualize the weight of these frustrations lifting. <break time="9.0s" /> With each breath, \
-let go of any anger or tension, creating space for calm and focus. <break time="5.0s" />\
-\
-When we move through the world with the understanding that the world is not happening to us, our reactions become our own. <break time="7.0s" /> \
-What we need to change becomes what is inside ourselves.  We learn to flow. <break time="5.0s">\
-Breathe in deeply, and as you exhale, visualize tension and frustration dissolving.  <break time="5.0s" /> Let go of any need to control.  <break time="9.0s" /> \
-\
-Continue to breathe deeply, focusing on releasing any remaining tension or negative emotions. <break time="4.0s" /> \
-Know that you have the power to let go and create a state of inner calm.  <break time="13.0s" /> \
-\
-When you are ready, gently bring your awareness back to the present moment.\
-\
-Here is the Data:'
+prompt_meditation = '''
+You are a meditation guide tasked with creating a personalized meditation transcript. 
+You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity, 
+speech-to-text, added_text, and summary.  Each index of the lists will refer to a different instance that was evaluated.
+Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps 
+the user release them.  If there are specific incidents mentioned in the summaries recall them to the user to 
+help them visualize the instance and release it. If there are multiple instances of data, ensure that each instance 
+is acknowledged and released.
 
+JSON Data Format
+  {
+    "user_id": <a user id>,
+    "sentiment_label": ["<overall sentiment of the data>"],
+    "intensity": ["<evaluated intensity of the sentiment_label>"],
+    "speech_to_text": ["<if audio was used in the evaluation this is the speech-to-text output, it may be NotAvailable if there was only a text prompt>"],
+    "added_text": ["<any additional text that was evaluated, it may be NotAvailable if there was only an audio file>"],
+    "summary": ["<a summary of why the sentiment label and intensity were selected>"]
+    "user_summary":["<a summary of in First Person about the incident>"]
+    "user_short_summary":["<a summary of just a few words to describe the incident>"]
+  }
+
+Instructions:
+1. Evaluate the Data: Consider all the provided data points for each instance, including the sentiment_label, 
+intensity, speech-to-text, added_text, and summary.
+2. Identify Specific Instances: Focus on specific instances mentioned in the summaries that need to be 
+addressed in the meditation. 
+3. Create the Meditation Transcript: Develop a meditation script that guides 
+the user through releasing each identified instance. Ensure the tone is calming and supportive. 
+    - Use tags to create the SSML of the meditation script
+        A. Include pauses at relevant intervals using the format: <break time="XXXXms"/>.
+        B. Include emphasis using one of four levels ("reduced", "none", "moderate", "high") to emphasize words or phrases: <emphasis level="high">Text</emphasis>
+        C. Include prosody tags to change the rate of the speech ("x-slow", "slow", "medium", "fast", "x-fast", or "default"): <prosody rate="slow" >Text Text</prosody>
+
+The following are two different Examples.  They will include an Example Input and an Example Output.  Following those to examples will be the data that I'd like you to create
+the meditation transcript from. Remember to return only the meditation script.  Here are your examples:
+
+Example Input 1:
+
+  {
+    "user_id": <a user id>,
+    "sentiment_label": ["Sad", "Angry"],
+    "intensity": ["3", "4"],
+    "speech_to_text": ["NotAvailable", "I got into an argument with a close friend."],
+    "added_text": ["I feel overwhelmed by everything happening at work.", "NotAvailable"],
+    "summary": ["The phrase \"overwhelmed\" suggest a negative emotional state, leaning towards sadness.  
+    The intensity is moderate (3) as the sentence does not express extreme distress or despair.","The speaker's tone is clearly frustrated and annnoyed, indicating anger. 
+    The intensity is high due to the use of the phrase \"got into an argument\" and the forceful pronunciation of the word \"argument\""]
+    "user_summary":["I\'m overwhelmed by everything happening at work. It\'s making me feel sad an stressed.","I got into an arguement with a close friend.  I was really upset about it" ]
+    "user_short_summary":["Overwhelmed at work", "Argument with a friend"]
+  }
+  
+Example Output 1:
+
+Welcome to this meditation session. Take a deep breath in, and as you exhale, allow yourself to fully arrive in this moment.
+    <break time="4000ms"/>
+    Let’s begin by acknowledging any sadness or frustration you may be carrying.
+    <break time="4000ms"/>
+    Perhaps you are feeling overwhelmed by work, the responsibilities and expectations weighing heavily on you.
+    <break time="7000ms"/>
+    Visualize those feelings as a heavy weight, a weight that is not a part of you, but something that you can let go of.
+    <break time="7000ms"/>
+    Inhale deeply, and as you exhale, picture this weight lifting, becoming lighter, floating away.
+    <break time="7000ms"/>
+    Now, consider any anger or frustration you may be holding onto. Perhaps there was a tense exchange with a friend, a moment of heated words.
+    <break time="7000m"/>
+    Recall that moment, the feeling of tension and anger rising within you.
+    <break time="5000ms"/>
+    As you inhale, visualize the emotions as a tight fist.
+    <break time="4000ms"/>
+    As you exhale, let go of that fist, allowing your hands to relax, letting the anger melt away like ice in warm water.
+    <break time="8000ms"/>
+    Continue to breathe deeply, focusing on releasing any remaining tension or negative emotions.
+    <break time="4000ms"/>
+    Know that you have the power to let go and create a state of inner calm.
+    <break time="13000ms"/>
+    When you are ready, gently bring your awareness back to the present moment.
+    <break time="5000ms"/>
+    Notice the feeling of peace and serenity within you.
+    <break time="3000ms"/>
+    You have the strength to navigate these emotions, to release them, and to find your center.
+    <break time="8000ms"/>
+    
+Example Input 2:
+
+  {
+    "user_id": <a user id>,
+    "sentiment_label": ["Angry"],
+    "intensity": ["3"],
+    "speech_to_text": [ "NotAvailable"],
+    "added_text": ["I\'m having trouble letting go of my frustration"],
+    "summary": ["The text expresses difficulty letting go of frustration, indicating a lingering sense of anger or disappointment.  
+    While the text doesn't explicitly mention being angry the implication of 
+    being unable to move past frustration points towards a negative emotional state.  
+    The intensity is rated as 3 because the statement reflects a prolonged emotional state but doesn\'t convey extreme distress."]
+    "user_summary":["I\'m feeling angry because I can't seem to let go of my frustration." ]
+    "user_short_summary":["Frustration and anger"]
+  }
+
+Example Output 2:
+
+Welcome to this meditation session.
+        <break time="5000ms"/>
+        Take a deep breath in.
+        <break time="2000ms"/>
+        As you exhale, allow yourself to fully arrive in this moment.
+        <break time="2000ms"/>
+        Let’s begin by acknowledging any frustration or stress in your life.
+        <break time="1000ms"/>
+        <emphasis level="reduced">Understand that these incidents</emphasis> aren’t happening <emphasis level="high">to us</emphasis>.
+        <break time="3000ms"/>
+        <emphasis level="moderate">They are part of the world,</emphasis> just like rain or freshly cut grass.
+        <break time="3000ms"/>
+        <prosody rate="slow">Inhale deeply.</prosody>
+        <break time="4000ms"/>
+        As you exhale, visualize the weight of these frustrations lifting.
+        <break time="1000ms"/>
+        <emphasis level="moderate">With each breath,</emphasis> let go of any anger or tension.
+        <break time="4000ms"/>
+        Create space for calm and focus.
+        <break time="2000ms"/>
+        When we understand that the world is not happening <emphasis level="high">to us,</emphasis> our reactions become our own.
+        <break time="3000ms"/>
+        What we <emphasis level="high">need</emphasis> to change becomes <emphasis level="reduced">what is inside ourselves.</emphasis>
+        <break time="3000ms"/>
+        We learn to flow.
+        <break time="7000ms"/>
+        Breathe in deeply.
+        <break time="5000ms"/>
+        <emphasis level="reduced">As you exhale,</emphasis> visualize tension and frustration dissolving.
+        <break time="2000ms"/>
+        <emphasis level="high">Let go</emphasis> of any need to control.
+        <break time="2000ms"/>
+        Continue to breathe deeply, focusing on releasing any remaining tension or negative emotions.
+        <break time="4000ms"/>
+        <emphasis level="high">Know</emphasis> that you have the power to let go and create a state of inner calm.
+        <break time="7000ms"/>
+        When you are ready, gently bring your awareness back to the present moment.
+        
+    
+    Data for meditation transcript:
+
+'''
+    
+    
 def getSummary(audio_file, user_text):
     print('getSummary')
     call = []
@@ -214,12 +300,12 @@ def getSummary(audio_file, user_text):
         response = text_response
     else:
         response = audio_response
-        
+    
     return response.text
 
 def getMeditation(data):
     print('getMeditation')
     print('Data', str(data))
-    response = model.generate_content([prompt_b + str(data)])
+    response = model.generate_content([prompt_meditation + str(data)])
     return response.text
 
