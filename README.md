@@ -29,6 +29,7 @@ To set up and run Float locally, follow these steps:
 - Expo CLI (install with `npm install -g expo-cli`)
 - A Google Cloud account with API access for Generative AI
 - An ElevenLabs account with API access for Text-to-Speech
+- OpenAI Account and API key
 - AWS account with Lambda functions set up
 
 ### Clone the Repository
@@ -48,20 +49,21 @@ Create a .env file in the root directory and add the following variables:
 
 Frontend
 ```bash
-EXPO_PUBLIC_AWS_ID=your_aws_id
-EXPO_PUBLIC_AWS_SECRET=your_aws_secret
-EXPO_PUBLIC_AWS_REGION=your_aws_region
+EXPO_PUBLIC_AWS_ID=<aws_id>
+EXPO_PUBLIC_AWS_SECRET=<aws_secret>
+EXPO_PUBLIC_AWS_REGION=<aws_region>
 ```
 
 Backend
 ```bash
 FFMPEG_BINARY=/opt/bin/ffmpeg
-G_KEY=your_google_api_key
+G_KEY=<google_api_key>
 SIMILARITY_BOOST=0.7
 STABILITY=0.3
 STYLE=0.3
 VOICE_ID=jKX50Q2OBT1CsDwwcTkZ
-XI_KEY=your_eleven_labs_key
+XI_KEY=<eleven_labs_key>
+OPENAI_API_KEY=<openai_key>
 ```
 
 # Run the App :smile:
@@ -92,8 +94,13 @@ The Lambda packages need to be downloaded and built on a Linux machine with pyth
 ## API Integration :fire:
 
 - **Google Generative AI:** Used for generating the content of the meditations.
-- **ElevenLabs Text-to-Speech:** Converts generated text into audio for the meditation sessions.
 - **AWS Lambda:** Manages API calls and processes data from Google and ElevenLabs APIs.
+
+**Choice of Voice API:** Converts generated text into audio for the meditation sessions.
+- **ElevenLabs** 
+- **Google TTS**
+- **OpenAI Text-to-Speech**
+
 
 ## License
 This project is licensed under the Apache 2.0 License. See the LICENSE file for details.

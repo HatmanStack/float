@@ -31,3 +31,5 @@ urllib3==2.2.2
 google-cloud-texttospeech==2.16.5
 jinja2
 boto3
+pathlib
+openai

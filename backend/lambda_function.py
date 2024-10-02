@@ -6,6 +6,7 @@ import combine_voice as cv
 import gemini
 import eleven
 import tts
+import openai_voice as ov
 import os
 import boto3
 import random
@@ -28,7 +29,8 @@ def analyze_audio(audio, prompt):
 def get_meditation_transcript(input_data, music_list):
     result = gemini.getMeditation(input_data)
     print(f'Meditation Text Result: {result}')
-    tts.create_tts_meditation(result)
+    ov.create_openai_voice(result) # Change this to dictate different voice Service: 
+                                   # OpenAi, Google TTS or Eleven Labs
     
     if os.path.exists(temp_voice_path):
         print('OS PATH VOICE EXISTS')
