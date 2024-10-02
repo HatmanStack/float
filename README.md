@@ -6,7 +6,9 @@ Float is a cross-platform meditation app built with React Native and Expo. It us
 
 ![Alt Text](./assets/images/preview.gif)
 
-[Float Demo](https://float-app.fun)
+[Float Web Demo](https://float-app.fun)
+
+[Youtube](https://www.youtube.com/watch?v=8hmrio2A5Og)
 
 ## Features :zap:
 
