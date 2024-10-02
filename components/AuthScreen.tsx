@@ -24,7 +24,7 @@ const AuthScreen = () => {
   const backgroundAuthColor = colorScheme === "light" ? "#60465a" : "#bfaeba";
   const scopes = ["https://www.googleapis.com/auth/calendar.events.readonly", "https://www.googleapis.com/auth/youtube.readonly"];
   const googleLogin = useGoogleLogin({
-    scope: scopes.join(','), 
+    //scope: scopes.join(','), 
     onSuccess: async (tokenResponse) => {
       try {
         const userInfo = await axios.get(
