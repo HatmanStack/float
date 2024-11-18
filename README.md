@@ -1,12 +1,36 @@
+<h1 align="center">
+  <img width="800" src="banner.png" alt="float-app icon">
+</h1>
+<h4 align="center">
+  <a href="https://www.apache.org/licenses/LICENSE-2.0.html">
+    <img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="float is under the Apache 2.0 liscense" />
+  </a>
+  <a href="https://github.com/circlemind-ai/fast-graphrag/blob/main/CONTRIBUTING.md">
+    <img src="https://img.shields.io/badge/Expo-51+-green" alt="Expo Version" />
+  </a>
+  <a href="https://cloud.google.com/text-to-speech/docs/basics">
+    <img src="https://img.shields.io/badge/Google-Text-To-Speech->=2.6" alt="Google Text-To-Speech" />
+  </a>
+  <a href="https://platform.openai.com/docs/guides/text-to-speech">
+    <img src="https://img.shields.io/badge/OpenAI" alt="OpenAI Text-To-Speech" />
+  </a>
+  <img src="https://img.shields.io/badge/python->=3.12.1-blue">
+</h4>
+<p align="center">
+  <p align="center"><b>From feelings to Flow - Customized Meditations <br> <a href="https://float-app.fun/"> FLOAT » </a> </b> </p>
+</p>
+
 # Float
 
 Float is a cross-platform meditation app built with React Native and Expo. It uses Google Generative AI, Eleven Labs text-to-Speech (migrating to Google TTS), and a library of sound files to create personalized meditation experiences based on user-submitted incidents that have affected them emotionally, which we refer to as "floats". Floats are categorized by emotion and intensity, and include a timer and a color scheme to indicate the duration, summary, and reasoning behind each meditation. The app can generate meditations from up to three floats at a time.
 
 ## Web Demo
 
-[Float Web Demo](https://float-app.fun) | 
-![Alt Text](./assets/images/preview.gif) | 
-[Youtube](https://www.youtube.com/watch?v=8hmrio2A5Og)
+<p align="center">
+  <p align="center"><b><a href="https://float-app.fun/">Float Web Demo</a></b><br>
+    <img src="https://img.shields.io/youtube/views/8hmrio2A5Og">
+   </p>
+</p>
 
 ## Features :zap:
 
