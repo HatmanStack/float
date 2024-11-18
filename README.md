@@ -14,6 +14,7 @@
   <a href="https://platform.openai.com/docs/guides/text-to-speech">
     <img src="https://img.shields.io/badge/OpenAI-voilet" alt="OpenAI Text-To-Speech" />
   </a>
+  <img src="https://img.shields.io/youtube/views/8hmrio2A5Og">
   <img src="https://img.shields.io/badge/python->=3.12.1-blue">
 </h4>
 <p align="center">
@@ -23,14 +24,6 @@
 # Float
 
 Float is a cross-platform meditation app built with React Native and Expo. It uses Google Generative AI, Eleven Labs text-to-Speech (migrating to Google TTS), and a library of sound files to create personalized meditation experiences based on user-submitted incidents that have affected them emotionally, which we refer to as "floats". Floats are categorized by emotion and intensity, and include a timer and a color scheme to indicate the duration, summary, and reasoning behind each meditation. The app can generate meditations from up to three floats at a time.
-
-## Web Demo
-
-<p align="center">
-  <p align="center"><b><a href="https://float-app.fun/">Float Web Demo</a></b><br><br>
-    <img src="https://img.shields.io/youtube/views/8hmrio2A5Og">
-   </p>
-</p>
 
 ## Features :zap:
 
