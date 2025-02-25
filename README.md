@@ -9,13 +9,15 @@
     <img src="https://img.shields.io/badge/Expo-51+-green" alt="Expo Version" />
   </a>
   <a href="https://cloud.google.com/text-to-speech/docs/basics">
-    <img src="https://img.shields.io/badge/Google%20TTS%20>=2.6-yellow" alt="Google Text-To-Speech" />
+    <img src="https://img.shields.io/badge/Google%20TTS->=2.6-yellow" alt="Google Text-To-Speech" />
   </a>
   <a href="https://platform.openai.com/docs/guides/text-to-speech">
     <img src="https://img.shields.io/badge/OpenAI-voilet" alt="OpenAI Text-To-Speech" />
   </a>
   <img src="https://img.shields.io/youtube/views/8hmrio2A5Og">
+  <a href="https://www.python.org/">
   <img src="https://img.shields.io/badge/python->=3.12.1-blue">
+  </a>
 </h4>
 <p align="center">
   <p align="center"><b>From feelings to Flow - Customized Meditations <br> <a href="https://float-app.fun/"> FLOAT » </a> </b> </p>
