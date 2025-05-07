@@ -14,6 +14,7 @@ import { Audio } from "expo-av";
 import useStyles from "@/constants/StylesConstants";
 import { Platform, useWindowDimensions } from "react-native";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from 'expo-router';
 
 
 export default function HomeScreen() {
@@ -25,6 +26,7 @@ export default function HomeScreen() {
   const [submitActivity, setSubmitActivity] = useState(false);
   const { setIncidentList } = useIncident();
   const { user } = useAuth();
+  const router = useRouter();
   
   const { width, height } = useWindowDimensions();
   const styles = useStyles();
@@ -98,6 +100,7 @@ export default function HomeScreen() {
           console.error("Failed to call summary lambda:", error);
         } finally {
           setSubmitActivity(false);
+          router.push('/explore');
         }
       };
 

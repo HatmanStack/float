@@ -64,13 +64,15 @@ yarn
 ```
 
 ## Configure Environment Variables
-Create a .env file in the root directory and add the following variables:
+Create a .env file in the root directory and add the following variables.  Google is the gold standard for IDP.  Find out [more](https://developers.google.com/identity/protocols/oauth2) :
 
 Frontend
 ```bash
 EXPO_PUBLIC_AWS_ID=<aws_id>
 EXPO_PUBLIC_AWS_SECRET=<aws_secret>
 EXPO_PUBLIC_AWS_REGION=<aws_region>
+EXPO_PUBLIC_WEB_CLIENT_ID=<ID>
+EXPO_PUBLIC_ANDROID_CLIENT_ID=<ID>
 ```
 
 Backend
