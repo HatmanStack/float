@@ -1,4 +1,3 @@
-import AWS from "aws-sdk";
 import * as FileSystem from "expo-file-system";
 import { Platform } from "react-native";
 
@@ -26,18 +25,31 @@ const getTransformedDict = (dict: any, selectedIndexes: number[]) => {
   return transformedDict;
 };
 
+
+const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL;
+
 export async function BackendMeditationCall(
   selectedIndexes: number[],
-  resolvedIncidents,
-  musicList,
-  user : any
+  resolvedIncidents: any, // Consider defining a more specific type if possible
+  musicList: any,         // Consider defining a more specific type
+  user: any               // Consider defining a more specific type
 ) {
   let dict = resolvedIncidents;
+  // Assuming getTransformedDict is a synchronous function or you await it if it's async
   if (selectedIndexes.length > 1) {
-    dict = getTransformedDict(resolvedIncidents, selectedIndexes);
+    // Ensure getTransformedDict is available in this scope
+    // dict = getTransformedDict(resolvedIncidents, selectedIndexes);
+    // For the purpose of this example, if getTransformedDict is not provided,
+    // we'll use a placeholder or log a warning.
+    // Replace with your actual implementation.
+    if (typeof getTransformedDict === 'function') {
+        dict = getTransformedDict(resolvedIncidents, selectedIndexes);
+    } else {
+        console.warn("getTransformedDict function is not available. Using resolvedIncidents directly.");
+    }
   }
-  
-  const data_audio = {
+
+  const payload = {
     inference_type: "meditation",
     audio: "NotAvailable",
     prompt: "NotAvailable",
@@ -45,49 +57,49 @@ export async function BackendMeditationCall(
     input_data: dict,
     user_id: user
   };
-  
-  const serializedData = JSON.stringify(data_audio);
-  const awsId = process.env.EXPO_PUBLIC_AWS_ID;
-  const awsSecret = process.env.EXPO_PUBLIC_AWS_SECRET;
-  const awsRegion = process.env.EXPO_PUBLIC_AWS_REGION;
 
   try {
-    const lambda = new AWS.Lambda({
-      accessKeyId: awsId,
-      secretAccessKey: awsSecret,
-      region: awsRegion,
+    const httpResponse = await fetch(LAMBDA_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
 
-    const params = {
-      FunctionName: "audio-er-final",
-      InvocationType: "RequestResponse",
-      Payload: serializedData,
-    };
-
-    const responsePayload = await new Promise((resolve, reject) => {
-      lambda.invoke(params, (err, data) => {
-        if (err) {
-          reject(`An error occurred: ${err}`);
-        } else {
-          const parsedData = JSON.parse(data.Payload); 
-          resolve(parsedData.body); 
-        }
-      });
-    });
-    try{
-      const responseParsed = JSON.parse(responsePayload);
-      const uri = await saveResponeBase64(responseParsed.base64);
-      const music_list = responseParsed.music_list;
-      return { responseMeditationURI: uri, responseMusicList: music_list };
-    } catch (e) {
-      console.log(`An error occurred: ${e}`);
-      throw e;
+    if (!httpResponse.ok) {
+      const errorText = await httpResponse.text();
+      console.error(`BackendMeditationCall failed: ${httpResponse.status}`, errorText);
+      throw new Error(`Request to Lambda Function URL failed with status ${httpResponse.status}`);
     }
-  } catch (e) {
-    console.log(`An error occurred: ${e}`);
-    throw e;
+
+    // Assuming the Lambda's response (httpResponse.json()) is an object
+    // that itself contains a 'body' property which is a JSON string.
+    const lambdaResponseObject = await httpResponse.json();
+
+    if (!lambdaResponseObject || typeof lambdaResponseObject !== 'object') {
+        console.error("Invalid response structure from Lambda. Expected a 'body' string.", lambdaResponseObject);
+        throw new Error("Invalid response structure from Lambda.");
+    }
+    
+
+    // Assuming saveResponeBase64 is an async function
+    // Ensure saveResponeBase64 is available in this scope.
+    // Replace with your actual implementation.
+    let uri = null;
+    if (typeof saveResponeBase64 === 'function') {
+        uri = await saveResponeBase64(lambdaResponseObject.base64);
+    } else {
+        console.warn("saveResponeBase64 function is not available. URI will be null.");
+    }
+    
+    const responseMusicList = lambdaResponseObject.music_list;
+    return { responseMeditationURI: uri, responseMusicList: responseMusicList };
+
+  } catch (error) {
+    console.error(`An error occurred in BackendMeditationCall:`, error);
+    throw error; // Re-throw the error to be handled by the caller
   }
-  return null;
 }
 
 const saveResponeBase64 = async (responsePayload: string) => {
