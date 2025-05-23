@@ -13,7 +13,7 @@ safety_settings = {HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: 4,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: 4,
                      HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: 4, }
 
-model = genai.GenerativeModel(model_name="gemini-1.5-flash", safety_settings=safety_settings)
+
 
 prompt_text = 'You are an AI assistant specialized in determining the sentiment\
 and its intensity from provided data.\
@@ -157,10 +157,8 @@ addressed in the meditation.
 the user through releasing each identified instance. Ensure the tone is calming and supportive. 
     - Use tags to create the SSML of the meditation script
         A. Include pauses at relevant intervals using the format: <break time="XXXXms"/>.
-        B. Include emphasis using one of four levels ("reduced", "none", "moderate", "high") to emphasize words or phrases: <emphasis level="high">Text</emphasis>
-        C. Include prosody tags to change the rate of the speech ("x-slow", "slow", "medium", "fast", "x-fast", or "default"): <prosody rate="slow" >Text Text</prosody>
-
-The following are two different Examples.  They will include an Example Input and an Example Output.  Following those to examples will be the data that I'd like you to create
+        
+The following are two different Examples.  Remember these are just guides use your own intuition on iterating on these examples.  They will include an Example Input and an Example Output.  Following those to examples will be the data that I'd like you to create
 the meditation transcript from. Remember to return only the meditation script.  Here are your examples:
 
 Example Input 1:
@@ -235,33 +233,33 @@ Welcome to this meditation session.
         <break time="2000ms"/>
         Let’s begin by acknowledging any frustration or stress in your life.
         <break time="1000ms"/>
-        <emphasis level="reduced">Understand that these incidents</emphasis> aren’t happening <emphasis level="high">to us</emphasis>.
+        Understand that these incidents aren’t happening to us.
         <break time="3000ms"/>
-        <emphasis level="moderate">They are part of the world,</emphasis> just like rain or freshly cut grass.
+        They are part of the world, just like rain or freshly cut grass.
         <break time="3000ms"/>
         <prosody rate="slow">Inhale deeply.</prosody>
         <break time="4000ms"/>
         As you exhale, visualize the weight of these frustrations lifting.
         <break time="1000ms"/>
-        <emphasis level="moderate">With each breath,</emphasis> let go of any anger or tension.
+        With each breath, let go of any anger or tension.
         <break time="4000ms"/>
         Create space for calm and focus.
         <break time="2000ms"/>
-        When we understand that the world is not happening <emphasis level="high">to us,</emphasis> our reactions become our own.
+        When we understand that the world is not happening to us, our reactions become our own.
         <break time="3000ms"/>
-        What we <emphasis level="high">need</emphasis> to change becomes <emphasis level="reduced">what is inside ourselves.</emphasis>
+        What we need to change becomes what is inside ourselves.
         <break time="3000ms"/>
         We learn to flow.
         <break time="7000ms"/>
         Breathe in deeply.
         <break time="5000ms"/>
-        <emphasis level="reduced">As you exhale,</emphasis> visualize tension and frustration dissolving.
+        As you exhale, visualize tension and frustration dissolving.
         <break time="2000ms"/>
-        <emphasis level="high">Let go</emphasis> of any need to control.
+        Let go of any need to control.
         <break time="2000ms"/>
         Continue to breathe deeply, focusing on releasing any remaining tension or negative emotions.
         <break time="4000ms"/>
-        <emphasis level="high">Know</emphasis> that you have the power to let go and create a state of inner calm.
+        Know that you have the power to let go and create a state of inner calm.
         <break time="7000ms"/>
         When you are ready, gently bring your awareness back to the present moment.
         
@@ -273,6 +271,7 @@ Welcome to this meditation session.
     
 def getSummary(audio_file, user_text):
     print('getSummary')
+    model = genai.GenerativeModel(model_name="gemini-2.0-flash", safety_settings=safety_settings)
     call = []
     text_response = None
     audio_response = None
@@ -306,6 +305,7 @@ def getSummary(audio_file, user_text):
 def getMeditation(data):
     print('getMeditation')
     print('Data', str(data))
+    model = genai.GenerativeModel(model_name="gemini-2.5-pro-preview-05-06", safety_settings=safety_settings)
     response = model.generate_content([prompt_meditation + str(data)])
     return response.text
 

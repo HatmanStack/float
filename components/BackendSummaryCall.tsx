@@ -1,93 +1,89 @@
-import AWS from "aws-sdk";
 import * as Notifications from 'expo-notifications';
 import { Platform } from "react-native";
+
+const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL;
 
 export async function BackendSummaryCall(
   recordingURI: any,
   separateTextPrompt: string,
   user: string
 ) {
-  const data = {
+  if (LAMBDA_FUNCTION_URL === 'YOUR_LAMBDA_FUNCTION_URL_HERE') {
+    const errorMessage = "FATAL: LAMBDA_FUNCTION_URL is not set. Please update it in BackendSummaryCall.";
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  const payload = {
     inference_type: "summary",
     audio: recordingURI ? recordingURI : "NotAvailable",
     prompt:
       separateTextPrompt && separateTextPrompt.length > 0
         ? separateTextPrompt
         : "NotAvailable",
-    input_data: "NotAvailable",
+    input_data: "NotAvailable", // As per original logic
     user_id: user
   };
 
-  const serializedData = JSON.stringify(data);
-  
-  const awsId = process.env.EXPO_PUBLIC_AWS_ID;
-  const awsSecret = process.env.EXPO_PUBLIC_AWS_SECRET;
-  const awsRegion = process.env.EXPO_PUBLIC_AWS_REGION;
-  
+  const serializedData = JSON.stringify(payload);
+  console.log(`Payload to Lambda: ${serializedData}`);
   try {
-    const response = await invokeLambdaFunction(
-      serializedData,
-      awsId,
-      awsSecret,
-      awsRegion
-    );
-
-    return response;
-  } catch (error) {
-    console.log(`Error invoking Lambda function: ${error}`);
-    throw error;
-  }
-}
-
-async function invokeLambdaFunction(
-  serializedData: string,
-  awsId: string,
-  awsSecret: string,
-  awsRegion: string
-) {
-  try {
-    const lambda = new AWS.Lambda({
-      accessKeyId: awsId,
-      secretAccessKey: awsSecret,
-      region: awsRegion,
+    console.log(`Calling Summary Lambda URL: ${LAMBDA_FUNCTION_URL}`);
+    const httpResponse = await fetch(LAMBDA_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: serializedData,
     });
 
-    const params = {
-      FunctionName: "audio-er-final",
-      InvocationType: "RequestResponse",
-      Payload: serializedData,
-    };
+    if (!httpResponse.ok) {
+      const errorText = await httpResponse.text();
+      const errorMessage = `Request to Summary Lambda URL failed with status ${httpResponse.status}: ${errorText}`;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
+    }
 
-    const data = await new Promise((resolve, reject) => {
-      lambda.invoke(params, (err, data) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(data);
-        }
-      });
-    });
-    
-    const responsePayloadString = JSON.parse(data.Payload).body;
-    
-    let responsePayload;
+    const lambdaPrimaryResponse = await httpResponse.json();
+    console.log(`Type of Lambda Response:`, typeof lambdaPrimaryResponse);
+    console.log(`Lambda Response:`, lambdaPrimaryResponse);
+
+    if (!lambdaPrimaryResponse || typeof lambdaPrimaryResponse !== 'object') {
+      const errorMessage = `Invalid response structure from Lambda. Expected a 'body' string. Received: ${JSON.stringify(lambdaPrimaryResponse)}`;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    let finalResponsePayload;
     try {
-        // Directly parse the JSON string
-        responsePayload = JSON.parse(responsePayloadString);
-        
-    } catch (error) {
-        console.log(`Error parsing responsePayload: ${error}`);
-        throw error;
+      finalResponsePayload = lambdaPrimaryResponse;
+      console.log(`Parsed Lambda Response:`, finalResponsePayload);
+    } catch (parseError) {
+      const errorMessage = `Error parsing the inner 'body' string from Lambda response: ${parseError}. Body was: ${lambdaPrimaryResponse}`;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
     }
+
+    // 4. Apply post-processing logic (previously in invokeLambdaFunction)
     if (Platform.OS !== 'web') {
-      responsePayload.notification_id = await schedulePushNotification(responsePayload.sentiment_label, responsePayload.intensity);
+      // Ensure schedulePushNotification is an async function if you await it
+      if (typeof schedulePushNotification === 'function') {
+         finalResponsePayload.notification_id = await schedulePushNotification(finalResponsePayload.sentiment_label, finalResponsePayload.intensity);
+      } else {
+        console.warn("schedulePushNotification function is not available or not a function.");
+      }
     }
-    responsePayload.timestamp = new Date().toISOString();
-    responsePayload.color_key = 0;
-    return responsePayload;
-  } catch (e) {
-    console.log(`Error handling lambda invocation: ${e}`);
-    throw e;
+    finalResponsePayload.timestamp = new Date().toISOString();
+    finalResponsePayload.color_key = 0; // As per original logic
+
+    return finalResponsePayload;
+
+  } catch (error) {
+    // Log the already specific error or a generic one if it's not an Error instance
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`Error in BackendSummaryCall: ${errorMessage}`); // Original log style
+    // Re-throw the error for the caller to handle
+    throw error;
   }
 }
 

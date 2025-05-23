@@ -44,8 +44,7 @@ To set up and run Float locally, follow these steps:
 
 ### Prerequisites
 
-- Node.js (version 14 or higher)
-- Expo CLI (install with `npm install -g expo-cli`)
+- Node.js (version 22 or higher)
 - A Google Cloud account with API access for Generative AI
 - An ElevenLabs account with API access for Text-to-Speech
 - OpenAI Account and API key
@@ -60,7 +59,7 @@ cd float
 
 ### Install Dependencies
 ```bash
-yarn
+npm install
 ```
 
 ## Configure Environment Variables
@@ -68,9 +67,7 @@ Create a .env file in the root directory and add the following variables.  Googl
 
 Frontend
 ```bash
-EXPO_PUBLIC_AWS_ID=<aws_id>
-EXPO_PUBLIC_AWS_SECRET=<aws_secret>
-EXPO_PUBLIC_AWS_REGION=<aws_region>
+EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<URL>
 EXPO_PUBLIC_WEB_CLIENT_ID=<ID>
 EXPO_PUBLIC_ANDROID_CLIENT_ID=<ID>
 ```

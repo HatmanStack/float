@@ -1,24 +1,23 @@
 import { BackendSummaryCall } from "@/components/BackendSummaryCall";
-import AWS from "aws-sdk";
+
 
 // Mock AWS Lambda invoke function
-jest.mock("aws-sdk", () => ({
-  Lambda: jest.fn(() => ({
-    invoke: jest.fn((params, callback) => {
-      const mockPayload = {
-        Payload: JSON.stringify({
-          body: JSON.stringify({
-            sentiment_label: "Happy",
-            intensity: "3",
-            summary: "This is a mocked summary.",
-            // ... other mocked response properties
-          }),
+beforeEach(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      json: () =>
+        Promise.resolve({
+          sentiment_label: "Happy",
+          intensity: "3",
+          summary: "This is a mocked summary.",
         }),
-      };
-      callback(null, mockPayload); // Simulate successful invocation
-    }),
-  })),
-}));
+    })
+  ) as jest.Mock;
+});
+
+afterEach(() => {
+  jest.resetAllMocks();
+});
 
 // Mock Notifications for non-web environments
 jest.mock("expo-notifications", () => ({
