@@ -82,7 +82,7 @@ export async function BackendMeditationCall(
         throw new Error("Invalid response structure from Lambda.");
     }
     
-
+    console.log("Lambda response object:", lambdaResponseObject);
     // Assuming saveResponeBase64 is an async function
     // Ensure saveResponeBase64 is available in this scope.
     // Replace with your actual implementation.
