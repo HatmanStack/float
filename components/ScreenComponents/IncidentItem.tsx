@@ -19,10 +19,16 @@ const IncidentItem = ({ renderKey, incident, index, selectedIndexes, handlePress
   const colorChangeDuration = 500;
   
   useEffect(() => {
-    if (!colorChangeArrayOfArrays || !colorChangeArrayOfArrays[index]) {
-      return;
-    }
-    setColors(colorChangeArrayOfArrays[index]);
+     if (!colorChangeArrayOfArrays || !colorChangeArrayOfArrays[index]) {
+    return;
+  }
+  const arr = colorChangeArrayOfArrays[index];
+  console.log("colorChangeArrayOfArrays", colorChangeArrayOfArrays);
+  if (arr.length < 2) {
+    setColors(['#fff', '#eee']);
+  } else {
+    setColors(arr);
+  }
   }, [colorChangeArrayOfArrays, index]);
 
   useEffect(() => {
