@@ -2,8 +2,8 @@ from typing import Dict, Any
 from datetime import datetime
 
 from .middleware import (
-    cors_middleware, 
-    json_middleware, 
+    cors_middleware,
+    json_middleware,
     method_validation_middleware,
     request_validation_middleware,
     error_handling_middleware,
@@ -13,46 +13,41 @@ from .middleware import (
 )
 from ..models.requests import parse_request_body, SummaryRequest, MeditationRequest
 from ..models.responses import create_summary_response, create_meditation_response
-from ..services.gemini_service import GeminiAIService
+from ..services.ai_service import AIService
 from ..services.s3_storage_service import S3StorageService
 from ..services.ffmpeg_audio_service import FFmpegAudioService
 from ..providers.openai_tts import OpenAITTSProvider
-from ..providers.google_tts import GoogleTTSProvider
-from ..providers.eleven_labs_tts import ElevenLabsTTSProvider
 from ..config.settings import settings
-from ..config.constants import TTSProvider, InferenceType, HTTP_BAD_REQUEST
+from ..config.constants import InferenceType, HTTP_BAD_REQUEST
 from ..utils.file_utils import generate_request_id, generate_timestamp
 from ..utils.audio_utils import decode_audio_base64, encode_audio_to_base64, cleanup_temp_file
 
 class LambdaHandler:
     """Main Lambda request handler with dependency injection."""
     
-    def __init__(self):
-        # Initialize services
-        self.ai_service = GeminiAIService()
+    def __init__(self, ai_service: AIService = None, validate_config: bool = True):
+        # Initialize services (allow dependency injection for testing)
+        self.ai_service = ai_service or self._create_ai_service()
         self.storage_service = S3StorageService()
         self.audio_service = FFmpegAudioService(self.storage_service)
-        
-        # Initialize TTS providers
-        self.tts_providers = {
-            TTSProvider.OPENAI.value: OpenAITTSProvider(),
-            TTSProvider.GOOGLE.value: GoogleTTSProvider(),
-            TTSProvider.ELEVENLABS.value: ElevenLabsTTSProvider()
-        }
-        
-        # Validate configuration
-        settings.validate()
+
+        # Initialize TTS provider (only OpenAI supported)
+        self.tts_provider = OpenAITTSProvider()
+
+        # Validate configuration (skip in tests)
+        if validate_config:
+            settings.validate()
+
+    @staticmethod
+    def _create_ai_service() -> AIService:
+        """Factory method to create AI service."""
+        # Import here to avoid circular dependencies
+        from ..services.gemini_service import GeminiAIService
+        return GeminiAIService()
     
-    def get_tts_provider(self, provider_name: str = None):
-        """Get TTS provider by name or default."""
-        if provider_name is None:
-            provider_name = settings.DEFAULT_TTS_PROVIDER
-        
-        provider = self.tts_providers.get(provider_name)
-        if provider is None:
-            raise ValueError(f"Unknown TTS provider: {provider_name}")
-        
-        return provider
+    def get_tts_provider(self):
+        """Get TTS provider (OpenAI only)."""
+        return self.tts_provider
     
     def handle_summary_request(self, request: SummaryRequest) -> Dict[str, Any]:
         """Handle sentiment analysis/summary request."""
@@ -209,14 +204,22 @@ class LambdaHandler:
             print(f"Error in handle_request: {e}")
             raise
 
-# Create global handler instance
-handler = LambdaHandler()
+# Global handler instance (lazy initialization)
+_handler = None
+
+def _get_handler():
+    """Get or create global handler instance (lazy initialization)."""
+    global _handler
+    if _handler is None:
+        _handler = LambdaHandler()
+    return _handler
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Lambda entry point."""
     print(f"[LAMBDA_HANDLER] Function called with event keys: {list(event.keys())}")
     print(f"[LAMBDA_HANDLER] Event: {event}")
     try:
+        handler = _get_handler()
         result = handler.handle_request(event, context)
         print(f"[LAMBDA_HANDLER] Handler returned: {result}")
         return result

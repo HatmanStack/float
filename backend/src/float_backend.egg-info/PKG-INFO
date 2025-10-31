@@ -1,0 +1,50 @@
+Metadata-Version: 2.4
+Name: float-backend
+Version: 0.1.0
+Summary: Float meditation app backend services
+Author-email: Float Team <gemenielabs@gmail.com>
+License: Apache-2.0
+Requires-Python: >=3.12
+Requires-Dist: annotated-types==0.7.0
+Requires-Dist: cachetools==5.4.0
+Requires-Dist: certifi==2024.7.4
+Requires-Dist: charset-normalizer==3.3.2
+Requires-Dist: google-ai-generativelanguage==0.6.6
+Requires-Dist: google-api-core==2.19.1
+Requires-Dist: google-api-python-client==2.141.0
+Requires-Dist: google-auth==2.33.0
+Requires-Dist: google-auth-httplib2==0.2.0
+Requires-Dist: google-generativeai==0.7.2
+Requires-Dist: googleapis-common-protos==1.63.2
+Requires-Dist: grpcio==1.65.4
+Requires-Dist: grpcio-status==1.62.3
+Requires-Dist: httplib2==0.22.0
+Requires-Dist: idna==3.7
+Requires-Dist: proto-plus==1.24.0
+Requires-Dist: protobuf==4.25.4
+Requires-Dist: pyasn1==0.6.0
+Requires-Dist: pyasn1_modules==0.4.0
+Requires-Dist: pydantic==2.8.2
+Requires-Dist: pydantic_core==2.20.1
+Requires-Dist: pydub==0.25.1
+Requires-Dist: pyparsing==3.1.2
+Requires-Dist: python-dotenv==1.0.1
+Requires-Dist: requests==2.32.3
+Requires-Dist: rsa==4.9
+Requires-Dist: tqdm==4.66.5
+Requires-Dist: typing_extensions==4.12.2
+Requires-Dist: uritemplate==4.1.1
+Requires-Dist: urllib3==2.2.2
+Requires-Dist: google-cloud-texttospeech==2.16.5
+Requires-Dist: jinja2
+Requires-Dist: boto3
+Requires-Dist: openai
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.11.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
+Requires-Dist: black>=23.9.0; extra == "dev"
+Requires-Dist: mypy>=1.5.0; extra == "dev"
+Requires-Dist: types-requests; extra == "dev"
+Requires-Dist: types-python-dateutil; extra == "dev"

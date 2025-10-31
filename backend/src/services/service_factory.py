@@ -1,6 +1,5 @@
 """Service factory for dependency injection and service management."""
 
-from typing import Dict, Any
 from .ai_service import AIService
 from .tts_service import TTSService
 from .storage_service import StorageService
@@ -9,9 +8,6 @@ from .gemini_service import GeminiAIService
 from .s3_storage_service import S3StorageService
 from .ffmpeg_audio_service import FFmpegAudioService
 from ..providers.openai_tts import OpenAITTSProvider
-from ..providers.google_tts import GoogleTTSProvider
-from ..providers.eleven_labs_tts import ElevenLabsTTSProvider
-from ..config.constants import TTSProvider
 from ..config.settings import settings
 
 class ServiceFactory:
@@ -42,38 +38,19 @@ class ServiceFactory:
             self._audio_service = FFmpegAudioService(storage_service)
         return self._audio_service
     
-    def get_tts_provider(self, provider_type: str = None) -> TTSService:
+    def get_tts_provider(self) -> TTSService:
         """
-        Get TTS provider instance.
-        
-        Args:
-            provider_type: Type of TTS provider ('openai', 'google', 'elevenlabs')
-                          If None, uses default from settings
-        
+        Get TTS provider instance (OpenAI only).
+
         Returns:
-            TTS service instance
+            OpenAI TTS service instance
         """
-        if provider_type is None:
-            provider_type = settings.DEFAULT_TTS_PROVIDER
-        
+        provider_type = 'openai'
+
         if provider_type not in self._tts_providers:
-            if provider_type == TTSProvider.OPENAI.value:
-                self._tts_providers[provider_type] = OpenAITTSProvider()
-            elif provider_type == TTSProvider.GOOGLE.value:
-                self._tts_providers[provider_type] = GoogleTTSProvider()
-            elif provider_type == TTSProvider.ELEVENLABS.value:
-                self._tts_providers[provider_type] = ElevenLabsTTSProvider()
-            else:
-                raise ValueError(f"Unknown TTS provider: {provider_type}")
-        
+            self._tts_providers[provider_type] = OpenAITTSProvider()
+
         return self._tts_providers[provider_type]
-    
-    def get_all_tts_providers(self) -> Dict[str, TTSService]:
-        """Get all available TTS providers."""
-        providers = {}
-        for provider_type in [TTSProvider.OPENAI, TTSProvider.GOOGLE, TTSProvider.ELEVENLABS]:
-            providers[provider_type.value] = self.get_tts_provider(provider_type.value)
-        return providers
     
     def validate_services(self) -> bool:
         """Validate that all services can be created successfully."""
