@@ -1,10 +1,10 @@
 """Unit tests for Lambda handler."""
 
 import pytest
-from unittest.mock import MagicMock, patch, Mock
-from src.handlers.lambda_handler import LambdaHandler
-from src.models.requests import SummaryRequest, MeditationRequest
+
 from src.config.constants import InferenceType
+from src.handlers.lambda_handler import LambdaHandler
+from src.models.requests import MeditationRequest, SummaryRequest
 
 
 @pytest.mark.unit
@@ -36,7 +36,7 @@ class TestSummaryRequest:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="I had a bad day",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
         assert req.user_id == "user-123"
         assert req.prompt == "I had a bad day"
@@ -48,7 +48,7 @@ class TestSummaryRequest:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="I had a bad day",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
         assert req.validate() is True
 
@@ -69,9 +69,9 @@ class TestMeditationRequest:
                 "added_text": ["Difficult day"],
                 "summary": ["Work stress"],
                 "user_summary": ["Had a bad day"],
-                "user_short_summary": ["Bad day"]
+                "user_short_summary": ["Bad day"],
             },
-            music_list=[]
+            music_list=[],
         )
         assert req.user_id == "user-123"
         assert req.inference_type == InferenceType.MEDITATION
@@ -91,6 +91,7 @@ class TestHandlerConfigValidation:
     def test_settings_validate_with_flag(self):
         """Test settings validation can be skipped."""
         from src.config.settings import settings
+
         # Should not raise when require_keys=False
         result = settings.validate(require_keys=False)
         assert result is True

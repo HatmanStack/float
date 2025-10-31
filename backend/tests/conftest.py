@@ -1,9 +1,10 @@
 """Pytest configuration and global fixtures for backend tests."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import Mock, MagicMock
-from src.models.requests import SummaryRequest, MeditationRequest
-from src.models.responses import SummaryResponse, MeditationResponse
+
+from src.models.requests import MeditationRequest, SummaryRequest
 
 
 @pytest.fixture
@@ -63,7 +64,7 @@ def valid_summary_request():
         type="summary",
         user_id="test-user-123",
         prompt="I had a difficult day at work",
-        audio="NotAvailable"
+        audio="NotAvailable",
     )
 
 
@@ -80,11 +81,9 @@ def valid_meditation_request():
             "added_text": ["I had a difficult day"],
             "summary": ["Work stress"],
             "user_summary": ["Challenging work day"],
-            "user_short_summary": ["Bad day"]
+            "user_short_summary": ["Bad day"],
         },
-        music_list=[
-            {"name": "ambient", "path": "s3://bucket/ambient.mp3", "volume": 0.3}
-        ]
+        music_list=[{"name": "ambient", "path": "s3://bucket/ambient.mp3", "volume": 0.3}],
     )
 
 
@@ -94,22 +93,21 @@ def invalid_summary_request():
     return {
         "type": "summary",
         # Missing user_id and prompt
-        "audio": "NotAvailable"
+        "audio": "NotAvailable",
     }
 
 
 @pytest.fixture
 def mock_event_factory():
     """Factory for creating mock Lambda events."""
+
     def create_event(body: dict, method: str = "POST") -> dict:
         return {
             "httpMethod": method,
-            "headers": {
-                "Content-Type": "application/json",
-                "Origin": "https://float-app.fun"
-            },
+            "headers": {"Content-Type": "application/json", "Origin": "https://float-app.fun"},
             "body": str(body).replace("'", '"'),  # Simple JSON conversion
         }
+
     return create_event
 
 
