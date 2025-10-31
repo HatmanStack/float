@@ -1,0 +1,56 @@
+# Coverage Baseline Report for Float Backend
+# Generated: 2024-10-31
+
+## Overall Coverage
+- Total Coverage: 29%
+- Target: 60% (critical paths only)
+- Status: In Progress
+
+## Coverage by Module
+
+### Models (High Priority) - 91% coverage
+- src/models/responses.py: 91%
+- src/models/requests.py: 78%
+- Critical business logic fully tested
+
+### Lambda Handler (High Priority) - 31% coverage
+- src/handlers/lambda_handler.py: 31%
+- Tests cover initialization and request routing
+- Handler methods will be tested with full service mocking in Phase 2
+
+### Services (Medium Priority) - 0-24% coverage
+- src/providers/openai_tts.py: 45%
+- src/services/s3_storage_service.py: 24%
+- src/services/ffmpeg_audio_service.py: 20%
+- Abstract service interfaces: 100%
+
+### Utilities (Lower Priority) - 26-31% coverage
+- src/utils/audio_utils.py: 26%
+- src/utils/file_utils.py: 31%
+- Coverage will improve as services are tested
+
+### Not Covered (To Do)
+- src/services/gemini_service.py: 0% (requires API configuration)
+- src/services/service_factory.py: 0% (tested through handlers)
+- src/config/domain.py: 0% (internal models)
+- src/utils/color_utils.py: 0% (utility, low priority)
+- src/handlers/middleware.py: 18% (partial testing)
+
+## Test Summary
+- Total Tests: 25
+- Passing: 25
+- Failing: 0
+- Test Files: 2 (test_lambda_handler.py, test_models.py)
+
+## Next Steps for Phase 1
+1. Write service layer tests (aim for 70%+ on services)
+2. Add integration-level tests for critical paths
+3. Configure GitHub Actions to run coverage reports
+4. Document test expectations for Phase 2
+
+## Phase 2 Goals
+- Add mypy type checking (standard mode)
+- Add ruff linting
+- Add black formatting
+- Refactor code based on linting output
+- Target 60%+ overall coverage
