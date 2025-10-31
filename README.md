@@ -38,13 +38,70 @@ Float is a cross-platform meditation app built with React Native and Expo. It us
 - **Emotion and Intensity Categorization**: Categorizes floats by emotion and intensity to tailor meditation experiences.
 - **Backend Powered by AWS Lambda**: Manages API calls to Google Generative AI and ElevenLabs through AWS Lambda functions.
 
+## Code Quality Standards 🏆
+
+The Float project maintains high code quality standards for both frontend and backend:
+
+### Backend (Python)
+
+We enforce consistent code quality using:
+- **Type Hints** (`mypy`): Full type annotations on public APIs
+- **Linting** (`ruff`): Catch bugs and enforce consistent style
+- **Formatting** (`black`): Opinionated code formatter for consistency
+- **Testing** (`pytest`): 60%+ coverage on critical paths
+
+#### Quick Start for Backend Development
+
+```bash
+# Setup (one-time)
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# Before committing
+make quality      # Run all checks
+# Or individual checks:
+make test         # Run pytest with coverage
+make type-check   # Run mypy type checker
+make lint         # Run ruff linter
+make format       # Auto-format with black
+```
+
+#### Available Commands
+
+| Command | Purpose |
+|---------|---------|
+| `make quality` | Run all quality checks (tests → types → lint → format) |
+| `make quality-fix` | Auto-fix linting and formatting issues |
+| `make test` | Run pytest with coverage report |
+| `make type-check` | Check types with mypy |
+| `make lint` | Run ruff linter |
+| `make format` | Format code with black |
+| `./check_quality.sh` | Bash alternative to `make quality` |
+
+For detailed quality standards, see [backend/QUALITY.md](backend/QUALITY.md).
+
+### Frontend (TypeScript/React Native)
+
+Frontend uses ESLint and Prettier for code quality (configured in Phase 3).
+
 # Installation :eyes:
 
 To set up and run Float locally, follow these steps:
 
 ### Prerequisites
 
+**Frontend (All platforms)**
 - Node.js (version 22 or higher)
+- npm (version 9 or higher)
+
+**Backend (Python)**
+- Python 3.12 or higher
+- pip (Python package manager)
+- Virtual environment support
+
+**External Services**
 - A Google Cloud account with API access for Generative AI
 - An ElevenLabs account with API access for Text-to-Speech
 - OpenAI Account and API key
@@ -57,9 +114,25 @@ git clone https://github.com/yourusername/float.git
 cd float
 ```
 
-### Install Dependencies
+### Install Frontend Dependencies
 ```bash
 npm install
+```
+
+### Setup Backend (Python)
+
+```bash
+cd backend
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies (including dev tools)
+pip install -e ".[dev]"
+
+# Verify setup with quality checks
+make quality
 ```
 
 ## Configure Environment Variables
@@ -109,13 +182,50 @@ The Lambda packages need to be downloaded and built on a Linux machine with pyth
 - **Generate Meditation:** Select up to three floats to create a personalized meditation.
 - **Start Meditation:** Begin the meditation session. 
 
+## Development Workflow 🔧
+
+### Before Committing Code
+
+1. **Backend Changes:**
+   ```bash
+   cd backend
+   make quality  # Run all quality checks
+   ```
+   This runs:
+   - Tests with coverage report
+   - Type checking (mypy)
+   - Linting (ruff)
+   - Code formatting (black)
+
+2. **Frontend Changes:**
+   ```bash
+   npm run lint    # ESLint (Phase 3)
+   npm run format  # Prettier (Phase 3)
+   ```
+
+3. **Commit with clear messages:**
+   ```bash
+   git add .
+   git commit -m "feat: add awesome new feature
+
+   Description of what was implemented and why."
+   ```
+
+### Code Quality Standards
+
+- **Python Backend:** 100% type hints on public APIs, 60%+ test coverage
+- **TypeScript Frontend:** Strict mode enabled, comprehensive tests
+- **All Code:** Must pass linting and formatting before merge
+
+See [backend/QUALITY.md](backend/QUALITY.md) for detailed quality guidelines.
+
 ## API Integration :fire:
 
 - **Google Generative AI:** Used for generating the content of the meditations.
 - **AWS Lambda:** Manages API calls and processes data from Google and ElevenLabs APIs.
 
 **Choice of Voice API:** Converts generated text into audio for the meditation sessions.
-- **ElevenLabs** 
+- **ElevenLabs**
 - **Google TTS**
 - **OpenAI Text-to-Speech**
 
