@@ -45,6 +45,7 @@ The Float project maintains high code quality standards for both frontend and ba
 ### Backend (Python)
 
 We enforce consistent code quality using:
+
 - **Type Hints** (`mypy`): Full type annotations on public APIs
 - **Linting** (`ruff`): Catch bugs and enforce consistent style
 - **Formatting** (`black`): Opinionated code formatter for consistency
@@ -70,21 +71,55 @@ make format       # Auto-format with black
 
 #### Available Commands
 
-| Command | Purpose |
-|---------|---------|
-| `make quality` | Run all quality checks (tests → types → lint → format) |
-| `make quality-fix` | Auto-fix linting and formatting issues |
-| `make test` | Run pytest with coverage report |
-| `make type-check` | Check types with mypy |
-| `make lint` | Run ruff linter |
-| `make format` | Format code with black |
-| `./check_quality.sh` | Bash alternative to `make quality` |
+| Command              | Purpose                                                |
+| -------------------- | ------------------------------------------------------ |
+| `make quality`       | Run all quality checks (tests → types → lint → format) |
+| `make quality-fix`   | Auto-fix linting and formatting issues                 |
+| `make test`          | Run pytest with coverage report                        |
+| `make type-check`    | Check types with mypy                                  |
+| `make lint`          | Run ruff linter                                        |
+| `make format`        | Format code with black                                 |
+| `./check_quality.sh` | Bash alternative to `make quality`                     |
 
 For detailed quality standards, see [backend/QUALITY.md](backend/QUALITY.md).
 
 ### Frontend (TypeScript/React Native)
 
-Frontend uses ESLint and Prettier for code quality (configured in Phase 3).
+We enforce consistent code quality using:
+
+- **Type Checking** (`tsc`): TypeScript strict mode for full type safety
+- **Linting** (`eslint`): Catch bugs and enforce consistent patterns
+- **Formatting** (`prettier`): Opinionated code formatter for consistency
+- **Testing** (`jest`): Unit and component tests with React Native testing library
+
+#### Quick Start for Frontend Development
+
+```bash
+# Setup (one-time)
+npm install
+
+# Before committing
+./check_frontend_quality.sh   # Run all checks
+# Or individual checks:
+npm test                      # Run tests
+npm run type-check            # Run TypeScript type checker
+npm run lint                  # Run ESLint linter
+npm run format                # Auto-format with Prettier
+```
+
+#### Available Commands
+
+| Command                       | Purpose                          |
+| ----------------------------- | -------------------------------- |
+| `npm test`                    | Run Jest tests with watch mode   |
+| `npm run type-check`          | Check types with TypeScript      |
+| `npm run lint`                | Run ESLint linter                |
+| `npm run lint:fix`            | Auto-fix ESLint issues           |
+| `npm run format`              | Format code with Prettier        |
+| `npm run format:check`        | Check formatting without changes |
+| `./check_frontend_quality.sh` | Run all quality checks           |
+
+For detailed quality standards, see [FRONTEND_QUALITY.md](FRONTEND_QUALITY.md).
 
 # Installation :eyes:
 
@@ -93,15 +128,18 @@ To set up and run Float locally, follow these steps:
 ### Prerequisites
 
 **Frontend (All platforms)**
+
 - Node.js (version 22 or higher)
 - npm (version 9 or higher)
 
 **Backend (Python)**
+
 - Python 3.12 or higher
 - pip (Python package manager)
 - Virtual environment support
 
 **External Services**
+
 - A Google Cloud account with API access for Generative AI
 - An ElevenLabs account with API access for Text-to-Speech
 - OpenAI Account and API key
@@ -115,6 +153,7 @@ cd float
 ```
 
 ### Install Frontend Dependencies
+
 ```bash
 npm install
 ```
@@ -136,9 +175,11 @@ make quality
 ```
 
 ## Configure Environment Variables
-Create a .env file in the root directory and add the following variables.  Google is the gold standard for IDP.  Find out [more](https://developers.google.com/identity/protocols/oauth2) :
+
+Create a .env file in the root directory and add the following variables. Google is the gold standard for IDP. Find out [more](https://developers.google.com/identity/protocols/oauth2) :
 
 Frontend
+
 ```bash
 EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<URL>
 EXPO_PUBLIC_WEB_CLIENT_ID=<ID>
@@ -146,6 +187,7 @@ EXPO_PUBLIC_ANDROID_CLIENT_ID=<ID>
 ```
 
 Backend
+
 ```bash
 FFMPEG_BINARY=/opt/bin/ffmpeg
 G_KEY=<google_api_key>
@@ -166,31 +208,34 @@ Start the development server:
 ```bash
 npm start -c
 ```
+
 This will open the metro builder. You can run the app on iOS, Android, or web
 
 ### Backend
 
-Create a Lambda Layer for the FFMPEG subprocess.  Thanks to [SARVESH VIRKUD](https://virkud-sarvesh.medium.com/building-ffmpeg-layer-for-a-lambda-function-a206f36d3edc)
+Create a Lambda Layer for the FFMPEG subprocess. Thanks to [SARVESH VIRKUD](https://virkud-sarvesh.medium.com/building-ffmpeg-layer-for-a-lambda-function-a206f36d3edc)
 
-The Lambda packages need to be downloaded and built on a Linux machine with python 3.12 for google.protbuf and crypto binary packages to work correctly 
+The Lambda packages need to be downloaded and built on a Linux machine with python 3.12 for google.protbuf and crypto binary packages to work correctly
 
 ## Usage
 
 - **Add Floats:** Enter incidents with audio or text that have affected you.
-- **Review:** Review the summary and reasoning behind the float-generation. 
+- **Review:** Review the summary and reasoning behind the float-generation.
 - **Timing:** Use the color-coded timer to monitor if enough temporal space has been created.
 - **Generate Meditation:** Select up to three floats to create a personalized meditation.
-- **Start Meditation:** Begin the meditation session. 
+- **Start Meditation:** Begin the meditation session.
 
 ## Development Workflow 🔧
 
 ### Before Committing Code
 
 1. **Backend Changes:**
+
    ```bash
    cd backend
    make quality  # Run all quality checks
    ```
+
    This runs:
    - Tests with coverage report
    - Type checking (mypy)
@@ -198,12 +243,14 @@ The Lambda packages need to be downloaded and built on a Linux machine with pyth
    - Code formatting (black)
 
 2. **Frontend Changes:**
+
    ```bash
    npm run lint    # ESLint (Phase 3)
    npm run format  # Prettier (Phase 3)
    ```
 
 3. **Commit with clear messages:**
+
    ```bash
    git add .
    git commit -m "feat: add awesome new feature
@@ -219,18 +266,27 @@ The Lambda packages need to be downloaded and built on a Linux machine with pyth
 
 See [backend/QUALITY.md](backend/QUALITY.md) for detailed quality guidelines.
 
+### Continuous Integration
+
+Tests run automatically on pull requests and commits via GitHub Actions:
+- **Frontend Tests**: Jest, TypeScript, ESLint, Prettier (Node 22.x)
+- **Backend Tests**: Pytest, MyPy, Ruff, Black (Python 3.11 and 3.12)
+
+See [docs/CI_CD.md](docs/CI_CD.md) for details on viewing and debugging workflows.
+
 ## API Integration :fire:
 
 - **Google Generative AI:** Used for generating the content of the meditations.
 - **AWS Lambda:** Manages API calls and processes data from Google and ElevenLabs APIs.
 
 **Choice of Voice API:** Converts generated text into audio for the meditation sessions.
+
 - **ElevenLabs**
 - **Google TTS**
 - **OpenAI Text-to-Speech**
 
-
 ## License
+
 This project is licensed under the Apache 2.0 License. See the LICENSE file for details.
 
 ## Acknowledgements
@@ -240,6 +296,7 @@ This project is licensed under the Apache 2.0 License. See the LICENSE file for 
 **Logo Font:** Font provided by notyourtypefoundry testType(1.1)
 
 ## Contact
+
 For questions or feedback, please contact:
 
 - Email: gemenielabs@gmail.com
@@ -247,4 +304,3 @@ For questions or feedback, please contact:
 - Twitter: @hatmanstack
 
 Enjoy your meditative journey with Float!
-
