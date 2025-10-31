@@ -56,6 +56,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed workflow tips and co
 - **Testing**: Write Jest tests for new components and hooks
 
 Key rules:
+
 - Use functional components with hooks
 - Keep components small and focused
 - Avoid prop drilling (use Context API for shared state)
@@ -70,12 +71,14 @@ Key rules:
 - **pytest**: Write tests for new features (target 60%+ coverage)
 
 Key rules:
+
 - Use Pydantic models for validation
 - Add docstrings to classes and public methods
 - Handle exceptions explicitly
 - Add type hints to function signatures
 
 See configuration files for details:
+
 - Frontend: `.eslintrc.json`, `.prettierrc.json`, `tsconfig.json`
 - Backend: `backend/pyproject.toml`, `.eslintrc.json`
 
@@ -91,6 +94,7 @@ Reference issues: Fix #123
 ```
 
 **Types**:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `refactor`: Code refactoring (no feature change)
@@ -100,6 +104,7 @@ Reference issues: Fix #123
 - `chore`: Dependency or build changes
 
 **Examples**:
+
 ```
 feat(meditation): add support for custom meditation durations
 
@@ -139,6 +144,7 @@ git push origin feat/your-feature-name
 ### 4. Merge
 
 Once approved:
+
 - Ensure all checks pass (tests, linting, type checking)
 - GitHub will handle the merge
 - Celebrate! 🎉
@@ -154,6 +160,7 @@ npm test -- --testNamePattern=foo # Run specific test
 ```
 
 Write tests for:
+
 - New components
 - Custom hooks
 - Context providers
@@ -170,39 +177,24 @@ pytest tests/ -k test_name        # Specific test
 ```
 
 Write tests for:
+
 - Service methods
 - Request validation
 - Error handling
 - Business logic
 
-## Performance & Security
+## Security & Performance
 
-### Performance
+**Security**: Never commit API keys - use `.env`. Report security issues privately.
 
-- Check for unnecessary re-renders in React (use React DevTools Profiler)
-- Profile slow operations: `pytest backend/tests/ --durations=10`
-- Optimize hot paths in services
+**Performance**: Use React DevTools Profiler and `pytest --durations=10` for profiling.
 
-### Security
+## Need Help?
 
-- **Never commit API keys or secrets** - use `.env` and `.env.example`
-- Review dependencies: `npm audit` and `pip-audit`
-- Validate user input in both frontend and backend
-- Report security issues privately to the maintainers
-
-## Getting Help
-
-- Check [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for common issues
-- Review existing tests for code patterns
-- Ask questions in pull request comments
-- Open an issue for bugs or feature requests
-
-## Questions?
-
-- Read [README.md](README.md) for project overview
-- Check [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
-- Review [docs/API.md](docs/API.md) for backend endpoints
-- See [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) for quick lookup
+- **Common issues**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- **Architecture**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **API reference**: [docs/API.md](docs/API.md)
+- **Quick lookup**: [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
 
 ---
 

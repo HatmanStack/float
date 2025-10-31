@@ -5,6 +5,7 @@ This document outlines the code quality standards and practices for the Float ba
 ## Overview
 
 We maintain consistent code quality through:
+
 - **Type hints** with mypy type checking
 - **Linting** with ruff to catch bugs and style issues
 - **Formatting** with black for consistent style
@@ -26,6 +27,7 @@ All public functions and methods must have complete type annotations.
 ### Examples
 
 **Good:**
+
 ```python
 def process_request(data: Dict[str, Any]) -> str:
     """Process request data and return result."""
@@ -38,6 +40,7 @@ class Service:
 ```
 
 **Bad:**
+
 ```python
 def process_request(data):  # Missing type hints
     result = str(data)
@@ -142,6 +145,7 @@ pytest tests/unit/test_handlers.py::test_function_name -v
 ### Test Coverage
 
 Current targets:
+
 - **Minimum**: 30% overall coverage
 - **Target**: 60%+ on critical paths (handlers, services, models)
 - **Excluded**: External integrations (Gemini, S3, etc.)
@@ -194,16 +198,19 @@ black src/
 ### Resolving Issues
 
 **Type Errors:**
+
 - Add explicit type hints
 - Use `Any` for truly ambiguous types
 - Check imports and dependencies
 
 **Linting Violations:**
+
 - Follow the suggestion in the error message
 - Run `--fix` to auto-fix common issues
 - Manual fixes for semantic issues
 
 **Formatting Issues:**
+
 - Run `black` to format automatically
 - No style debates - black decides
 
@@ -268,6 +275,7 @@ except ServiceError as e:
 ## Integration with CI/CD
 
 GitHub Actions runs these checks automatically on:
+
 - Pull requests
 - Pushes to main branch
 - Scheduled runs
@@ -285,6 +293,7 @@ Results are visible in the Actions tab. Developers are responsible for fixing is
 ## Questions?
 
 Refer to:
+
 1. Code examples in this file
 2. Existing code that passes all checks
 3. Tool documentation links above

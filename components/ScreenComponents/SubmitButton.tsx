@@ -1,30 +1,40 @@
-import React from "react";
-import { ActivityIndicator, Pressable } from "react-native";
-import { ThemedText } from "@/components/ThemedText"; // Adjust the import according to your actual component library
-import { Colors } from "@/constants/Colors";
-import useStyles from "@/constants/StylesConstants"; // Ensure correct import
+import React from 'react';
+import { ActivityIndicator, Pressable } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { Colors } from '@/constants/Colors';
+import useStyles from '@/constants/StylesConstants';
 
-const SubmitButton = ({ submitActivity, handleSummaryCall }) => {
-  const styles = useStyles(); // Call useStyles inside the component
-  
+/**
+ * Props for SubmitButton component
+ */
+interface SubmitButtonProps {
+  submitActivity: boolean;
+  handleSummaryCall: () => void;
+}
+
+/**
+ * Submit button component with loading state
+ */
+const SubmitButton: React.FC<SubmitButtonProps> = ({
+  submitActivity,
+  handleSummaryCall,
+}: SubmitButtonProps): React.ReactNode => {
+  const styles = useStyles();
+
   return submitActivity ? (
-    <ActivityIndicator size="large" color={Colors["activityIndicator"]} />
+    <ActivityIndicator size="large" color={Colors['activityIndicator']} />
   ) : (
     <Pressable
       onPress={() => handleSummaryCall()}
       style={({ pressed }) => [
         {
-          backgroundColor: pressed
-            ? Colors["buttonPressed"]
-            : Colors["buttonUnpressed"],
+          backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
         },
         styles.button, // Use the styles returned by useStyles
       ]}
     >
       {({ pressed }) => (
-        <ThemedText type="generate">
-          {pressed ? "SUBMITTING!" : "Submit Float"}
-        </ThemedText>
+        <ThemedText type="generate">{pressed ? 'SUBMITTING!' : 'Submit Float'}</ThemedText>
       )}
     </Pressable>
   );
