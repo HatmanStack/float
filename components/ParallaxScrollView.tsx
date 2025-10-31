@@ -1,33 +1,37 @@
-import type { PropsWithChildren, ReactElement } from "react";
-import { StyleSheet, useColorScheme, View, Platform } from "react-native";
-import { Dimensions } from 'react-native';
+import React, { type PropsWithChildren, type ReactElement } from 'react';
+import { StyleSheet, useColorScheme, View, Platform } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedRef,
   useAnimatedStyle,
   useScrollViewOffset,
-} from "react-native-reanimated";
+} from 'react-native-reanimated';
 
-import { ThemedView } from "@/components/ThemedView";
+import { ThemedView } from '@/components/ThemedView';
 
 const HEADER_HEIGHT = 250;
 
-type Props = PropsWithChildren<{
+/**
+ * Props for ParallaxScrollView component
+ */
+interface ParallaxScrollViewProps extends PropsWithChildren {
   headerImage: ReactElement;
   headerBackgroundColor: { dark: string; light: string };
   headerText: ReactElement;
-}>;
+}
 
+/**
+ * ScrollView with parallax header effect
+ */
 export default function ParallaxScrollView({
   children,
   headerImage,
   headerBackgroundColor,
   headerText,
-}: Props) {
-  const colorScheme = useColorScheme() ?? "light";
+}: ParallaxScrollViewProps): React.ReactNode {
+  const colorScheme = useColorScheme() ?? 'light';
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
-  const windowWidth = Dimensions.get('window').width;
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -39,11 +43,7 @@ export default function ParallaxScrollView({
           ),
         },
         {
-          scale: interpolate(
-            scrollOffset.value,
-            [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-            [2, 1, 1]
-          ),
+          scale: interpolate(scrollOffset.value, [-HEADER_HEIGHT, 0, HEADER_HEIGHT], [2, 1, 1]),
         },
       ],
     };
@@ -59,13 +59,13 @@ export default function ParallaxScrollView({
             headerAnimatedStyle,
           ]}
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {headerImage}
             <View
               style={{
                 flex: 1,
-                alignItems: "center",
-                margin: Platform.OS === "android" ? 20 : 100,
+                alignItems: 'center',
+                margin: Platform.OS === 'android' ? 20 : 100,
               }}
             >
               {headerText}
@@ -85,13 +85,13 @@ const styles = StyleSheet.create({
   },
   header: {
     height: 250,
-    overflow: "hidden",
-    justifyContent: "flex-end",
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
   content: {
     flex: 1,
     padding: 32,
     gap: 16,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
 });

@@ -34,43 +34,43 @@ make quality              # Run all checks
 
 ## File Locations
 
-| Item | Location |
-|------|----------|
-| Frontend app code | `app/` |
-| React Native components | `components/` |
-| Component tests | `components/__tests__/` |
-| State management | `context/` |
-| Frontend constants | `constants/` |
-| Backend source | `backend/src/` |
-| Lambda handler | `backend/src/handlers/lambda_handler.py` |
-| Services | `backend/src/services/` |
-| Data models | `backend/src/models/` |
-| Backend tests | `backend/tests/` |
-| ESLint config | `.eslintrc.json` |
-| Prettier config | `.prettierrc.json` |
-| TypeScript config | `tsconfig.json` |
-| Python config | `backend/pyproject.toml` |
-| Environment template | `.env.example` |
+| Item                    | Location                                 |
+| ----------------------- | ---------------------------------------- |
+| Frontend app code       | `app/`                                   |
+| React Native components | `components/`                            |
+| Component tests         | `components/__tests__/`                  |
+| State management        | `context/`                               |
+| Frontend constants      | `constants/`                             |
+| Backend source          | `backend/src/`                           |
+| Lambda handler          | `backend/src/handlers/lambda_handler.py` |
+| Services                | `backend/src/services/`                  |
+| Data models             | `backend/src/models/`                    |
+| Backend tests           | `backend/tests/`                         |
+| ESLint config           | `.eslintrc.json`                         |
+| Prettier config         | `.prettierrc.json`                       |
+| TypeScript config       | `tsconfig.json`                          |
+| Python config           | `backend/pyproject.toml`                 |
+| Environment template    | `.env.example`                           |
 
 ## Code Quality Tools
 
 ### Frontend
 
-| Tool | Command | Purpose |
-|------|---------|---------|
-| Jest | `npm test` | Unit and component tests |
-| TypeScript | `npm run type-check` | Static type checking |
-| ESLint | `npm run lint` | Code style and bugs |
-| Prettier | `npm run format` | Code formatting |
+| Tool       | Command              | Purpose                  |
+| ---------- | -------------------- | ------------------------ |
+| Jest       | `npm test`           | Unit and component tests |
+| TypeScript | `npm run type-check` | Static type checking     |
+| ESLint     | `npm run lint`       | Code style and bugs      |
+| Prettier   | `npm run format`     | Code formatting          |
 
 ### Backend
 
-| Tool | Command | Purpose |
-|------|---------|---------|
-| pytest | `pytest tests/` | Unit and integration tests |
-| mypy | `mypy src/` | Static type checking |
-| ruff | `ruff check src/` | Code style and bugs |
-| black | `black src/` | Code formatting |
+| Tool   | Command           | Purpose                    |
+| ------ | ----------------- | -------------------------- |
+| pytest | `pytest tests/`   | Unit and integration tests |
+| mypy   | `mypy src/`       | Static type checking       |
+| ruff   | `ruff check src/` | Code style and bugs        |
+| black  | `black src/`      | Code formatting            |
 
 ## Architecture Overview
 
@@ -106,16 +106,19 @@ make quality              # Run all checks
 ## Before Committing
 
 **Frontend**:
+
 ```bash
 npm test && npm run lint && npm run format
 ```
 
 **Backend**:
+
 ```bash
 cd backend && make quality
 ```
 
 **Git**:
+
 ```bash
 git add .
 git commit -m "type: description"  # Use conventional commits
@@ -123,15 +126,15 @@ git commit -m "type: description"  # Use conventional commits
 
 ## Common Issues
 
-| Issue | Solution |
-|-------|----------|
-| "Module not found" (npm) | Run `npm install` |
-| "Module not found" (Python) | Activate venv: `source backend/.venv/bin/activate` |
-| Port 8081 in use | Kill process or use `expo start -c --port 8082` |
-| Type errors | Run `npm run type-check` or `mypy src/` |
-| Lint errors | Run `npm run lint:fix` or `ruff check src/ --fix` |
-| Format conflicts | Run `npm run format` first, then `npm run lint:fix` |
-| Tests failing | Check `.env`, run `npm install`, or check git branch |
+| Issue                       | Solution                                             |
+| --------------------------- | ---------------------------------------------------- |
+| "Module not found" (npm)    | Run `npm install`                                    |
+| "Module not found" (Python) | Activate venv: `source backend/.venv/bin/activate`   |
+| Port 8081 in use            | Kill process or use `expo start -c --port 8082`      |
+| Type errors                 | Run `npm run type-check` or `mypy src/`              |
+| Lint errors                 | Run `npm run lint:fix` or `ruff check src/ --fix`    |
+| Format conflicts            | Run `npm run format` first, then `npm run lint:fix`  |
+| Tests failing               | Check `.env`, run `npm install`, or check git branch |
 
 ## Important Files
 
@@ -159,6 +162,7 @@ git commit -m "type: description"  # Use conventional commits
 **Base URL**: `https://<your-lambda-function-url>/`
 
 ### Summary Request
+
 ```bash
 POST /
 {
@@ -168,9 +172,11 @@ POST /
   "prompt": "text_or_NotAvailable"
 }
 ```
+
 Returns: sentiment analysis
 
 ### Meditation Request
+
 ```bash
 POST /
 {
@@ -180,6 +186,7 @@ POST /
   "music_list": [...]
 }
 ```
+
 Returns: base64 encoded meditation audio
 
 See [docs/API.md](./API.md) for full details.
@@ -231,14 +238,14 @@ See [docs/DEVELOPMENT.md](./DEVELOPMENT.md) for detailed debugging guide.
 
 When running `npm start -c`:
 
-| Key | Action |
-|-----|--------|
-| `i` | Launch iOS simulator |
+| Key | Action                  |
+| --- | ----------------------- |
+| `i` | Launch iOS simulator    |
 | `a` | Launch Android emulator |
-| `w` | Open web client |
-| `r` | Reload app |
-| `m` | Toggle menu |
-| `q` | Quit |
+| `w` | Open web client         |
+| `r` | Reload app              |
+| `m` | Toggle menu             |
+| `q` | Quit                    |
 
 ## Git Workflow
 
@@ -263,6 +270,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 ---
 
 **For more information**, see:
+
 - [README.md](../README.md) - Project overview
 - [docs/DEVELOPMENT.md](./DEVELOPMENT.md) - Full development guide
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines

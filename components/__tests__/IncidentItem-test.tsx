@@ -2,9 +2,9 @@ import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import IncidentItem from '@/components/ScreenComponents/IncidentItem';
-import { useIncident } from '@/context/IncidentContext'; 
-import { ThemedText } from '@/components/ThemedText'; 
-import { Collapsible } from '@/components/Collapsible'; 
+import { useIncident } from '@/context/IncidentContext';
+import { ThemedText } from '@/components/ThemedText';
+import { Collapsible } from '@/components/Collapsible';
 
 // Mock the useIncident hook and its return values
 jest.mock('@/context/IncidentContext', () => ({
@@ -18,26 +18,25 @@ jest.mock('@/context/IncidentContext', () => ({
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 jest.mock('@/components/Collapsible', () => {
-    return {
-      Collapsible: ({ children, isOpen, onToggle, ...props }) => (
-        <MockCollapsible isOpen={isOpen} onToggle={onToggle} {...props}>
-          {children}
-        </MockCollapsible>
-      ),
-    };
-  });
-  
-  // Mock component to simulate behavior
-  const MockCollapsible = ({ children, isOpen, onToggle, ...props }) => {
-    // Simulate the behavior of the Collapsible component
-    return (
-      <div {...props}>
-        {isOpen ? children : null}
-        <button onClick={onToggle}>Toggle</button>
-      </div>
-    );
+  return {
+    Collapsible: ({ children, isOpen, onToggle, ...props }) => (
+      <MockCollapsible isOpen={isOpen} onToggle={onToggle} {...props}>
+        {children}
+      </MockCollapsible>
+    ),
   };
-  
+});
+
+// Mock component to simulate behavior
+const MockCollapsible = ({ children, isOpen, onToggle, ...props }) => {
+  // Simulate the behavior of the Collapsible component
+  return (
+    <div {...props}>
+      {isOpen ? children : null}
+      <button onClick={onToggle}>Toggle</button>
+    </div>
+  );
+};
 
 describe('IncidentItem', () => {
   const mockIncident = {

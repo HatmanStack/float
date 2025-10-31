@@ -8,7 +8,16 @@ export const IncidentProvider = ({ children }) => {
   const [colorChangeArrayOfArrays, setColorChangeArrayOfArrays] = useState('#FFFFFF');
 
   return (
-    <IncidentContext.Provider value={{ incidentList, setIncidentList, colorChangeArrayOfArrays, setColorChangeArrayOfArrays, musicList, setMusicList }}>
+    <IncidentContext.Provider
+      value={{
+        incidentList,
+        setIncidentList,
+        colorChangeArrayOfArrays,
+        setColorChangeArrayOfArrays,
+        musicList,
+        setMusicList,
+      }}
+    >
       {children}
     </IncidentContext.Provider>
   );

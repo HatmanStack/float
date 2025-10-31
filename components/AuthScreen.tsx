@@ -1,90 +1,123 @@
-import React, { useEffect, useState } from "react";
-import { useColorScheme, Platform } from "react-native";
-import { Pressable } from "react-native";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
+import React, { useEffect, useState, useCallback } from 'react';
+import { useColorScheme, Platform } from 'react-native';
+import { Pressable } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
 import { useGoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "@/context/AuthContext";
-import useStyles from "@/constants/StylesConstants";
-import { Colors } from "@/constants/Colors";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/context/AuthContext';
+import useStyles from '@/constants/StylesConstants';
+import { Colors } from '@/constants/Colors';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-
-GoogleSignin.configure();
 import axios from 'axios';
 
+GoogleSignin.configure();
 WebBrowser.maybeCompleteAuthSession();
 
-const AuthScreen = () => {
-  const { user, setUser } = useAuth();
-  const [isUserLoaded, setIsUserLoaded] = useState(false);
-  const styles = useStyles();
-  const colorScheme = useColorScheme();
-  const backgroundAuthColor = colorScheme === "light" ? "#60465a" : "#bfaeba";
-  const scopes = ["https://www.googleapis.com/auth/calendar.events.readonly", "https://www.googleapis.com/auth/youtube.readonly"];
-  const googleLogin = useGoogleLogin({
-    //scope: scopes.join(','), 
-    onSuccess: async (tokenResponse) => {
-      try {
-        const userInfo = await axios.get(
-          'https://www.googleapis.com/oauth2/v3/userinfo',
-          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
-        );
-        console.log(userInfo)
-        const googleUser = { id: userInfo.data.email, name: userInfo.data.email};
-        await AsyncStorage.setItem("user", JSON.stringify(googleUser));
-        console.log(googleUser)
-        setUser(googleUser);
-      } catch (error) {
-        console.error("Error fetching user info", error);
-      }
-    },
-    onError: (errorResponse) => console.error("Login error", errorResponse),
-  });
+/**
+ * User interface
+ */
+interface User {
+  id: string;
+  name: string;
+}
 
-  const handleGoogleLogin = async () => {
-    if (Platform.OS === 'web') {
-      try {
-        await googleLogin(); // Call the login function
-      } catch (error) {
-        console.error("Error during web login", error);
-      }
-    } else if (Platform.OS === 'android') {
-      try {
-        const userInfo = await GoogleSignin.signIn();
-        console.log(userInfo);
-        setUser(userInfo.user);
-      } catch (error) {
-        console.error("Google sign-in error", error);
-      }
-    }
-  };
+/**
+ * Custom hook for auth user loading
+ */
+function useUserLoader() {
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
+  const { setUser } = useAuth();
 
   useEffect(() => {
     const loadUser = async () => {
-      const storedUser = await AsyncStorage.getItem("user");
+      const storedUser = await AsyncStorage.getItem('user');
       if (storedUser) {
-        const storedUserDict = JSON.parse(storedUser);
-        if (storedUserDict.id !== "guest") {
+        const storedUserDict: User = JSON.parse(storedUser);
+        if (storedUserDict.id !== 'guest') {
           setUser(storedUserDict);
         }
       }
       setIsUserLoaded(true);
     };
     loadUser();
-  }, []);
+  }, [setUser]);
 
-  const handleGuestLogin = async () => {
-    const guestUser = { id: "guest", name: "Guest User" };
-    await AsyncStorage.setItem("user", JSON.stringify(guestUser));
+  return isUserLoaded;
+}
+
+/**
+ * Custom hook for authentication logic
+ */
+function useAuthentication() {
+  const { user, setUser } = useAuth();
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        console.log(userInfo);
+        const googleUser: User = { id: userInfo.data.email, name: userInfo.data.email };
+        await AsyncStorage.setItem('user', JSON.stringify(googleUser));
+        console.log(googleUser);
+        setUser(googleUser);
+      } catch (error) {
+        console.error('Error fetching user info', error);
+      }
+    },
+    onError: (errorResponse) => console.error('Login error', errorResponse),
+  });
+
+  const handleGoogleLogin = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      try {
+        await googleLogin();
+      } catch (error) {
+        console.error('Error during web login', error);
+      }
+    } else if (Platform.OS === 'android') {
+      try {
+        const userInfo = await GoogleSignin.signIn();
+        console.log(userInfo);
+        setUser(userInfo.user as User);
+      } catch (error) {
+        console.error('Google sign-in error', error);
+      }
+    }
+  }, [googleLogin, setUser]);
+
+  const handleGuestLogin = useCallback(async () => {
+    const guestUser: User = { id: 'guest', name: 'Guest User' };
+    await AsyncStorage.setItem('user', JSON.stringify(guestUser));
     setUser(guestUser);
-    
+  }, [setUser]);
+
+  return {
+    user,
+    handleGoogleLogin,
+    handleGuestLogin,
   };
+}
+
+/**
+ * Authentication screen component
+ */
+const AuthScreen: React.FC = (): React.ReactNode => {
+  const isUserLoaded = useUserLoader();
+  const { user, handleGoogleLogin, handleGuestLogin } = useAuthentication();
+  const styles = useStyles();
+  const colorScheme = useColorScheme();
+  const backgroundAuthColor = colorScheme === 'light' ? '#60465a' : '#bfaeba';
 
   if (!isUserLoaded) {
-    return <ThemedView style={{flex:1, justifyContent: "center",
-      alignItems: "center"}}><ThemedText type="header">Loading...</ThemedText></ThemedView>;
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ThemedText type="header">Loading...</ThemedText>
+      </ThemedView>
+    );
   }
 
   return (
@@ -92,59 +125,45 @@ const AuthScreen = () => {
       style={[
         {
           backgroundColor: backgroundAuthColor,
-          justifyContent: "space-evenly",
-          alignItems: "center",
+          justifyContent: 'space-evenly',
+          alignItems: 'center',
           flex: 1,
-          flexDirection: "row",
+          flexDirection: 'row',
         },
       ]}
     >
       {!user ? (
         <>
-            <Pressable
-              onPress={() => handleGoogleLogin()}
-              style={({ pressed }) => [
-                {
-                  backgroundColor: pressed
-                    ? Colors["buttonPressed"]
-                    : Colors["buttonUnpressed"],
-                },
-                styles.button, 
-              ]}
-            >
-              {({ pressed }) => (
-                <ThemedText
-                type="header"
-                style={[
-                  { fontSize: 25, textAlign: "center"}
-                ]}
-              >
-                  {pressed ? "GOOGLING!" : "GOOgle LOgin"}
-                </ThemedText>
-              )}
-            </Pressable>
-            <Pressable
-              onPress={handleGuestLogin}
-              style={({ pressed }) => [
-                {
-                  backgroundColor: pressed
-                    ? Colors["buttonPressed"]
-                    : Colors["buttonUnpressed"],
-                },
-                styles.button, 
-              ]}
-            >
-              {({ pressed }) => (
-                <ThemedText
-                type="header"
-                style={[
-                  { fontSize: 25, textAlign: "center"}
-                ]}
-              >
-                  {pressed ? "GUEST!" : "Guest User"}
-                </ThemedText>
-              )}
-            </Pressable>
+          <Pressable
+            onPress={() => handleGoogleLogin()}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+              },
+              styles.button,
+            ]}
+          >
+            {({ pressed }) => (
+              <ThemedText type="header" style={[{ fontSize: 25, textAlign: 'center' }]}>
+                {pressed ? 'GOOGLING!' : 'GOOgle LOgin'}
+              </ThemedText>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={handleGuestLogin}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+              },
+              styles.button,
+            ]}
+          >
+            {({ pressed }) => (
+              <ThemedText type="header" style={[{ fontSize: 25, textAlign: 'center' }]}>
+                {pressed ? 'GUEST!' : 'Guest User'}
+              </ThemedText>
+            )}
+          </Pressable>
         </>
       ) : (
         <ThemedText type="header" style={styles.headerImage}>
@@ -152,26 +171,33 @@ const AuthScreen = () => {
         </ThemedText>
       )}
     </ThemedView>
-    
   );
 };
 
-const customAuth = () => {
-  const [clientId, setClientId] = useState("");
+/**
+ * Custom hook to get OAuth client ID based on platform
+ */
+function useClientId(): string {
+  if (Platform.OS === 'web') {
+    return process.env.EXPO_PUBLIC_WEB_CLIENT_ID || '';
+  }
+  if (Platform.OS === 'android') {
+    return process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || '';
+  }
+  return '';
+}
 
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      setClientId(process.env.EXPO_PUBLIC_WEB_CLIENT_ID);
-    }
-    if (Platform.OS === 'android') {
-      setClientId(process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID);
-    }
-  }, []);
+/**
+ * Custom authentication wrapper with Google OAuth provider
+ */
+const CustomAuth: React.FC = (): React.ReactNode => {
+  const clientId = useClientId();
 
   return (
-    <GoogleOAuthProvider clientId={clientId} >
+    <GoogleOAuthProvider clientId={clientId}>
       <AuthScreen />
     </GoogleOAuthProvider>
   );
 };
-export default customAuth;
+
+export default CustomAuth;

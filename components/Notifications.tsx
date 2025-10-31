@@ -3,22 +3,22 @@ import { View, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
 
-    
 export default function FloatNotifications() {
-  const [expoPushToken, setExpoPushToken] = useState('');
-  const [notification, setNotification] = useState(false);
+  const setExpoPushToken = useState('')[1];
+  const setNotification = useState(false)[1];
   const notificationListener = useRef();
   const responseListener = useRef();
-  if (Platform.OS === "web") return;
-  
-  useEffect(() => {
-    registerForPushNotificationsAsync().then(token => setExpoPushToken(token));
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    registerForPushNotificationsAsync().then((token) => setExpoPushToken(token));
+
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       setNotification(notification);
     });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log(response);
     });
 
@@ -28,13 +28,10 @@ export default function FloatNotifications() {
     };
   }, []);
 
-  return (
-    <View/>
-  );
+  return <View />;
 }
 
 async function registerForPushNotificationsAsync() {
-  let token;
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -54,7 +51,7 @@ async function registerForPushNotificationsAsync() {
     alert('Failed to get push token for push notification!');
     return;
   }
-  token = (await Notifications.getExpoPushTokenAsync()).data;
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
   console.log(token);
   return token;
 }
