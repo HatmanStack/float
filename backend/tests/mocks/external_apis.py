@@ -1,7 +1,5 @@
 """Mock implementations of external API responses for testing."""
 
-from unittest.mock import Mock
-
 
 class MockGeminiResponse:
     """Mock response from Google Gemini API."""

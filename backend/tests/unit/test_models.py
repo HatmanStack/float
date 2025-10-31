@@ -1,12 +1,13 @@
 """Unit tests for Pydantic models."""
 
 import pytest
-from src.models.requests import SummaryRequest, MeditationRequest, parse_request_body
-from src.models.responses import (
-    SummaryResponse, MeditationResponse,
-    create_summary_response, create_meditation_response
-)
+
 from src.config.constants import InferenceType
+from src.models.requests import MeditationRequest, SummaryRequest, parse_request_body
+from src.models.responses import (
+    create_meditation_response,
+    create_summary_response,
+)
 
 
 @pytest.mark.unit
@@ -19,7 +20,7 @@ class TestSummaryRequestModel:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="I feel sad",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
         assert req.user_id == "user-123"
         assert req.prompt == "I feel sad"
@@ -32,7 +33,7 @@ class TestSummaryRequestModel:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="I feel sad",
-            audio="base64audiodata"
+            audio="base64audiodata",
         )
         assert req.validate() is True
 
@@ -42,7 +43,7 @@ class TestSummaryRequestModel:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="NotAvailable",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
         assert req.validate() is False
 
@@ -52,7 +53,7 @@ class TestSummaryRequestModel:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="I feel sad",
-            audio=None
+            audio=None,
         )
         assert req.validate() is True
 
@@ -62,7 +63,7 @@ class TestSummaryRequestModel:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="Test",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
         assert req.inference_type == InferenceType.SUMMARY
 
@@ -80,13 +81,13 @@ class TestMeditationRequestModel:
             "added_text": ["Bad day", "NotAvailable"],
             "summary": ["Work stress", "Future anxiety"],
             "user_summary": ["Had a bad day", "Worried about future"],
-            "user_short_summary": ["Bad day", "Anxious"]
+            "user_short_summary": ["Bad day", "Anxious"],
         }
         req = MeditationRequest(
             user_id="user-123",
             inference_type=InferenceType.MEDITATION,
             input_data=input_data,
-            music_list=[{"name": "ambient", "volume": 0.3}]
+            music_list=[{"name": "ambient", "volume": 0.3}],
         )
         assert req.user_id == "user-123"
         assert req.validate() is True
@@ -95,13 +96,13 @@ class TestMeditationRequestModel:
         """Test MeditationRequest with list of input data."""
         input_data = [
             {"sentiment_label": "Sad", "intensity": 4},
-            {"sentiment_label": "Anxious", "intensity": 3}
+            {"sentiment_label": "Anxious", "intensity": 3},
         ]
         req = MeditationRequest(
             user_id="user-123",
             inference_type=InferenceType.MEDITATION,
             input_data=input_data,
-            music_list=[]
+            music_list=[],
         )
         assert isinstance(req.input_data, list)
         assert req.validate() is True
@@ -112,7 +113,7 @@ class TestMeditationRequestModel:
             user_id="user-123",
             inference_type=InferenceType.MEDITATION,
             input_data={"sentiment": "Sad"},
-            music_list=[]
+            music_list=[],
         )
         assert req.inference_type == InferenceType.MEDITATION
 
@@ -122,7 +123,7 @@ class TestMeditationRequestModel:
             user_id="user-123",
             inference_type=InferenceType.MEDITATION,
             input_data={},
-            music_list=[]
+            music_list=[],
         )
         assert req.validate() is False
 
@@ -132,7 +133,7 @@ class TestMeditationRequestModel:
             user_id="user-123",
             inference_type=InferenceType.MEDITATION,
             input_data={"sentiment": "Sad"},
-            music_list=[]
+            music_list=[],
         )
         assert isinstance(req.music_list, list)
 
@@ -147,7 +148,7 @@ class TestParseRequestBody:
             "inference_type": InferenceType.SUMMARY,
             "user_id": "user-123",
             "prompt": "I feel sad",
-            "audio": "NotAvailable"
+            "audio": "NotAvailable",
         }
         req = parse_request_body(body)
         assert isinstance(req, SummaryRequest)
@@ -159,7 +160,7 @@ class TestParseRequestBody:
             "inference_type": InferenceType.MEDITATION,
             "user_id": "user-123",
             "input_data": {"sentiment": "Sad"},
-            "music_list": []
+            "music_list": [],
         }
         req = parse_request_body(body)
         assert isinstance(req, MeditationRequest)
@@ -170,7 +171,7 @@ class TestParseRequestBody:
         body = {
             "inference_type": InferenceType.SUMMARY,
             "prompt": "I feel sad",
-            "audio": "NotAvailable"
+            "audio": "NotAvailable",
         }
         with pytest.raises(ValueError):
             parse_request_body(body)
@@ -182,7 +183,7 @@ class TestSummaryResponse:
 
     def test_create_summary_response_with_factory(self):
         """Test creating a summary response using factory function."""
-        summary_json = '''{
+        summary_json = """{
             "sentiment_label": "Sad",
             "intensity": 4,
             "speech_to_text": "NotAvailable",
@@ -190,7 +191,7 @@ class TestSummaryResponse:
             "summary": "User experienced a bad day",
             "user_summary": "I had a bad day at work",
             "user_short_summary": "Bad day"
-        }'''
+        }"""
         resp = create_summary_response(123, "user-123", summary_json)
         assert resp.request_id == 123
         assert resp.user_id == "user-123"
@@ -199,7 +200,7 @@ class TestSummaryResponse:
 
     def test_response_to_dict(self):
         """Test converting response to dictionary."""
-        summary_json = '''{
+        summary_json = """{
             "sentiment_label": "Sad",
             "intensity": 4,
             "speech_to_text": "NotAvailable",
@@ -207,7 +208,7 @@ class TestSummaryResponse:
             "summary": "User experienced a bad day",
             "user_summary": "I had a bad day at work",
             "user_short_summary": "Bad day"
-        }'''
+        }"""
         resp = create_summary_response(123, "user-123", summary_json)
         resp_dict = resp.to_dict()
         assert resp_dict["request_id"] == 123
@@ -225,7 +226,7 @@ class TestMeditationResponse:
             request_id=123,
             user_id="user-123",
             music_list=[{"name": "ambient", "volume": 0.3}],
-            base64_audio="base64audiodata"
+            base64_audio="base64audiodata",
         )
         assert resp.request_id == 123
         assert resp.user_id == "user-123"
@@ -235,10 +236,7 @@ class TestMeditationResponse:
     def test_meditation_response_to_dict(self):
         """Test converting meditation response to dictionary."""
         resp = create_meditation_response(
-            request_id=123,
-            user_id="user-123",
-            music_list=[],
-            base64_audio="base64audiodata"
+            request_id=123, user_id="user-123", music_list=[], base64_audio="base64audiodata"
         )
         resp_dict = resp.to_dict()
         assert resp_dict["request_id"] == 123
@@ -248,10 +246,7 @@ class TestMeditationResponse:
     def test_meditation_response_serialization(self):
         """Test converting meditation response to JSON."""
         resp = create_meditation_response(
-            request_id=123,
-            user_id="user-123",
-            music_list=[],
-            base64_audio="base64audiodata"
+            request_id=123, user_id="user-123", music_list=[], base64_audio="base64audiodata"
         )
         json_str = resp.to_json()
         assert "base64audiodata" in json_str

@@ -1,0 +1,18 @@
+backend/src/utils/color_utils.py:1: error: Cannot find implementation or library stub for module named "numpy"  [import-not-found]
+backend/src/utils/color_utils.py:2: error: Library stubs not installed for "scipy.stats"  [import-untyped]
+backend/src/utils/color_utils.py:2: note: Hint: "python3 -m pip install scipy-stubs"
+backend/src/utils/color_utils.py:2: note: (or run "mypy --install-types" to install all missing stub packages)
+backend/src/utils/color_utils.py:71: error: Argument 1 to "rgb_to_hex" has incompatible type "list[int]"; expected "tuple[Any, ...]"  [arg-type]
+backend/src/services/s3_storage_service.py:2: error: Skipping analyzing "boto3": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+backend/src/services/s3_storage_service.py:4: error: Skipping analyzing "botocore.exceptions": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+backend/src/models/requests.py:25: error: Incompatible return value type (got "Literal[''] | bool | None", expected "bool")  [return-value]
+backend/src/models/requests.py:107: error: Incompatible types in assignment (expression has type "MeditationRequest", variable has type "SummaryRequest")  [assignment]
+backend/src/services/gemini_service.py:2: error: Cannot find implementation or library stub for module named "google.generativeai"  [import-not-found]
+backend/src/services/gemini_service.py:2: error: Cannot find implementation or library stub for module named "google"  [import-not-found]
+backend/src/services/gemini_service.py:3: error: Cannot find implementation or library stub for module named "google.generativeai.types.safety_types"  [import-not-found]
+backend/src/services/gemini_service.py:3: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+backend/src/handlers/lambda_handler.py:28: error: Incompatible default for argument "ai_service" (default has type "None", argument has type "AIService")  [assignment]
+backend/src/handlers/lambda_handler.py:28: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+backend/src/handlers/lambda_handler.py:28: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+backend/src/handlers/lambda_handler.py:87: error: Argument 1 to "generate_meditation" of "AIService" has incompatible type "dict[str, Any] | list[dict[str, Any]]"; expected "dict[str, Any]"  [arg-type]
+Found 12 errors in 5 files (checked 26 source files)
