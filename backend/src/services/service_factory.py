@@ -1,6 +1,6 @@
 """Service factory for dependency injection and service management."""
 
-from typing import Dict, Optional
+from typing import Optional
 
 from ..config.settings import settings
 from ..providers.openai_tts import OpenAITTSProvider
@@ -20,7 +20,7 @@ class ServiceFactory:
         self._ai_service: Optional[AIService] = None
         self._storage_service: Optional[StorageService] = None
         self._audio_service: Optional[AudioService] = None
-        self._tts_providers: Dict[str, TTSService] = {}
+        self._tts_service: Optional[TTSService] = None
 
     def get_ai_service(self) -> AIService:
         """Get AI service instance (singleton)."""
@@ -48,10 +48,9 @@ class ServiceFactory:
         Returns:
             OpenAI TTS service instance
         """
-        if "openai" not in self._tts_providers:
-            self._tts_providers["openai"] = OpenAITTSProvider()
-
-        return self._tts_providers["openai"]
+        if self._tts_service is None:
+            self._tts_service = OpenAITTSProvider()
+        return self._tts_service
 
     def validate_services(self) -> bool:
         """Validate that all services can be created successfully."""

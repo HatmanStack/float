@@ -112,6 +112,9 @@ def generate_color_mapping() -> Dict[str, List[str]]:
     Returns:
         Dictionary mapping intensity labels to color arrays
     """
+    if np is None:
+        raise ImportError("numpy is required for this function")
+
     labels = ["one", "two", "three", "four", "five"]
     holder_dict = {}
     space = [2, 4, 6, 8, 10]
