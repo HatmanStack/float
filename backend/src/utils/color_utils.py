@@ -1,35 +1,39 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, TYPE_CHECKING
 
 try:
     import numpy as np  # type: ignore[import-not-found]
     from scipy.stats import norm  # type: ignore[import-untyped]
+    if TYPE_CHECKING:
+        from numpy.typing import NDArray
 except ImportError:
     np = None
     norm = None
+    if TYPE_CHECKING:
+        from numpy.typing import NDArray  # type: ignore[import-not-found]
 
 
-def modified_sigmoid(x: Any, k: float = 0.005) -> Any:
+def modified_sigmoid(x: "NDArray[Any]", k: float = 0.005) -> "NDArray[Any]":
     """Modified sigmoid function with adjustable steepness."""
     if np is None:
         raise ImportError("numpy is required for this function")
     return 1 / (1 + np.exp(-k * x))
 
 
-def sigmoid(x: Any) -> Any:
+def sigmoid(x: "NDArray[Any]") -> "NDArray[Any]":
     """Standard sigmoid function."""
     if np is None:
         raise ImportError("numpy is required for this function")
     return 1 / (1 + np.exp(-x))
 
 
-def tanh(x: Any) -> Any:
+def tanh(x: "NDArray[Any]") -> "NDArray[Any]":
     """Hyperbolic tangent function."""
     if np is None:
         raise ImportError("numpy is required for this function")
     return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
 
 
-def triangular_weights(num_colors: int, peak_index: int) -> Any:
+def triangular_weights(num_colors: int, peak_index: int) -> "NDArray[Any]":
     """Generate triangular weight distribution."""
     if np is None:
         raise ImportError("numpy is required for this function")
@@ -39,7 +43,7 @@ def triangular_weights(num_colors: int, peak_index: int) -> Any:
     return weights
 
 
-def gaussian_weights(num_colors: int, mean: float, std: float) -> Any:
+def gaussian_weights(num_colors: int, mean: float, std: float) -> "NDArray[Any]":
     """Generate Gaussian weight distribution."""
     if np is None or norm is None:
         raise ImportError("numpy and scipy are required for this function")
@@ -50,7 +54,7 @@ def gaussian_weights(num_colors: int, mean: float, std: float) -> Any:
     return cumulative_weights
 
 
-def custom_weights(num_colors: int, peak_width: float) -> Any:
+def custom_weights(num_colors: int, peak_width: float) -> "NDArray[Any]":
     """Generate custom weight distribution with adjustable peak width."""
     if np is None:
         raise ImportError("numpy is required for this function")
