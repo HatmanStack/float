@@ -1,3 +1,6 @@
+// Set environment variable BEFORE importing the component
+process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL = 'https://mock-lambda-url.example.com';
+
 import { BackendMeditationCall } from '@/components/BackendMeditationCall';
 import { Platform } from 'react-native';
 

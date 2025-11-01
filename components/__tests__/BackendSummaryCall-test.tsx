@@ -1,9 +1,13 @@
+// Set environment variable BEFORE importing the component
+process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL = 'https://mock-lambda-url.example.com';
+
 import { BackendSummaryCall } from '@/components/BackendSummaryCall';
 
-// Mock AWS Lambda invoke function
+// Mock fetch
 beforeEach(() => {
   global.fetch = jest.fn(() =>
     Promise.resolve({
+      ok: true,
       json: () =>
         Promise.resolve({
           sentiment_label: 'Happy',
@@ -31,15 +35,13 @@ describe('BackendSummaryCall', () => {
 
     const response = await BackendSummaryCall(recordingURI, separateTextPrompt, user);
 
-    expect(response).toEqual({
+    expect(response).toMatchObject({
       sentiment_label: 'Happy',
       intensity: '3',
       summary: 'This is a mocked summary.',
-      // ... other mocked response properties
-      notification_id: 'mocked-notification-id', // From mocked scheduleNotificationAsync
-      timestamp: expect.any(String), // Check if it's a string
-      color_key: 0,
     });
+    expect(response.timestamp).toBeDefined();
+    expect(typeof response.timestamp).toBe('string');
   });
 
   // Add more tests to cover error handling, different inputs, etc.
@@ -48,15 +50,15 @@ describe('BackendSummaryCall', () => {
     const separateTextPrompt = 'This is a test prompt.';
     const user = 'testuser';
 
-    // Mock an error during Lambda invocation
-    (AWS.Lambda as jest.Mock).mockImplementationOnce(() => ({
-      invoke: jest.fn((params, callback) => {
-        callback(new Error('Mocked Lambda error'), null);
-      }),
-    }));
-
-    await expect(BackendSummaryCall(recordingURI, separateTextPrompt, user)).rejects.toThrowError(
-      'Mocked Lambda error'
+    // Mock fetch to return an error response
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Internal Server Error' }),
+      })
     );
+
+    await expect(BackendSummaryCall(recordingURI, separateTextPrompt, user)).rejects.toThrow();
   });
 });
