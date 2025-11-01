@@ -67,6 +67,9 @@ export function ThemedText({
         color: '#fffff2',
         textAlign: 'center',
       },
+      link: {
+        color: '#0a7ea4',
+      },
       header: {
         fontSize: 75 * scale,
         lineHeight: Platform.select({

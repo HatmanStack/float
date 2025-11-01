@@ -14,7 +14,7 @@ const IncidentItem = ({
   handlePress,
   isOpen,
   toggleCollapsible,
-}) => {
+}: any) => {
   const timestamp = new Date(incident.timestamp).toLocaleString();
   const { colorChangeArrayOfArrays } = useIncident();
   const displayText = selectedIndexes.includes(index)
@@ -30,7 +30,7 @@ const IncidentItem = ({
     [colorChangeArrayOfArrays, index]
   );
   const colorAnim = useRef(new Animated.Value(0));
-  const [backgroundColor, setBackgroundColor] = useState('#fff');
+  const [backgroundColor, setBackgroundColor] = useState<any>('#fff');
   const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
   const colorChangeDuration = 500;
 
@@ -74,7 +74,7 @@ const IncidentItem = ({
     };
   }, [colors, isSwiping, colorChangeDuration]);
 
-  const onPressHandler = (index) => {
+  const onPressHandler = (index: any) => {
     handlePress(index)(); // Call the returned function
   };
 
