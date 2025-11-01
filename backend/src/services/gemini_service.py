@@ -1,8 +1,8 @@
 import pathlib
 from typing import Any, Dict, Optional
 
-import google.generativeai as genai  # type: ignore[import-not-found]
-from google.generativeai.types.safety_types import (  # type: ignore[import-not-found]
+import google.generativeai as genai  # type: ignore[import-untyped]
+from google.generativeai.types.safety_types import (  # type: ignore[import-untyped]
     HarmCategory,
 )
 
