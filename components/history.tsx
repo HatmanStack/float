@@ -80,7 +80,7 @@ export default function ArchivedItemsScreen() {
     >
       <ThemedView style={styles.stepContainer}>
         <FlatList
-          data={archivedItems as ArchivedItem[]}
+          data={(archivedItems as unknown) as ArchivedItem[]}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
         />
