@@ -25,116 +25,153 @@
 
 # Float
 
-Float is a cross-platform meditation app built with React Native and Expo. It uses Google Generative AI, Eleven Labs text-to-Speech (migrating to Google TTS), and a library of sound files to create personalized meditation experiences based on user-submitted incidents that have affected them emotionally, which we refer to as "floats". Floats are categorized by emotion and intensity, and include a timer and a color scheme to indicate the duration, summary, and reasoning behind each meditation. The app can generate meditations from up to three floats at a time.
+Float is a cross-platform meditation app that generates personalized meditation sessions from user-submitted emotional incidents ("floats"). Built with React Native/Expo and AWS Lambda, it uses Google Generative AI to analyze emotions and OpenAI TTS to synthesize meditation audio.
 
-## Features :zap:
+## Features
 
-- **Personalized Meditations**: Generates customized meditation sessions based on user-submitted floats.
-- **Multi-Platform Support**: Built with React Native and Expo, supporting iOS, Android and Web platforms.
-- **Create Floats with Audio and Text**: User can create floats with audio or text allowing Gemini to capture tonality and speech patterns to asses mood and intensity of emotion as well as text
-- **Google Generative AI Integration**: Utilizes Google Generative AI for generating floats and meditation content.
-- **ElevenLabs Text-to-Speech**: Converts generated text into spoken meditations using ElevenLabs' text-to-speech technology.
-- **Color-Coded Timer**: Provides a visual timer with a color scheme to indicate the elapsed time of the meditation session.
-- **Emotion and Intensity Categorization**: Categorizes floats by emotion and intensity to tailor meditation experiences.
-- **Backend Powered by AWS Lambda**: Manages API calls to Google Generative AI and ElevenLabs through AWS Lambda functions.
+- **Personalized Meditations**: AI-generated meditations based on your emotions and incidents
+- **Audio & Text Input**: Submit floats via audio or text for accurate mood detection
+- **Multi-Platform**: iOS, Android, and Web via Expo
+- **Emotion Analysis**: Automatic categorization by emotion and intensity
+- **Background Music Integration**: Combined meditation voice with curated sound libraries
+- **Serverless Backend**: AWS Lambda for scalability
 
-# Installation :eyes:
+## Code Quality Standards
 
-To set up and run Float locally, follow these steps:
+Float maintains strict code quality across frontend and backend using automated tools and tests. Detailed standards are documented in configuration files (.eslintrc.json, pyproject.toml, etc.).
+
+### Backend (Python)
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# Run all checks
+make quality
+```
+
+**Tools**: mypy (type checking), ruff (linting), black (formatting), pytest (testing)
+
+See [backend/QUALITY.md](backend/QUALITY.md) for detailed standards.
+
+### Frontend (TypeScript/React Native)
+
+```bash
+npm install
+
+# Run all checks
+./check_frontend_quality.sh
+```
+
+**Tools**: TypeScript (strict mode), ESLint, Prettier, Jest
+
+See [FRONTEND_QUALITY.md](FRONTEND_QUALITY.md) for detailed standards.
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js (version 22 or higher)
-- A Google Cloud account with API access for Generative AI
-- An ElevenLabs account with API access for Text-to-Speech
-- OpenAI Account and API key
-- AWS account with Lambda functions set up
+- **Node.js** 22+ ([via nvm](https://github.com/nvm-sh/nvm))
+- **Python** 3.12+
+- **Git**
+- API keys: Google Gemini, OpenAI (TTS), AWS credentials
 
-### Clone the Repository
+### Setup
 
 ```bash
-git clone https://github.com/yourusername/float.git
+# Clone and install frontend
+git clone https://github.com/circlemind-ai/float.git
 cd float
-```
-
-### Install Dependencies
-```bash
 npm install
+
+# Setup backend
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+cd ..
+
+# Create .env from .env.example
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
-## Configure Environment Variables
-Create a .env file in the root directory and add the following variables.  Google is the gold standard for IDP.  Find out [more](https://developers.google.com/identity/protocols/oauth2) :
-
-Frontend
-```bash
-EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<URL>
-EXPO_PUBLIC_WEB_CLIENT_ID=<ID>
-EXPO_PUBLIC_ANDROID_CLIENT_ID=<ID>
-```
-
-Backend
-```bash
-FFMPEG_BINARY=/opt/bin/ffmpeg
-G_KEY=<google_api_key>
-SIMILARITY_BOOST=0.7
-STABILITY=0.3
-STYLE=0.3
-VOICE_ID=jKX50Q2OBT1CsDwwcTkZ
-XI_KEY=<eleven_labs_key>
-OPENAI_API_KEY=<openai_key>
-```
-
-# Run the App :smile:
-
-### Frontend
-
-Start the development server:
+### Development
 
 ```bash
+# Frontend: Start metro bundler
 npm start -c
+
+# Backend: Run quality checks
+cd backend && make quality
+
+# Run tests
+npm test                    # Frontend
+cd backend && pytest tests/ # Backend
 ```
-This will open the metro builder. You can run the app on iOS, Android, or web
 
-### Backend
-
-Create a Lambda Layer for the FFMPEG subprocess.  Thanks to [SARVESH VIRKUD](https://virkud-sarvesh.medium.com/building-ffmpeg-layer-for-a-lambda-function-a206f36d3edc)
-
-The Lambda packages need to be downloaded and built on a Linux machine with python 3.12 for google.protbuf and crypto binary packages to work correctly 
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed workflow and commands.
 
 ## Usage
 
-- **Add Floats:** Enter incidents with audio or text that have affected you.
-- **Review:** Review the summary and reasoning behind the float-generation. 
-- **Timing:** Use the color-coded timer to monitor if enough temporal space has been created.
-- **Generate Meditation:** Select up to three floats to create a personalized meditation.
-- **Start Meditation:** Begin the meditation session. 
+1. **Submit a Float**: Record or type an emotional incident
+2. **Get Analysis**: AI analyzes sentiment and intensity
+3. **Create Meditation**: Select floats to personalize your session
+4. **Meditate**: Listen to AI-generated meditation with background music
 
-## API Integration :fire:
+## Development
 
-- **Google Generative AI:** Used for generating the content of the meditations.
-- **AWS Lambda:** Manages API calls and processes data from Google and ElevenLabs APIs.
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for daily workflow, common commands, and tips.
 
-**Choice of Voice API:** Converts generated text into audio for the meditation sessions.
-- **ElevenLabs** 
-- **Google TTS**
-- **OpenAI Text-to-Speech**
+### Before Committing
 
+```bash
+# Backend
+cd backend && make quality
+
+# Frontend
+npm run lint && npm run format
+```
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, code standards, and pull request process.
+
+### Continuous Integration
+
+Tests run automatically on push/PR via GitHub Actions. See [docs/CI_CD.md](docs/CI_CD.md) for details.
+
+## Architecture
+
+Float uses a serverless architecture with separation between frontend and backend:
+
+- **Frontend**: React Native/Expo app for iOS, Android, and Web
+- **Backend**: AWS Lambda functions handling AI, TTS, and storage
+- **AI**: Google Gemini for emotion analysis and meditation generation
+- **TTS**: OpenAI for meditation audio synthesis
+- **Storage**: AWS S3 for user data and generated meditations
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design and data flows.
+
+## API Reference
+
+See [docs/API.md](docs/API.md) for Lambda endpoint documentation.
+
+## Troubleshooting
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for common issues and solutions.
 
 ## License
-This project is licensed under the Apache 2.0 License. See the LICENSE file for details.
 
-## Acknowledgements
-
-**Google Icons:** Material Icons provided by Google Material Icons
-
-**Logo Font:** Font provided by notyourtypefoundry testType(1.1)
+Apache 2.0 - See [LICENSE](LICENSE) for details.
 
 ## Contact
-For questions or feedback, please contact:
 
+- GitHub: [circlemind-ai/float](https://github.com/circlemind-ai/float)
 - Email: gemenielabs@gmail.com
-- GitHub: https://github.com/hatmanstack
-- Twitter: @hatmanstack
 
-Enjoy your meditative journey with Float!
+---
 
+**From feelings to Flow** 🧘‍♀️ - Personalized meditations for emotional well-being

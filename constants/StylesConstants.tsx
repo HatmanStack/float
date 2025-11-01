@@ -1,28 +1,28 @@
-import { StyleSheet, Dimensions, Platform, useColorScheme } from "react-native";
+import { StyleSheet, Dimensions, Platform, useColorScheme } from 'react-native';
 
 const useStyles = () => {
-  const windowWidth = Dimensions.get("window").width;
+  const windowWidth = Dimensions.get('window').width;
   const buttonWidth = windowWidth < 500 ? 150 : 200;
 
-  const buttonMarginTop = Platform.OS === "android" ? 60 : 30;
+  const buttonMarginTop = Platform.OS === 'android' ? 60 : 30;
 
   const colorScheme = useColorScheme();
-  const headerImageColor = colorScheme === "light" ? "#60465a" : "#bfaeba";
+  const headerImageColor = colorScheme === 'light' ? '#60465a' : '#bfaeba';
 
   return StyleSheet.create({
     button: {
       padding: 20,
       borderRadius: 20,
       width: buttonWidth,
-      alignSelf: "center",
+      alignSelf: 'center',
     },
     incidentContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
+      flexDirection: 'row',
+      justifyContent: 'space-between',
     },
     titleContainer: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 8,
     },
     stepContainer: {
@@ -33,21 +33,21 @@ const useStyles = () => {
       color: headerImageColor,
       bottom: -90,
       left: -35,
-      position: "absolute",
+      position: 'absolute',
     },
     input: {
       height: 200,
-      borderColor: "#60465a",
+      borderColor: '#60465a',
       borderWidth: 5,
       marginTop: 10,
       fontSize: 20,
       padding: 10,
-      backgroundColor: "#FFFFFF",
+      backgroundColor: '#FFFFFF',
     },
     homeButtonContainer: {
       marginBottom: 8,
-      flexDirection: "row",
-      justifyContent: "space-evenly",
+      flexDirection: 'row',
+      justifyContent: 'space-evenly',
       margin: 10,
       marginTop: buttonMarginTop,
     },

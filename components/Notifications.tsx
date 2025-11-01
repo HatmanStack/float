@@ -1,40 +1,46 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
 
-    
 export default function FloatNotifications() {
-  const [expoPushToken, setExpoPushToken] = useState('');
-  const [notification, setNotification] = useState(false);
-  const notificationListener = useRef();
-  const responseListener = useRef();
-  if (Platform.OS === "web") return;
-  
-  useEffect(() => {
-    registerForPushNotificationsAsync().then(token => setExpoPushToken(token));
+  // TODO: Implement push notification display UI
+  // const [expoPushToken, setExpoPushToken] = useState('');
+  // const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      setNotification(notification);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    registerForPushNotificationsAsync().then((token) => {
+      // TODO: Store or display the push token
+      console.log('Push token registered:', token);
     });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      // TODO: Handle and display notification
+      console.log('Notification received:', notification);
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log(response);
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
     };
   }, []);
 
-  return (
-    <View/>
-  );
+  return <View />;
 }
 
 async function registerForPushNotificationsAsync() {
-  let token;
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -54,7 +60,7 @@ async function registerForPushNotificationsAsync() {
     alert('Failed to get push token for push notification!');
     return;
   }
-  token = (await Notifications.getExpoPushTokenAsync()).data;
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
   console.log(token);
   return token;
 }

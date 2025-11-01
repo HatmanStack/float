@@ -1,28 +1,34 @@
 """Application constants and enums."""
 
 from enum import Enum
-from typing import List
+
 
 class InferenceType(Enum):
     """Types of inference operations supported."""
+
     SUMMARY = "summary"
     MEDITATION = "meditation"
 
+
 class TTSProvider(Enum):
     """Text-to-speech service providers."""
+
     OPENAI = "openai"
     GOOGLE = "google"
     ELEVENLABS = "elevenlabs"
 
+
 class SentimentLabel(Enum):
     """Supported sentiment labels for analysis."""
+
     ANGRY = "Angry"
-    DISGUSTED = "Disgusted" 
+    DISGUSTED = "Disgusted"
     FEARFUL = "Fearful"
     HAPPY = "Happy"
     NEUTRAL = "Neutral"
     SAD = "Sad"
     SURPRISED = "Surprised"
+
 
 # Audio processing constants
 CHUNK_SIZE = 1024
@@ -31,7 +37,7 @@ DEFAULT_SILENCE_DURATION = 10  # seconds
 DEFAULT_MUSIC_VOLUME_REDUCTION = -5  # dB
 
 # File extensions
-SUPPORTED_AUDIO_FORMATS = ['.mp3', '.wav', '.m4a']
+SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
 
 # HTTP response codes
 HTTP_OK = 200
@@ -43,7 +49,7 @@ HTTP_INTERNAL_SERVER_ERROR = 500
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
+    "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
 }
 
 # Text processing limits
@@ -52,13 +58,6 @@ MAX_TTS_CHUNK_LENGTH = 300
 
 # Default voice settings
 DEFAULT_VOICE_SETTINGS = {
-    "google": {
-        "language_code": "en-US",
-        "name": "en-US-Neural2-J",
-        "gender": "MALE"
-    },
-    "openai": {
-        "model": "gpt-4o-mini-tts",
-        "voice": "sage"
-    }
+    "google": {"language_code": "en-US", "name": "en-US-Neural2-J", "gender": "MALE"},
+    "openai": {"model": "gpt-4o-mini-tts", "voice": "sage"},
 }

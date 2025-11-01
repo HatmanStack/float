@@ -1,0 +1,63 @@
+# Coverage Baseline Report for Float Backend
+# Generated: 2025-10-31
+# Updated: 2025-10-31 (After Phase 1 Complete)
+
+## Overall Coverage
+- Total Coverage: 39% (was 29%)
+- Target: 60% (critical paths only)
+- Status: Phase 1 Complete - Ready for Phase 2
+
+## Coverage by Module
+
+### Models (High Priority) - 91% coverage
+- src/models/responses.py: 91%
+- src/models/requests.py: 78%
+- Critical business logic fully tested
+
+### Lambda Handler (High Priority) - 31% coverage
+- src/handlers/lambda_handler.py: 31%
+- Tests cover initialization and request routing
+- Additional handler methods covered in Phase 2
+
+### Services (Medium Priority) - 59-100% coverage
+- src/providers/openai_tts.py: 100% (all methods tested with mocks)
+- src/services/s3_storage_service.py: 59% (upload_json, download_file tested)
+- src/services/ffmpeg_audio_service.py: 68% (initialization, error handling)
+- Abstract service interfaces: 100%
+- src/services/audio_service.py: 100%
+- src/services/storage_service.py: 100%
+- src/services/tts_service.py: 100%
+
+### Utilities (Lower Priority) - 26-31% coverage
+- src/utils/audio_utils.py: 26%
+- src/utils/file_utils.py: 31%
+- Coverage will improve as services are tested
+
+### Not Covered (To Do)
+- src/services/gemini_service.py: 0% (requires API configuration)
+- src/services/service_factory.py: 0% (tested through handlers)
+- src/config/domain.py: 0% (internal models)
+- src/utils/color_utils.py: 0% (utility, low priority)
+- src/handlers/middleware.py: 18% (partial testing)
+
+## Test Summary
+- Total Tests: 41
+- Passing: 41
+- Failing: 0
+- Test Files: 3 (test_lambda_handler.py, test_models.py, test_services.py)
+
+## Phase 1 Completion Status ✅
+All Phase 1 tasks completed:
+1. ✅ Lambda handler tests (7 tests)
+2. ✅ Service layer tests (16 tests)
+3. ✅ Model validation tests (18 tests)
+4. ✅ Coverage reporting configured
+5. ✅ Code refactoring for testability (dependency injection, configuration validation)
+
+## Phase 2 Goals
+- Add mypy type checking (standard mode)
+- Add ruff linting
+- Add black formatting
+- Refactor code based on linting output
+- Target 60%+ overall coverage
+- Expand service tests to reach 70%+ on implementations

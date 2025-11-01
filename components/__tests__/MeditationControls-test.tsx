@@ -14,7 +14,7 @@ jest.mock('expo-av', () => ({
           pauseAsync: jest.fn().mockResolvedValue({}),
           setOnPlaybackStatusUpdate: jest.fn((callback) => {
             // Immediately call the callback to simulate playback start
-            callback({ didJustFinish: false }); 
+            callback({ didJustFinish: false });
           }),
         },
       }),
@@ -52,7 +52,6 @@ describe('MeditationControls', () => {
       />
     );
     expect(screen.getByTestId('activity-indicator')).toBeTruthy();
-
   });
 
   it('renders "Play" button when meditationURI is set', () => {
@@ -91,16 +90,15 @@ describe('MeditationControls', () => {
     );
     fireEvent.press(screen.getByText('Play'));
     expect(Audio.Sound.createAsync).toHaveBeenCalledWith({ uri: 'mocked-uri' });
-  
+
     await waitFor(() => {
-        expect(screen.getByText('Pause')).toBeTruthy();
-      });
-  
+      expect(screen.getByText('Pause')).toBeTruthy();
+    });
+
     // Now you can assert that the button text has changed
-    expect(screen.getByText('Pause')).toBeTruthy(); 
+    expect(screen.getByText('Pause')).toBeTruthy();
   });
 
-  
   it('pauses audio when "Pause" is pressed', async () => {
     render(
       <MeditationControls
@@ -116,21 +114,20 @@ describe('MeditationControls', () => {
     await waitFor(() => {
       expect(screen.getByText('Pause')).toBeTruthy();
     });
-    const { sound } = await Audio.Sound.createAsync({ uri: 'mocked-uri' }); 
+    const { sound } = await Audio.Sound.createAsync({ uri: 'mocked-uri' });
 
     expect(sound).toBeDefined();
 
-    await act(async () => { 
+    await act(async () => {
       fireEvent.press(screen.getByText('Pause')); // Then pause
     }); // Then pause
     expect(sound.pauseAsync).toHaveBeenCalled();
-  
+
     // Ensure the button text changes back to "Play"
     await waitFor(() => {
       expect(screen.getByText('Play')).toBeTruthy();
     });
-  }
-  );
+  });
 
   // Add more tests for other scenarios and edge cases as needed
 });

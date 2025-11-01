@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, TouchableOpacity, Text} from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import Guidance from '@/components/ScreenComponents/Guidance'; // Adjust the path if needed
 import { ThemedText } from '@/components/ThemedText'; // Adjust the path if needed
@@ -34,13 +34,17 @@ describe('Guidance', () => {
     render(<Guidance />);
 
     // Initially, the content should be closed
-    expect(screen.queryByText('Tap on the text to view the float details this selects the float')).toBeNull();
+    expect(
+      screen.queryByText('Tap on the text to view the float details this selects the float')
+    ).toBeNull();
 
     // Fire a press event on the collapsible header
     fireEvent.press(screen.getByText('Mock Collapsible - Closed'));
 
     // The content should now be open
     expect(screen.getByText('Mock Collapsible - Open')).toBeTruthy();
-    expect(screen.getByText('Tap on the text to view the float details this selects the float')).toBeTruthy();
+    expect(
+      screen.getByText('Tap on the text to view the float details this selects the float')
+    ).toBeTruthy();
   });
 });
