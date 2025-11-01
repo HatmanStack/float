@@ -35,7 +35,14 @@ function convertBlobToBase64(blob) {
 export async function StopRecording(recording) {
   try {
     if (recording) {
+      // Finalize the recording before attempting to get URI
+      await recording.stopAndUnloadAsync();
+
       const uri = recording.getURI();
+
+      if (!uri) {
+        throw new Error('Failed to get recording URI - recording may not have been finalized');
+      }
 
       let base64_file;
 

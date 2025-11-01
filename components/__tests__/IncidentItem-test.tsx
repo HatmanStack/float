@@ -15,28 +15,26 @@ jest.mock('@/context/IncidentContext', () => ({
   }),
 }));
 
-// Mock the Collapsible component to avoid unnecessary rendering and logic
+// Define mock component BEFORE jest.mock to avoid hoisting issues
+function MockCollapsible({ children, isOpen, onToggle, ...props }) {
+  return (
+    <View {...props}>
+      <TouchableOpacity onPress={onToggle}>
+        <Text>Mock Collapsible - {isOpen ? 'Open' : 'Closed'}</Text>
+      </TouchableOpacity>
+      {isOpen && <View>{children}</View>}
+    </View>
+  );
+}
+
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 jest.mock('@/components/Collapsible', () => {
   return {
-    Collapsible: ({ children, isOpen, onToggle, ...props }) => (
-      <MockCollapsible isOpen={isOpen} onToggle={onToggle} {...props}>
-        {children}
-      </MockCollapsible>
+    Collapsible: ({ children, ...props }) => (
+      <MockCollapsible {...props}>{children}</MockCollapsible>
     ),
   };
 });
-
-// Mock component to simulate behavior
-const MockCollapsible = ({ children, isOpen, onToggle, ...props }) => {
-  // Simulate the behavior of the Collapsible component
-  return (
-    <div {...props}>
-      {isOpen ? children : null}
-      <button onClick={onToggle}>Toggle</button>
-    </div>
-  );
-};
 
 describe('IncidentItem', () => {
   const mockIncident = {

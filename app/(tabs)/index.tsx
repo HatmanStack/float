@@ -45,7 +45,6 @@ function useAudioRecording() {
 
   const handleStopRecording = useCallback(async () => {
     if (recording) {
-      await recording.stopAndUnloadAsync();
       const uri = await StopRecording(recording);
       setURI(uri);
       setRecording(null);

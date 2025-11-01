@@ -49,6 +49,11 @@ function useAudioPlayback(meditationURI: string, setMeditationURI: (uri: string)
         newSound.setOnPlaybackStatusUpdate(async (status) => {
           if ('didJustFinish' in status && status.didJustFinish) {
             console.log('Audio file finished playing');
+            try {
+              await newSound.unloadAsync();
+            } catch (error) {
+              console.error('Error unloading audio:', error);
+            }
             setisPausing(false);
             setSound(null);
             setMeditationURI('');
