@@ -35,16 +35,16 @@ const IncidentItem = ({
     [colorChangeArrayOfArrays, index]
   );
   const colorAnim = useRef(new Animated.Value(0));
-  const [backgroundColor, setBackgroundColor] = useState<any>('#fff');
   const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
   const colorChangeDuration = 500;
 
+  // Create animated value without storing in state to avoid infinite loops
+  const animValue = colorAnim.current.interpolate({
+    inputRange: colors.map((_: any, i: any) => i),
+    outputRange: colors,
+  });
+
   useEffect(() => {
-    const animValue = colorAnim.current.interpolate({
-      inputRange: colors.map((_: any, i: any) => i),
-      outputRange: colors,
-    });
-    setBackgroundColor(animValue);
     // Set static color for non-animated components
     setStaticBackgroundColor(colors[0] || '#fff');
 
