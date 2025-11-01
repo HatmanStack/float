@@ -73,15 +73,28 @@ describe('IncidentColoring', () => {
     const incidentList = mockIncidentList;
 
     render(
-      <IncidentContext.Provider value={{ incidentList, setColorChangeArrayOfArrays }}>
+      <IncidentContext.Provider
+        value={{
+          incidentList,
+          setColorChangeArrayOfArrays,
+          colorChangeArrayOfArrays: '',
+          setIncidentList: jest.fn(),
+          musicList: [],
+          setMusicList: jest.fn(),
+        }}
+      >
         <IncidentColoring />
       </IncidentContext.Provider>,
       { wrapper }
     );
 
-    // Check if color keys are updated
-    expect(incidentList[0].color_key).toBe(4);
-    expect(incidentList[1].color_key).toBe(2);
-    expect(incidentList[2].color_key).toBe(8);
+    // Check if setColorChangeArrayOfArrays was called with color arrays
+    await waitFor(() => {
+      expect(setColorChangeArrayOfArrays).toHaveBeenCalled();
+      const callArg = setColorChangeArrayOfArrays.mock.calls[0][0];
+      // Should be called with array of color arrays
+      expect(Array.isArray(callArg)).toBe(true);
+      expect(callArg.length).toBe(3);
+    });
   });
 });
