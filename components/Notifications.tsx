@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
@@ -7,8 +7,8 @@ export default function FloatNotifications() {
   // TODO: Implement push notification display UI
   // const [expoPushToken, setExpoPushToken] = useState('');
   // const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef();
-  const responseListener = useRef();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -28,8 +28,12 @@ export default function FloatNotifications() {
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
     };
   }, []);
 

@@ -12,7 +12,7 @@ const Guidance = () => {
   return (
     <Collapsible
       title="Guidance"
-      incidentColor={{ light: '#808080', dark: '#151718' }}
+      incidentColor="#808080"
       isOpen={isOpen}
       onToggle={toggleCollapsible}
     >

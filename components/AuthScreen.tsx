@@ -83,7 +83,7 @@ function useAuthentication() {
       try {
         const userInfo = await GoogleSignin.signIn();
         console.log('[Auth] Native Google Sign-In successful');
-        const user = userInfo.user as User;
+        const user = (userInfo as any).user as User;
         await AsyncStorage.setItem('user', JSON.stringify(user));
         setUser(user);
       } catch (error) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Animated, Pressable } from 'react-native';
+import { Animated, Pressable, ViewStyle } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Collapsible } from '@/components/Collapsible';
 import { ThemedView } from '@/components/ThemedView';
@@ -84,9 +84,20 @@ const IncidentItem = ({
     handlePress(index)(); // Call the returned function
   };
 
+  // Create animated style outside of JSX to avoid ref access during render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const animatedViewStyle = useMemo((): (ViewStyle | Animated.WithAnimatedObject<ViewStyle>)[] => {
+    // eslint-disable-next-line no-console
+    const animValue = animValueRef.current;
+    if (animValue) {
+      return [{ width: '100%' as const }, { backgroundColor: animValue }];
+    }
+    return [{ width: '100%' as const }, { backgroundColor: '#fff' }];
+  }, []);
+
   return (
     <ThemedView style={styles.incidentContainer}>
-      <Animated.View style={[{ width: '100%' }, animValueRef.current ? { backgroundColor: animValueRef.current } : { backgroundColor: '#fff' }]}>
+      <Animated.View style={animatedViewStyle}>
         <Pressable
           onPress={() => onPressHandler(index)}
           onPressIn={() => setIsSwiping(true)}

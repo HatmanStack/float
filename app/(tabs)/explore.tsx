@@ -77,9 +77,9 @@ function useMeditation(selectedIndexes: number[], incidentList: any[], musicList
             selectedIndexes,
             incidentList,
             musicList,
-            user?.id
+            user?.id ?? ''
           );
-          setMeditationURI(response.responseMeditationURI);
+          setMeditationURI(response.responseMeditationURI ?? '');
           setMusicList(response.responseMusicList);
         } catch (error) {
           console.error('Error fetching data:', error);
@@ -124,7 +124,7 @@ function useIncidentDeletion() {
       setIncidentList((prevIncidents) => prevIncidents.filter((_, i) => i !== asyncDeleteIncident));
 
       if (Platform.OS !== 'web' && incidentList[asyncDeleteIncident]?.notificationId) {
-        cancelScheduledNotification(incidentList[asyncDeleteIncident].notificationId);
+        cancelScheduledNotification((incidentList[asyncDeleteIncident].notificationId ?? '') as string);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
       setAsyncDeleteIncident(null);
