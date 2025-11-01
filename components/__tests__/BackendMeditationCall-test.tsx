@@ -1,30 +1,4 @@
-// Set environment variable BEFORE importing the component
-process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL = 'https://mock-lambda-url.example.com';
-
-import { BackendMeditationCall } from '@/components/BackendMeditationCall';
-import { Platform } from 'react-native';
-
-const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA';
-
-jest.mock('aws-sdk', () => ({
-  Lambda: jest.fn(() => ({
-    invoke: jest.fn((params, callback) => {
-      const mockPayload = {
-        Payload: JSON.stringify({
-          body: JSON.stringify({
-            // <-- Add an extra layer of JSON stringification
-            base64: mockBase64,
-            music_list: ['music1', 'music2'],
-          }),
-        }),
-      };
-
-      callback(null, mockPayload); // Simulate successful invocation
-    }),
-  })),
-}));
-
-// Mock FileSystem for non-web environments
+// Mock FileSystem BEFORE importing the component
 jest.mock('expo-file-system', () => ({
   documentDirectory: 'mock-directory/',
   writeAsStringAsync: jest.fn(() => Promise.resolve()),
@@ -33,7 +7,41 @@ jest.mock('expo-file-system', () => ({
   },
 }));
 
+// Mock fetch BEFORE importing the component
+const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA';
+
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        body: JSON.stringify({
+          base64: mockBase64,
+          music_list: ['music1', 'music2'],
+        }),
+      }),
+  })
+) as jest.Mock;
+
+// Set environment variable BEFORE importing the component
+process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL = 'https://mock-lambda-url.example.com';
+
+import { BackendMeditationCall } from '@/components/BackendMeditationCall';
+import { Platform } from 'react-native';
+
 describe('BackendMeditationCall', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset fetch mock with correct response structure
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: jest.fn().mockResolvedValueOnce({
+        base64: mockBase64,
+        music_list: ['music1', 'music2'],
+      }),
+    });
+  });
+
   it('should successfully invoke Lambda function and return response', async () => {
     const selectedIndexes = [0, 1];
 

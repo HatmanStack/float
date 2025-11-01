@@ -12,9 +12,26 @@ export async function StartRecording() {
     }
 
     // Create a new recording instance
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-    );
+    const { recording } = await Audio.Recording.createAsync({
+      isMeteringEnabled: true,
+      android: {
+        extension: '.m4a' as any,
+        outputFormat: 'mpeg4' as any,
+        audioEncoder: 'aac' as any,
+        sampleRate: 44100,
+        numberOfChannels: 2,
+        bitRate: 128000,
+      },
+      ios: {
+        extension: '.wav' as any,
+        audioQuality: 'high' as any,
+        sampleRate: 44100,
+        numberOfChannels: 2,
+        bitRate: 128000,
+        linearPCMIsFloat: false,
+      },
+      web: {} as any,
+    });
     console.log('Recording started');
     return recording;
   } catch (error) {
@@ -23,16 +40,16 @@ export async function StartRecording() {
   return null;
 }
 
-function convertBlobToBase64(blob) {
+function convertBlobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onloadend = () => resolve(((reader.result as string) || '').split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
 }
 
-export async function StopRecording(recording) {
+export async function StopRecording(recording: Audio.Recording): Promise<string | null> {
   try {
     if (recording) {
       // Finalize the recording before attempting to get URI

@@ -40,7 +40,7 @@ async function schedulePushNotification(sentiment: string, intensity: number): P
       body: 'Float',
       data: { data: 'goes here' },
     },
-    trigger: { seconds: timeToWait },
+    trigger: { type: 'time' as const, seconds: Math.ceil(timeToWait) } as any,
   });
   return notificationId;
 }

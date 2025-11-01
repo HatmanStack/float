@@ -48,7 +48,8 @@ describe('IncidentItem', () => {
     added_text: 'Added text content',
   };
 
-  const mockHandlePress = jest.fn();
+  // Mock handlePress to return a function (component calls handlePress(index)())
+  const mockHandlePress = jest.fn(() => jest.fn());
   const mockToggleCollapsible = jest.fn();
 
   beforeEach(() => {
@@ -102,7 +103,10 @@ describe('IncidentItem', () => {
     );
 
     fireEvent.press(screen.getByText('Short summary - 12/20/2023, 12:00:00 PM'));
+    // Component calls handlePress(index)() so handlePress is called with index
     expect(mockHandlePress).toHaveBeenCalledWith(0);
+    // And the returned function is called
+    expect(mockHandlePress.mock.results[0].value).toHaveBeenCalled();
   });
 
   it('toggles collapsible content when header is pressed', () => {

@@ -35,7 +35,7 @@ function useAudioRecording() {
         }
       }
       const recording = await StartRecording();
-      setRecording(recording);
+      setRecording(recording ?? null);
       setErrorText(false);
     } catch (error) {
       console.error('Microphone is not available:', error);
@@ -46,7 +46,7 @@ function useAudioRecording() {
   const handleStopRecording = useCallback(async () => {
     if (recording) {
       const uri = await StopRecording(recording);
-      setURI(uri);
+      setURI(typeof uri === 'string' ? uri : '');
       setRecording(null);
     }
   }, [recording]);
@@ -97,12 +97,12 @@ function useSummarySubmission(
           return;
         }
         try {
-          let response;
+          let response: any;
           if (recording) {
             const base64_file = await StopRecording(recording);
-            response = await BackendSummaryCall(base64_file, separateTextPrompt, user?.id);
+            response = await BackendSummaryCall(base64_file ?? '', separateTextPrompt, user?.id ?? '');
           } else {
-            response = await BackendSummaryCall(URI, separateTextPrompt, user?.id);
+            response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
           }
           console.log('Response from summary lambda:', response);
           setIncidentList((prevList) => [response, ...prevList]);
