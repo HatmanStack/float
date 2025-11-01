@@ -36,14 +36,14 @@ const IncidentItem = ({
 
   useEffect(() => {
     const animValue = colorAnim.current.interpolate({
-      inputRange: colors.map((_, i) => i),
+      inputRange: colors.map((_: any, i: any) => i),
       outputRange: colors,
     });
     setBackgroundColor(animValue);
     // Set static color for non-animated components
     setStaticBackgroundColor(colors[0] || '#fff');
 
-    const forwardAnimations = colors.map((_, i) =>
+    const forwardAnimations = colors.map((_: any, i: any) =>
       Animated.timing(colorAnim.current, {
         toValue: i,
         duration: colorChangeDuration,
@@ -51,7 +51,7 @@ const IncidentItem = ({
       })
     );
 
-    const reverseAnimations = colors.map((_, i) =>
+    const reverseAnimations = colors.map((_: any, i: any) =>
       Animated.timing(colorAnim.current, {
         toValue: colors.length - 1 - i,
         duration: colorChangeDuration,
