@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 try:
     import numpy as np  # type: ignore[import-not-found]
