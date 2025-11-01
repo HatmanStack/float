@@ -6,7 +6,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 /**
  * Props for ThemedText component
  */
-interface ThemedTextProps extends TextProps {
+export interface ThemedTextProps extends TextProps {
   lightColor?: string;
   darkColor?: string;
   type?:

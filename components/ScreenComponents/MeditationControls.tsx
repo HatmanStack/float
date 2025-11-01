@@ -82,7 +82,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   meditationURI,
   setMeditationURI,
   handleMeditationCall,
-}: MeditationControlsProps): React.ReactNode => {
+}: MeditationControlsProps): React.JSX.Element => {
   const styles = useStyles();
   const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
 
