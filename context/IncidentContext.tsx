@@ -27,7 +27,9 @@ export const IncidentContext = createContext<IncidentContextType | null>(null);
 export const IncidentProvider = ({ children }: { children: ReactNode }) => {
   const [incidentList, setIncidentList] = useState<Incident[]>([]);
   const [musicList, setMusicList] = useState<string[]>([]);
-  const [colorChangeArrayOfArrays, setColorChangeArrayOfArrays] = useState<string | string[][]>('#FFFFFF');
+  const [colorChangeArrayOfArrays, setColorChangeArrayOfArrays] = useState<string | string[][]>(
+    '#FFFFFF'
+  );
 
   return (
     <IncidentContext.Provider

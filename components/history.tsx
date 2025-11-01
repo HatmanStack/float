@@ -9,8 +9,7 @@ import { useIncident } from '@/context/IncidentContext';
 import useStyles from '@/constants/StylesConstants';
 
 export default function ArchivedItemsScreen() {
-  const { incidentList: archivedItems, setIncidentList: setArchivedItems } =
-    useIncident();
+  const { incidentList: archivedItems, setIncidentList: setArchivedItems } = useIncident();
   const styles = useStyles();
 
   interface ArchivedItem {
@@ -80,7 +79,7 @@ export default function ArchivedItemsScreen() {
     >
       <ThemedView style={styles.stepContainer}>
         <FlatList
-          data={(archivedItems as unknown) as ArchivedItem[]}
+          data={archivedItems as unknown as ArchivedItem[]}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
         />

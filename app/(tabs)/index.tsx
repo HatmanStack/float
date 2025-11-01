@@ -100,7 +100,11 @@ function useSummarySubmission(
           let response: any;
           if (recording) {
             const base64_file = await StopRecording(recording);
-            response = await BackendSummaryCall(base64_file ?? '', separateTextPrompt, user?.id ?? '');
+            response = await BackendSummaryCall(
+              base64_file ?? '',
+              separateTextPrompt,
+              user?.id ?? ''
+            );
           } else {
             response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
           }

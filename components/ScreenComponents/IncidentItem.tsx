@@ -22,18 +22,12 @@ const IncidentItem = ({
     : `${incident.user_short_summary} - ${timestamp}`;
   const [isSwiping, setIsSwiping] = useState(false);
   const styles = useStyles();
-  const colors = useMemo(
-    () => {
-      if (
-        Array.isArray(colorChangeArrayOfArrays) &&
-        colorChangeArrayOfArrays[index]?.length >= 2
-      ) {
-        return colorChangeArrayOfArrays[index];
-      }
-      return ['#fff', '#fff'];
-    },
-    [colorChangeArrayOfArrays, index]
-  );
+  const colors = useMemo(() => {
+    if (Array.isArray(colorChangeArrayOfArrays) && colorChangeArrayOfArrays[index]?.length >= 2) {
+      return colorChangeArrayOfArrays[index];
+    }
+    return ['#fff', '#fff'];
+  }, [colorChangeArrayOfArrays, index]);
   const colorAnim = useRef(new Animated.Value(0));
   const animValueRef = useRef<any>(null);
   const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
