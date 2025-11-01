@@ -23,10 +23,15 @@ const IncidentItem = ({
   const [isSwiping, setIsSwiping] = useState(false);
   const styles = useStyles();
   const colors = useMemo(
-    () =>
-      colorChangeArrayOfArrays?.[index]?.length >= 2
-        ? colorChangeArrayOfArrays[index]
-        : ['#fff', '#fff'],
+    () => {
+      if (
+        Array.isArray(colorChangeArrayOfArrays) &&
+        colorChangeArrayOfArrays[index]?.length >= 2
+      ) {
+        return colorChangeArrayOfArrays[index];
+      }
+      return ['#fff', '#fff'];
+    },
     [colorChangeArrayOfArrays, index]
   );
   const colorAnim = useRef(new Animated.Value(0));

@@ -9,15 +9,42 @@ import { useIncident } from '@/context/IncidentContext';
 import useStyles from '@/constants/StylesConstants';
 
 export default function ArchivedItemsScreen() {
-  const [archivedItems, setArchivedItems] = useIncident();
+  const { incidentList: archivedItems, setIncidentList: setArchivedItems } =
+    useIncident();
   const styles = useStyles();
 
-  const fetchArchivedItemsFromAPI = async () => {
+  interface ArchivedItem {
+    id: string;
+    title: string;
+    timestamp?: string;
+    sentiment_label?: string;
+    intensity?: 1 | 2 | 3 | 4 | 5 | string | number;
+  }
+
+  const fetchArchivedItemsFromAPI = async (): Promise<ArchivedItem[]> => {
     // Mock data, replace with actual API call
     return [
-      { id: '1', title: 'Archived Item 1' },
-      { id: '2', title: 'Archived Item 2' },
-      { id: '3', title: 'Archived Item 3' },
+      {
+        id: '1',
+        title: 'Archived Item 1',
+        timestamp: new Date().toISOString(),
+        sentiment_label: 'neutral',
+        intensity: 1,
+      },
+      {
+        id: '2',
+        title: 'Archived Item 2',
+        timestamp: new Date().toISOString(),
+        sentiment_label: 'neutral',
+        intensity: 1,
+      },
+      {
+        id: '3',
+        title: 'Archived Item 3',
+        timestamp: new Date().toISOString(),
+        sentiment_label: 'neutral',
+        intensity: 1,
+      },
     ];
   };
 
@@ -26,14 +53,21 @@ export default function ArchivedItemsScreen() {
     const fetchArchivedItems = async () => {
       // Replace with actual fetch logic
       const items = await fetchArchivedItemsFromAPI();
-      setArchivedItems(items);
+      // Convert to Incident type format
+      const incidents = items.map((item) => ({
+        ...item,
+        timestamp: item.timestamp || new Date().toISOString(),
+        sentiment_label: item.sentiment_label || 'neutral',
+        intensity: item.intensity || 1,
+      }));
+      setArchivedItems(incidents);
     };
 
     fetchArchivedItems();
-  }, []);
+  }, [setArchivedItems]);
 
-  const renderItem = ({ item }) => (
-    <ThemedView style={styles.itemContainer}>
+  const renderItem = ({ item }: { item: ArchivedItem }) => (
+    <ThemedView style={styles.stepContainer}>
       <ThemedText>{item.title}</ThemedText>
     </ThemedView>
   );
@@ -45,7 +79,11 @@ export default function ArchivedItemsScreen() {
       headerText={<ThemedText type="header">fLoAt</ThemedText>}
     >
       <ThemedView style={styles.stepContainer}>
-        <FlatList data={archivedItems} renderItem={renderItem} keyExtractor={(item) => item.id} />
+        <FlatList
+          data={archivedItems as ArchivedItem[]}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+        />
       </ThemedView>
     </ParallaxScrollView>
   );
