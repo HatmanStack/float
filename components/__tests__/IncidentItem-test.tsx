@@ -2,9 +2,9 @@ import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import IncidentItem from '@/components/ScreenComponents/IncidentItem';
-import { useIncident } from '@/context/IncidentContext'; 
-import { ThemedText } from '@/components/ThemedText'; 
-import { Collapsible } from '@/components/Collapsible'; 
+import { useIncident } from '@/context/IncidentContext';
+import { ThemedText } from '@/components/ThemedText';
+import { Collapsible } from '@/components/Collapsible';
 
 // Mock the useIncident hook and its return values
 jest.mock('@/context/IncidentContext', () => ({
@@ -15,29 +15,26 @@ jest.mock('@/context/IncidentContext', () => ({
   }),
 }));
 
-// Mock the Collapsible component to avoid unnecessary rendering and logic
+// Define mock component BEFORE jest.mock to avoid hoisting issues
+function MockCollapsible({ children, isOpen, onToggle, ...props }) {
+  return (
+    <View {...props}>
+      <TouchableOpacity onPress={onToggle}>
+        <Text>Mock Collapsible - {isOpen ? 'Open' : 'Closed'}</Text>
+      </TouchableOpacity>
+      {isOpen && <View>{children}</View>}
+    </View>
+  );
+}
+
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 jest.mock('@/components/Collapsible', () => {
-    return {
-      Collapsible: ({ children, isOpen, onToggle, ...props }) => (
-        <MockCollapsible isOpen={isOpen} onToggle={onToggle} {...props}>
-          {children}
-        </MockCollapsible>
-      ),
-    };
-  });
-  
-  // Mock component to simulate behavior
-  const MockCollapsible = ({ children, isOpen, onToggle, ...props }) => {
-    // Simulate the behavior of the Collapsible component
-    return (
-      <div {...props}>
-        {isOpen ? children : null}
-        <button onClick={onToggle}>Toggle</button>
-      </div>
-    );
+  return {
+    Collapsible: ({ children, ...props }) => (
+      <MockCollapsible {...props}>{children}</MockCollapsible>
+    ),
   };
-  
+});
 
 describe('IncidentItem', () => {
   const mockIncident = {
@@ -51,7 +48,8 @@ describe('IncidentItem', () => {
     added_text: 'Added text content',
   };
 
-  const mockHandlePress = jest.fn();
+  // Mock handlePress to return a function (component calls handlePress(index)())
+  const mockHandlePress = jest.fn(() => jest.fn());
   const mockToggleCollapsible = jest.fn();
 
   beforeEach(() => {
@@ -105,7 +103,10 @@ describe('IncidentItem', () => {
     );
 
     fireEvent.press(screen.getByText('Short summary - 12/20/2023, 12:00:00 PM'));
+    // Component calls handlePress(index)() so handlePress is called with index
     expect(mockHandlePress).toHaveBeenCalledWith(0);
+    // And the returned function is called
+    expect(mockHandlePress.mock.results[0].value).toHaveBeenCalled();
   });
 
   it('toggles collapsible content when header is pressed', () => {

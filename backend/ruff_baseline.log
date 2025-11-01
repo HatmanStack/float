@@ -1,0 +1,281 @@
+warning: The top-level linter settings are deprecated in favour of their counterparts in the `lint` section. Please update the following options in `pyproject.toml`:
+  - 'ignore' -> 'lint.ignore'
+  - 'select' -> 'lint.select'
+W292 [*] No newline at end of file
+ --> src/__init__.py:1:18
+  |
+1 | # Backend package
+  |                  ^
+  |
+help: Add trailing newline
+
+W292 [*] No newline at end of file
+ --> src/config/__init__.py:1:24
+  |
+1 | # Configuration package
+  |                        ^
+  |
+help: Add trailing newline
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> src/config/constants.py:3:1
+  |
+1 |   """Application constants and enums."""
+2 |
+3 | / from enum import Enum
+4 | | from typing import List
+  | |_______________________^
+5 |
+6 |   class InferenceType(Enum):
+  |
+help: Organize imports
+
+F401 [*] `typing.List` imported but unused
+ --> src/config/constants.py:4:20
+  |
+3 | from enum import Enum
+4 | from typing import List
+  |                    ^^^^
+5 |
+6 | class InferenceType(Enum):
+  |
+help: Remove unused import: `typing.List`
+
+W291 [*] Trailing whitespace
+  --> src/config/constants.py:20:28
+   |
+18 |     """Supported sentiment labels for analysis."""
+19 |     ANGRY = "Angry"
+20 |     DISGUSTED = "Disgusted" 
+   |                            ^
+21 |     FEARFUL = "Fearful"
+22 |     HAPPY = "Happy"
+   |
+help: Remove trailing whitespace
+
+W292 [*] No newline at end of file
+  --> src/config/constants.py:64:2
+   |
+62 |         "voice": "sage"
+63 |     }
+64 | }
+   |  ^
+   |
+help: Add trailing newline
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> src/config/settings.py:1:1
+  |
+1 | / import os
+2 | | from typing import Optional
+3 | | from dotenv import load_dotenv
+  | |______________________________^
+4 |
+5 |   load_dotenv()
+  |
+help: Organize imports
+
+F401 [*] `typing.Optional` imported but unused
+ --> src/config/settings.py:2:20
+  |
+1 | import os
+2 | from typing import Optional
+  |                    ^^^^^^^^
+3 | from dotenv import load_dotenv
+  |
+help: Remove unused import: `typing.Optional`
+
+W293 [*] Blank line contains whitespace
+  --> src/config/settings.py:9:1
+   |
+ 7 | class Settings:
+ 8 |     """Centralized configuration management for the application."""
+ 9 |     
+   | ^^^^
+10 |     # AWS Configuration
+11 |     AWS_S3_BUCKET: str = os.getenv('AWS_S3_BUCKET', 'float-cust-data')
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/config/settings.py:13:1
+   |
+11 |     AWS_S3_BUCKET: str = os.getenv('AWS_S3_BUCKET', 'float-cust-data')
+12 |     AWS_AUDIO_BUCKET: str = os.getenv('AWS_AUDIO_BUCKET', 'audio-er-lambda')
+13 |     
+   | ^^^^
+14 |     # AI Services
+15 |     GEMINI_API_KEY: str = os.getenv('G_KEY', '')
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/config/settings.py:17:1
+   |
+15 |     GEMINI_API_KEY: str = os.getenv('G_KEY', '')
+16 |     OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
+17 |     
+   | ^^^^
+18 |     # Audio Processing
+19 |     FFMPEG_PATH: str = os.getenv('FFMPEG_PATH', '/opt/bin/ffmpeg')
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/config/settings.py:25:1
+   |
+23 |     # Safety settings for Gemini
+24 |     GEMINI_SAFETY_LEVEL: int = 4
+25 |     
+   | ^^^^
+26 |     @classmethod
+27 |     def validate(cls, require_keys: bool = True) -> bool:
+   |
+help: Remove whitespace from blank line
+
+W292 [*] No newline at end of file
+  --> src/config/settings.py:49:22
+   |
+48 | # Global settings instance
+49 | settings = Settings()
+   |                      ^
+   |
+help: Add trailing newline
+
+W292 [*] No newline at end of file
+ --> src/handlers/__init__.py:1:24
+  |
+1 | # HTTP handlers package
+  |                        ^
+  |
+help: Add trailing newline
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> src/handlers/lambda_handler.py:1:1
+   |
+ 1 | / from typing import Any, Dict, Optional
+ 2 | | from datetime import datetime
+ 3 | |
+ 4 | | from .middleware import (
+ 5 | |     cors_middleware,
+ 6 | |     json_middleware,
+ 7 | |     method_validation_middleware,
+ 8 | |     request_validation_middleware,
+ 9 | |     error_handling_middleware,
+10 | |     apply_middleware,
+11 | |     create_success_response,
+12 | |     create_error_response,
+13 | | )
+14 | | from ..models.requests import parse_request_body, SummaryRequest, MeditationRequest
+15 | | from ..models.responses import create_summary_response, create_meditation_response
+16 | | from ..services.ai_service import AIService
+17 | | from ..services.s3_storage_service import S3StorageService
+18 | | from ..services.ffmpeg_audio_service import FFmpegAudioService
+19 | | from ..providers.openai_tts import OpenAITTSProvider
+20 | | from ..config.settings import settings
+21 | | from ..config.constants import InferenceType, HTTP_BAD_REQUEST
+22 | | from ..utils.file_utils import generate_request_id, generate_timestamp
+23 | | from ..utils.audio_utils import (
+24 | |     decode_audio_base64,
+25 | |     encode_audio_to_base64,
+26 | |     cleanup_temp_file,
+27 | | )
+   | |_^
+   |
+help: Organize imports
+
+F401 [*] `..config.constants.InferenceType` imported but unused
+  --> src/handlers/lambda_handler.py:21:32
+   |
+19 | from ..providers.openai_tts import OpenAITTSProvider
+20 | from ..config.settings import settings
+21 | from ..config.constants import InferenceType, HTTP_BAD_REQUEST
+   |                                ^^^^^^^^^^^^^
+22 | from ..utils.file_utils import generate_request_id, generate_timestamp
+23 | from ..utils.audio_utils import (
+   |
+help: Remove unused import: `..config.constants.InferenceType`
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:54:1
+   |
+52 |         from ..services.gemini_service import GeminiAIService
+53 |         return GeminiAIService()
+54 |     
+   | ^^^^
+55 |     def get_tts_provider(self):
+56 |         """Get TTS provider (OpenAI only)."""
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:58:1
+   |
+56 |         """Get TTS provider (OpenAI only)."""
+57 |         return self.tts_provider
+58 |     
+   | ^^^^
+59 |     def handle_summary_request(self, request: SummaryRequest) -> Dict[str, Any]:
+60 |         """Handle sentiment analysis/summary request."""
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:62:1
+   |
+60 |         """Handle sentiment analysis/summary request."""
+61 |         print(f"Processing summary request for user: {request.user_id}")
+62 |         
+   | ^^^^^^^^
+63 |         # Prepare audio file if provided
+64 |         audio_file = None
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:67:1
+   |
+65 |         if request.audio and request.audio != "NotAvailable":
+66 |             audio_file = decode_audio_base64(request.audio)
+67 |         
+   | ^^^^^^^^
+68 |         try:
+69 |             # Get sentiment analysis from AI service
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:74:1
+   |
+72 |                 user_text=request.prompt
+73 |             )
+74 |             
+   | ^^^^^^^^^^^^
+75 |             # Generate request ID and create response
+76 |             request_id = generate_request_id()
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:78:1
+   |
+76 |             request_id = generate_request_id()
+77 |             response = create_summary_response(request_id, request.user_id, summary_result)
+78 |             
+   | ^^^^^^^^^^^^
+79 |             # Store results in S3
+80 |             self._store_summary_results(request, response, audio_file is not None)
+   |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+  --> src/handlers/lambda_handler.py:81:1
+   |
+79 |             # Store results in S3
+80 |             self._store_summary_results(request, response, audio_file is not None)
+81 |             
+   | ^^^^^^^^^^^^
+82 |             return response.to_dict()
+   |
+help: Remove whitespace from blank line
+

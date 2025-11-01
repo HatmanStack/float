@@ -1,29 +1,36 @@
+import logging
 import pathlib
-import google.generativeai as genai
-from google.generativeai.types.safety_types import HarmCategory
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from .ai_service import AIService
+import google.generativeai as genai  # type: ignore
+from google.generativeai.types.safety_types import (  # type: ignore
+    HarmCategory,
+)
+
 from ..config.settings import settings
+from .ai_service import AIService
+
+logger = logging.getLogger(__name__)
+
 
 class GeminiAIService(AIService):
     """Google Gemini AI service implementation."""
-    
+
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        
+
         self.safety_settings = {
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: settings.GEMINI_SAFETY_LEVEL,
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: settings.GEMINI_SAFETY_LEVEL,
             HarmCategory.HARM_CATEGORY_HARASSMENT: settings.GEMINI_SAFETY_LEVEL,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: settings.GEMINI_SAFETY_LEVEL,
         }
-        
+
         self._setup_prompts()
-    
+
     def _setup_prompts(self):
         """Initialize prompt templates."""
-        self.prompt_text = '''You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
+        self.prompt_text = """You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
 
 Your task is to analyze the given data, which is a text string.
 Use this data to return a sentiment label from the provided labels on a scale from 1 to 5, where 5 indicates the strongest intensity of the emotion indicated by the data.
@@ -54,9 +61,9 @@ Base your response solely on the provided text.
 Ensure the sentiment label is one of the 7 provided labels.
 The intensity scale should be from 1 to 5.
 
-Here's the text:'''
+Here's the text:"""
 
-        self.prompt_audio = '''You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
+        self.prompt_audio = """You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
 
 Your task is to analyze the given data, which may include an audio file.
 Use this data to return a sentiment label from the provided labels and a scale from 1 to 5, where 5 indicates the strongest intensity of the emotion indicated by the data.
@@ -86,9 +93,9 @@ user_short_summary: [A few words to describe the incident]
 Remember:
 Base your response solely on the provided audio file.
 Ensure the sentiment label is one of the 7 provided labels.
-The intensity scale should be from 1 to 5.'''
+The intensity scale should be from 1 to 5."""
 
-        self.prompt_synthesis = '''You are an AI assistant specialized in synthesizing sentiment analysis results from both text and audio data.
+        self.prompt_synthesis = """You are an AI assistant specialized in synthesizing sentiment analysis results from both text and audio data.
 
 Your task is to combine the sentiment analysis results from two separate data sources: an audio file analysis (which includes a transcribed text and sentiment analysis) and a separate text prompt analysis. Use these results to return a single, unified sentiment label and intensity score.
 
@@ -119,14 +126,14 @@ Remember:
 - The intensity scale should be from 1 to 5.
 - The format of your return should be only the json. There should be no additional formatting
 
-Here are the results from the audio and text prompts for synthesis:'''
+Here are the results from the audio and text prompts for synthesis:"""
 
-        self.prompt_meditation = '''You are a meditation guide tasked with creating a personalized meditation transcript. 
-You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity, 
+        self.prompt_meditation = """You are a meditation guide tasked with creating a personalized meditation transcript.
+You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity,
 speech-to-text, added_text, and summary.  Each index of the lists will refer to a different instance that was evaluated.
-Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps 
-the user release them.  If there are specific incidents mentioned in the summaries recall them to the user to 
-help them visualize the instance and release it. If there are multiple instances of data, ensure that each instance 
+Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps
+the user release them.  If there are specific incidents mentioned in the summaries recall them to the user to
+help them visualize the instance and release it. If there are multiple instances of data, ensure that each instance
 is acknowledged and released.
 
 JSON Data Format
@@ -142,89 +149,110 @@ JSON Data Format
   }
 
 Instructions:
-1. Evaluate the Data: Consider all the provided data points for each instance, including the sentiment_label, 
+1. Evaluate the Data: Consider all the provided data points for each instance, including the sentiment_label,
 intensity, speech-to-text, added_text, and summary.
-2. Identify Specific Instances: Focus on specific instances mentioned in the summaries that need to be 
-addressed in the meditation. 
-3. Create the Meditation Transcript: Develop a meditation script that guides 
-the user through releasing each identified instance. Ensure the tone is calming and supportive. 
+2. Identify Specific Instances: Focus on specific instances mentioned in the summaries that need to be
+addressed in the meditation.
+3. Create the Meditation Transcript: Develop a meditation script that guides
+the user through releasing each identified instance. Ensure the tone is calming and supportive.
     - Use tags to create the SSML of the meditation script
         A. Include pauses at relevant intervals using the format: <break time="XXXXms"/>.
 
 Remember to return only the meditation script.
 
-Data for meditation transcript:'''
-    
+Data for meditation transcript:"""
+
     def analyze_sentiment(self, audio_file: Optional[str], user_text: Optional[str]) -> str:
         """
         Analyze sentiment from audio and/or text input using Gemini.
-        
+
         Args:
             audio_file: Path to audio file or None if not available
             user_text: Text input or None if not available
-            
+
         Returns:
             JSON string containing sentiment analysis results
         """
-        print('Gemini getSummary started')
-        
+        logger.info("Starting sentiment analysis")
+
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash", 
-            safety_settings=self.safety_settings
+            model_name="gemini-2.0-flash", safety_settings=self.safety_settings
         )
-        
+
         text_response = None
         audio_response = None
-        
-        print(f'Audio_File: {audio_file}')
-        print(f'User_Text: {user_text}')
-        
+
+        logger.debug(
+            "Inputs - Audio: %s, Text length: %s",
+            audio_file is not None,
+            len(user_text) if user_text else 0,
+        )
+
         # Process text if available
-        if user_text and 'NotAvailable' not in user_text:
-            prompt = self.prompt_text + user_text
-            print(f'User Text: {user_text}')
-            text_response = model.generate_content([prompt])
-            print(f'Text Response: {text_response.text}')
-        
+        if user_text and "NotAvailable" not in user_text:
+            try:
+                prompt = self.prompt_text + user_text
+                logger.debug("Generating sentiment analysis for text input")
+                text_response = model.generate_content([prompt])
+            except Exception as e:  # type: ignore[misc]
+                logger.error("Error generating text sentiment: %s", str(e))
+                raise ValueError(f"Failed to analyze text sentiment: {str(e)}") from e
+
         # Process audio if available
-        if audio_file and 'NotAvailable' not in audio_file:
-            audio_load = {
-                "mime_type": "audio/mp3",
-                "data": pathlib.Path(audio_file).read_bytes()
-            }
-            call = [self.prompt_audio, audio_load]
-            audio_response = model.generate_content(call)
-            print(f'Audio Response: {audio_response.text}')
-        
+        if audio_file and "NotAvailable" not in audio_file:
+            try:
+                audio_data = pathlib.Path(audio_file).read_bytes()
+                audio_load = {"mime_type": "audio/mp3", "data": audio_data}
+                call = [self.prompt_audio, audio_load]
+                logger.debug("Generating sentiment analysis for audio input")
+                audio_response = model.generate_content(call)
+            except Exception as e:  # type: ignore[misc]
+                logger.error("Error generating audio sentiment: %s", str(e))
+                raise ValueError(f"Failed to analyze audio sentiment: {str(e)}") from e
+
         # Synthesize responses if both are available
-        if text_response and audio_response:
-            prompt = (self.prompt_synthesis + audio_response.text + 
-                     " Here's the Text Response: " + text_response.text)
-            response = model.generate_content([prompt])
-        elif text_response:
-            response = text_response
-        else:
-            response = audio_response
-        
-        return response.text
-    
+        try:
+            if text_response and audio_response:
+                prompt = (
+                    self.prompt_synthesis
+                    + audio_response.text
+                    + " Here's the Text Response: "
+                    + text_response.text
+                )
+                logger.debug("Synthesizing text and audio sentiment results")
+                response = model.generate_content([prompt])
+            elif text_response:
+                response = text_response
+            else:
+                response = audio_response
+        except Exception as e:  # type: ignore[misc]
+            logger.error("Error synthesizing sentiment results: %s", str(e))
+            raise ValueError(f"Failed to synthesize sentiment results: {str(e)}") from e
+
+        return response.text  # type: ignore[no-any-return]
+
     def generate_meditation(self, input_data: Dict[str, Any]) -> str:
         """
         Generate meditation transcript based on input data using Gemini.
-        
+
         Args:
             input_data: Dictionary containing user data for meditation generation
-            
+
         Returns:
             Meditation transcript text
         """
-        print('Gemini getMeditation started')
-        print(f'Data: {str(input_data)}')
-        
+        logger.info("Starting meditation generation")
+        logger.debug("Input data keys: %s", list(input_data.keys()))
+
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-pro-preview-05-06", 
-            safety_settings=self.safety_settings
+            model_name="gemini-2.5-pro-preview-05-06",
+            safety_settings=self.safety_settings,
         )
-        
-        response = model.generate_content([self.prompt_meditation + str(input_data)])
-        return response.text
+
+        try:
+            prompt = self.prompt_meditation + str(input_data)
+            response = model.generate_content([prompt])
+            return response.text  # type: ignore[no-any-return]
+        except Exception as e:  # type: ignore[misc]
+            logger.error("Error generating meditation: %s", str(e))
+            raise ValueError(f"Failed to generate meditation: {str(e)}") from e

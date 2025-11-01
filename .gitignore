@@ -15,8 +15,10 @@ web-build/
 .env
 expo-env.d.ts
 yarn.lock
+# Python build artifacts
+*.egg-info/
 # macOS
 .DS_Store
 .vscode
-package-lock.json
 .claude/
+coverage/

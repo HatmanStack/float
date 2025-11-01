@@ -37,9 +37,11 @@ backend/
 The Lambda function handles two main inference types:
 
 ### Summary Request
+
 Analyzes user input and generates sentiment summary.
 
 **Request Format:**
+
 ```json
 {
   "inference_type": "summary",
@@ -50,6 +52,7 @@ Analyzes user input and generates sentiment summary.
 ```
 
 **Response Format:**
+
 ```json
 {
   "request_id": 12345,
@@ -66,9 +69,11 @@ Analyzes user input and generates sentiment summary.
 ```
 
 ### Meditation Request
+
 Generates personalized meditation audio based on input data.
 
 **Request Format:**
+
 ```json
 {
   "inference_type": "meditation",
@@ -79,6 +84,7 @@ Generates personalized meditation audio based on input data.
 ```
 
 **Response Format:**
+
 ```json
 {
   "request_id": 12345,
@@ -136,11 +142,13 @@ Key Python packages (see `requirements.txt`):
 ### Build and Deploy
 
 1. **Install dependencies on Linux (required for Lambda compatibility):**
+
    ```bash
    pip install -r requirements.txt -t .
    ```
 
 2. **Create deployment package:**
+
    ```bash
    zip -r lambda-deployment.zip .
    ```
@@ -153,7 +161,7 @@ Key Python packages (see `requirements.txt`):
 
 ### FFmpeg Layer
 
-The backend requires an FFmpeg layer for audio processing. Create a Lambda layer containing the FFmpeg binary at `/opt/bin/ffmpeg`. 
+The backend requires an FFmpeg layer for audio processing. Create a Lambda layer containing the FFmpeg binary at `/opt/bin/ffmpeg`.
 
 Refer to [this guide](https://virkud-sarvesh.medium.com/building-ffmpeg-layer-for-a-lambda-function-a206f36d3edc) for creating the FFmpeg layer.
 
@@ -220,6 +228,7 @@ The backend includes comprehensive logging for debugging and monitoring:
 - Performance metrics logging
 
 Monitor your Lambda function through AWS CloudWatch for:
+
 - Execution duration
 - Memory usage
 - Error rates
