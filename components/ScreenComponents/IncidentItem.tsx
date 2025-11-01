@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Animated, Pressable } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Collapsible } from '@/components/Collapsible';
@@ -22,10 +22,13 @@ const IncidentItem = ({
     : `${incident.user_short_summary} - ${timestamp}`;
   const [isSwiping, setIsSwiping] = useState(false);
   const styles = useStyles();
-  const colors =
-    colorChangeArrayOfArrays?.[index]?.length >= 2
-      ? colorChangeArrayOfArrays[index]
-      : ['#fff', '#fff'];
+  const colors = useMemo(
+    () =>
+      colorChangeArrayOfArrays?.[index]?.length >= 2
+        ? colorChangeArrayOfArrays[index]
+        : ['#fff', '#fff'],
+    [colorChangeArrayOfArrays, index]
+  );
   const colorAnim = useRef(new Animated.Value(0));
   const [backgroundColor, setBackgroundColor] = useState('#fff');
   const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
@@ -65,10 +68,13 @@ const IncidentItem = ({
     } else {
       animationLoop.stop();
     }
+
+    return () => {
+      animationLoop.stop();
+    };
   }, [colors, isSwiping, colorChangeDuration]);
 
   const onPressHandler = (index) => {
-    console.log('onPressHandler', index);
     handlePress(index)(); // Call the returned function
   };
 
