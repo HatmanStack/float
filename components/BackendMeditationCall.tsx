@@ -65,10 +65,8 @@ export async function BackendMeditationCall(
   musicList: string[],
   userId: string
 ): Promise<MeditationResponse> {
-  let dict: IncidentData[] | TransformedDict = resolvedIncidents;
-  if (selectedIndexes.length > 1) {
-    dict = getTransformedDict(resolvedIncidents, selectedIndexes);
-  }
+  // Always filter to only send selected incidents
+  const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
 
   const payload = {
     inference_type: 'meditation',
