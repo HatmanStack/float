@@ -1,5 +1,7 @@
 """Sample request and response data for testing."""
 
+import json
+
 # Sample request data
 SAMPLE_SUMMARY_REQUEST = {
     "type": "summary",
@@ -28,8 +30,8 @@ SAMPLE_MEDITATION_REQUEST = {
         "user_short_summary": ["Stressful work", "Anxious about future"],
     },
     "music_list": [
-        {"name": "ambient", "path": "s3://audio/ambient.mp3", "volume": 0.3},
-        {"name": "nature", "path": "s3://audio/nature.mp3", "volume": 0.2},
+        "Ambient-Peaceful-Meditation_300.wav",
+        "Nature-Sounds-Relaxing_300.wav",
     ],
 }
 
@@ -49,7 +51,7 @@ SAMPLE_MEDITATION_RESPONSE = {
     "type": "meditation",
     "audio": "base64encodedaudiodata==",
     "duration": 300,
-    "music_list": [{"name": "voice", "path": "/tmp/voice.mp3", "duration": 300}],
+    "music_list": ["Ambient-Peaceful-Meditation_300.wav"],
     "timestamp": "2024-10-31T12:00:00Z",
     "status": "success",
 }
@@ -63,7 +65,7 @@ SAMPLE_LAMBDA_HEADERS = {
 SAMPLE_LAMBDA_EVENT = {
     "httpMethod": "POST",
     "headers": SAMPLE_LAMBDA_HEADERS,
-    "body": str(SAMPLE_SUMMARY_REQUEST),
+    "body": json.dumps(SAMPLE_SUMMARY_REQUEST),
 }
 
 # Edge cases

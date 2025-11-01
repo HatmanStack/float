@@ -1,5 +1,6 @@
 """Pytest configuration and global fixtures for backend tests."""
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -42,9 +43,7 @@ def mock_storage_service():
 def mock_audio_service():
     """Mock audio service for testing."""
     service = MagicMock()
-    service.combine_voice_and_music.return_value = [
-        {"name": "voice", "path": "/tmp/voice.mp3", "duration": 60}
-    ]
+    service.combine_voice_and_music.return_value = ["Ambient-Peaceful-Meditation_300.wav"]
     return service
 
 
@@ -83,7 +82,7 @@ def valid_meditation_request():
             "user_summary": ["Challenging work day"],
             "user_short_summary": ["Bad day"],
         },
-        music_list=[{"name": "ambient", "path": "s3://bucket/ambient.mp3", "volume": 0.3}],
+        music_list=["Ambient-Peaceful-Meditation_300.wav"],
     )
 
 
@@ -105,7 +104,7 @@ def mock_event_factory():
         return {
             "httpMethod": method,
             "headers": {"Content-Type": "application/json", "Origin": "https://float-app.fun"},
-            "body": str(body).replace("'", '"'),  # Simple JSON conversion
+            "body": json.dumps(body),
         }
 
     return create_event
