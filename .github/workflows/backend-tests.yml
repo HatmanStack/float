@@ -2,9 +2,6 @@ name: Backend Tests
 
 on:
   push:
-    branches:
-      - main
-      - refactor-upgrade
     paths:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
