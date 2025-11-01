@@ -59,10 +59,9 @@ function useAuthentication() {
         const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
-        console.log(userInfo);
+        console.log('[Auth] User authenticated via Google');
         const googleUser: User = { id: userInfo.data.email, name: userInfo.data.email };
         await AsyncStorage.setItem('user', JSON.stringify(googleUser));
-        console.log(googleUser);
         setUser(googleUser);
       } catch (error) {
         console.error('Error fetching user info', error);
@@ -78,10 +77,10 @@ function useAuthentication() {
       } catch (error) {
         console.error('Error during web login', error);
       }
-    } else if (Platform.OS === 'android') {
+    } else if (Platform.OS === 'ios' || Platform.OS === 'android') {
       try {
         const userInfo = await GoogleSignin.signIn();
-        console.log(userInfo);
+        console.log('[Auth] Native Google Sign-In successful');
         setUser(userInfo.user as User);
       } catch (error) {
         console.error('Google sign-in error', error);

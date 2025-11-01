@@ -164,8 +164,9 @@ class TestFFmpegAudioService:
                 output_path="/tmp/combined.mp3",
             )
 
-            # Should handle empty music list gracefully
-            assert result is not None or result is None
+            # Verify ffmpeg was called and result is returned
+            mock_run.assert_called()
+            assert result == "/tmp/combined.mp3"
 
     def test_combine_voice_and_music_handles_errors(self, mock_storage_service):
         """Test combining voice handles errors gracefully."""

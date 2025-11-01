@@ -48,12 +48,10 @@ class ServiceFactory:
         Returns:
             OpenAI TTS service instance
         """
-        provider_type = "openai"
+        if "openai" not in self._tts_providers:
+            self._tts_providers["openai"] = OpenAITTSProvider()
 
-        if provider_type not in self._tts_providers:
-            self._tts_providers[provider_type] = OpenAITTSProvider()
-
-        return self._tts_providers[provider_type]
+        return self._tts_providers["openai"]
 
     def validate_services(self) -> bool:
         """Validate that all services can be created successfully."""
