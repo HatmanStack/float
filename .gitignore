@@ -20,5 +20,4 @@ yarn.lock
 # macOS
 .DS_Store
 .vscode
-package-lock.json
 .claude/
