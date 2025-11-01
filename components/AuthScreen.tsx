@@ -12,7 +12,9 @@ import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import axios from 'axios';
 
-GoogleSignin.configure();
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
+});
 WebBrowser.maybeCompleteAuthSession();
 
 /**
@@ -81,7 +83,9 @@ function useAuthentication() {
       try {
         const userInfo = await GoogleSignin.signIn();
         console.log('[Auth] Native Google Sign-In successful');
-        setUser(userInfo.user as User);
+        const user = userInfo.user as User;
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+        setUser(user);
       } catch (error) {
         console.error('Google sign-in error', error);
       }
@@ -144,7 +148,7 @@ const AuthScreen: React.FC = (): React.ReactNode => {
           >
             {({ pressed }) => (
               <ThemedText type="header" style={[{ fontSize: 25, textAlign: 'center' }]}>
-                {pressed ? 'GOOGLING!' : 'GOOgle LOgin'}
+                {pressed ? 'Signing In...' : 'Google Login'}
               </ThemedText>
             )}
           </Pressable>
@@ -183,6 +187,7 @@ function useClientId(): string {
   if (Platform.OS === 'android') {
     return process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || '';
   }
+  // iOS uses native GoogleSignin, not GoogleOAuthProvider
   return '';
 }
 
