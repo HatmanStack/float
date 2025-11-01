@@ -24,8 +24,12 @@ export function IncidentColoring() {
   };
 
   const getColorForIncident = (incident: Incident): string[] => {
-    const colorSet = Colors[incident.sentiment_label.toLowerCase() as keyof typeof Colors] || Colors.neutral;
-    const intensityNum = typeof incident.intensity === 'string' ? parseInt(incident.intensity, 10) : incident.intensity;
+    const colorSet =
+      Colors[incident.sentiment_label.toLowerCase() as keyof typeof Colors] || Colors.neutral;
+    const intensityNum =
+      typeof incident.intensity === 'string'
+        ? parseInt(incident.intensity, 10)
+        : incident.intensity;
     const colorSetKey = intensityMapping[intensityNum] || 'one';
     const result = colorSet[colorSetKey as keyof typeof colorSet];
     return Array.isArray(result) ? result : [];
@@ -45,8 +49,16 @@ export function IncidentColoring() {
           const timeDifference = currentTime.getTime() - incidentTimestamp.getTime();
           const timeDifferenceInMinutes = timeDifference / (1000 * 60);
 
-          const intensityNum = typeof incident.intensity === 'string' ? parseInt(incident.intensity, 10) : incident.intensity;
-          const intensityKey = Math.min(Math.max(intensityNum as number, 1), 5) as 1 | 2 | 3 | 4 | 5;
+          const intensityNum =
+            typeof incident.intensity === 'string'
+              ? parseInt(incident.intensity, 10)
+              : incident.intensity;
+          const intensityKey = Math.min(Math.max(intensityNum as number, 1), 5) as
+            | 1
+            | 2
+            | 3
+            | 4
+            | 5;
 
           const colorKey =
             timeDifferenceInMinutes > intensityTotalTimes[intensityKey][1]

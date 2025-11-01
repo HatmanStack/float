@@ -124,7 +124,9 @@ function useIncidentDeletion() {
       setIncidentList((prevIncidents) => prevIncidents.filter((_, i) => i !== asyncDeleteIncident));
 
       if (Platform.OS !== 'web' && incidentList[asyncDeleteIncident]?.notificationId) {
-        cancelScheduledNotification((incidentList[asyncDeleteIncident].notificationId ?? '') as string);
+        cancelScheduledNotification(
+          (incidentList[asyncDeleteIncident].notificationId ?? '') as string
+        );
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
       setAsyncDeleteIncident(null);

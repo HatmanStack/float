@@ -17,7 +17,8 @@ export function IncidentSave() {
           setIncidentList(reversedIncidentList);
         }
         if (storedMusicList) {
-          const parsedMusicList = typeof storedMusicList === 'string' ? [storedMusicList] : storedMusicList;
+          const parsedMusicList =
+            typeof storedMusicList === 'string' ? [storedMusicList] : storedMusicList;
           console.log('Loaded music list:', parsedMusicList);
           setMusicList(parsedMusicList);
         }
