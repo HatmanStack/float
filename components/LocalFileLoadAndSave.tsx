@@ -33,9 +33,9 @@ export function IncidentSave() {
     const saveIncidentList = async () => {
       try {
         await AsyncStorage.setItem('incidentList', JSON.stringify(incidentList));
-        console.log('Saved incident list:', incidentList);
+        console.log('Saved incident list');
       } catch (error) {
-        console.error('Failed to save emotion list:', error);
+        console.error('Failed to save incident list:', error);
       }
     };
 
@@ -46,9 +46,9 @@ export function IncidentSave() {
     const saveMusicList = async () => {
       try {
         await AsyncStorage.setItem('musicList', JSON.stringify(musicList));
-        console.log('Saved incident list:', incidentList);
+        console.log('Saved music list');
       } catch (error) {
-        console.error('Failed to save emotion list:', error);
+        console.error('Failed to save music list:', error);
       }
     };
 
