@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, type TextProps, StyleSheet, Dimensions, Platform } from 'react-native';
+import { Text, type TextProps, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 
 import { useThemeColor } from '@/hooks/useThemeColor';
 
@@ -30,9 +30,9 @@ export function ThemedText({
   darkColor,
   type = 'default',
   ...rest
-}: ThemedTextProps): React.ReactNode {
+}: ThemedTextProps): React.JSX.Element {
   const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const window = Dimensions.get('window');
+  const window = useWindowDimensions();
 
   const getStyles = () => {
     const baseWidth = 500;
