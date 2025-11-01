@@ -182,7 +182,11 @@ Data for meditation transcript:"""
         text_response = None
         audio_response = None
 
-        logger.debug("Inputs - Audio: %s, Text length: %s", audio_file is not None, len(user_text) if user_text else 0)
+        logger.debug(
+            "Inputs - Audio: %s, Text length: %s",
+            audio_file is not None,
+            len(user_text) if user_text else 0,
+        )
 
         # Process text if available
         if user_text and "NotAvailable" not in user_text:
@@ -197,7 +201,8 @@ Data for meditation transcript:"""
         # Process audio if available
         if audio_file and "NotAvailable" not in audio_file:
             try:
-                audio_load = {"mime_type": "audio/mp3", "data": pathlib.Path(audio_file).read_bytes()}
+                audio_data = pathlib.Path(audio_file).read_bytes()
+                audio_load = {"mime_type": "audio/mp3", "data": audio_data}
                 call = [self.prompt_audio, audio_load]
                 logger.debug("Generating sentiment analysis for audio input")
                 audio_response = model.generate_content(call)
@@ -240,11 +245,13 @@ Data for meditation transcript:"""
         logger.debug("Input data keys: %s", list(input_data.keys()))
 
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-pro-preview-05-06", safety_settings=self.safety_settings
+            model_name="gemini-2.5-pro-preview-05-06",
+            safety_settings=self.safety_settings,
         )
 
         try:
-            response = model.generate_content([self.prompt_meditation + str(input_data)])
+            prompt = self.prompt_meditation + str(input_data)
+            response = model.generate_content([prompt])
             return response.text  # type: ignore[no-any-return]
         except Exception as e:  # type: ignore[misc]
             logger.error("Error generating meditation: %s", str(e))
