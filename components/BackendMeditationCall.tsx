@@ -56,6 +56,10 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
 
 const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 
+if (!LAMBDA_FUNCTION_URL) {
+  console.warn('EXPO_PUBLIC_LAMBDA_FUNCTION_URL is not configured. Backend calls will fail.');
+}
+
 /**
  * Makes a backend call to generate meditation content based on selected incidents
  */
@@ -67,6 +71,12 @@ export async function BackendMeditationCall(
 ): Promise<MeditationResponse> {
   // Always filter to only send selected incidents
   const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
+
+  // Validate at least one field has data
+  const hasData = Object.values(dict).some((arr) => arr.length > 0);
+  if (!hasData) {
+    throw new Error('No valid incident data found for the selected indexes.');
+  }
 
   const payload = {
     inference_type: 'meditation',
@@ -105,7 +115,7 @@ export async function BackendMeditationCall(
     }
 
     console.log('Lambda response object:', lambdaResponseObject);
-    const uri = await saveResponeBase64(lambdaResponseObject.base64);
+    const uri = await saveResponseBase64(lambdaResponseObject.base64);
     const responseMusicList = lambdaResponseObject.music_list || [];
     return { responseMeditationURI: uri, responseMusicList: responseMusicList };
   } catch (error) {
@@ -117,7 +127,7 @@ export async function BackendMeditationCall(
 /**
  * Saves base64 audio response to file system or creates blob URL
  */
-const saveResponeBase64 = async (responsePayload: string): Promise<string | null> => {
+const saveResponseBase64 = async (responsePayload: string): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
       const byteCharacters = atob(responsePayload);
