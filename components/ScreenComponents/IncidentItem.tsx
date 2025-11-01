@@ -35,16 +35,17 @@ const IncidentItem = ({
     [colorChangeArrayOfArrays, index]
   );
   const colorAnim = useRef(new Animated.Value(0));
+  const animValueRef = useRef<any>(null);
   const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
   const colorChangeDuration = 500;
 
-  // Create animated value without storing in state to avoid infinite loops
-  const animValue = colorAnim.current.interpolate({
-    inputRange: colors.map((_: any, i: any) => i),
-    outputRange: colors,
-  });
-
   useEffect(() => {
+    // Create animated interpolation inside effect to avoid render-time interpolation
+    animValueRef.current = colorAnim.current.interpolate({
+      inputRange: colors.map((_: any, i: any) => i),
+      outputRange: colors,
+    });
+
     // Set static color for non-animated components
     setStaticBackgroundColor(colors[0] || '#fff');
 
@@ -85,7 +86,7 @@ const IncidentItem = ({
 
   return (
     <ThemedView style={styles.incidentContainer}>
-      <Animated.View style={{ backgroundColor, width: '100%' }}>
+      <Animated.View style={[{ width: '100%' }, animValueRef.current ? { backgroundColor: animValueRef.current } : { backgroundColor: '#fff' }]}>
         <Pressable
           onPress={() => onPressHandler(index)}
           onPressIn={() => setIsSwiping(true)}

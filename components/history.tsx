@@ -1,7 +1,7 @@
 //Possible Implementation
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { FlatList } from 'react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -21,7 +21,7 @@ export default function ArchivedItemsScreen() {
     intensity?: 1 | 2 | 3 | 4 | 5 | string | number;
   }
 
-  const fetchArchivedItemsFromAPI = async (): Promise<ArchivedItem[]> => {
+  const fetchArchivedItemsFromAPI = useCallback(async (): Promise<ArchivedItem[]> => {
     // Mock data, replace with actual API call
     return [
       {
@@ -46,7 +46,7 @@ export default function ArchivedItemsScreen() {
         intensity: 1,
       },
     ];
-  };
+  }, []);
 
   useEffect(() => {
     // Fetch archived items from context or API
@@ -64,7 +64,7 @@ export default function ArchivedItemsScreen() {
     };
 
     fetchArchivedItems();
-  }, [setArchivedItems]);
+  }, [fetchArchivedItemsFromAPI, setArchivedItems]);
 
   const renderItem = ({ item }: { item: ArchivedItem }) => (
     <ThemedView style={styles.stepContainer}>
