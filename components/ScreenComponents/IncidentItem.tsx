@@ -28,6 +28,7 @@ const IncidentItem = ({
       : ['#fff', '#fff'];
   const colorAnim = useRef(new Animated.Value(0));
   const [backgroundColor, setBackgroundColor] = useState('#fff');
+  const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
   const colorChangeDuration = 500;
 
   useEffect(() => {
@@ -36,6 +37,8 @@ const IncidentItem = ({
       outputRange: colors,
     });
     setBackgroundColor(animValue);
+    // Set static color for non-animated components
+    setStaticBackgroundColor(colors[0] || '#fff');
 
     const forwardAnimations = colors.map((_, i) =>
       Animated.timing(colorAnim.current, {
@@ -91,7 +94,7 @@ const IncidentItem = ({
             <Collapsible
               title="Details"
               textType="incidentSubtitle"
-              incidentColor={backgroundColor}
+              incidentColor={staticBackgroundColor}
               isOpen={isOpen}
               onToggle={toggleCollapsible}
             >

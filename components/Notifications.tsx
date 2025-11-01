@@ -4,18 +4,23 @@ import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
 
 export default function FloatNotifications() {
-  const setExpoPushToken = useState('')[1];
-  const setNotification = useState(false)[1];
+  // TODO: Implement push notification display UI
+  // const [expoPushToken, setExpoPushToken] = useState('');
+  // const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const notificationListener = useRef();
   const responseListener = useRef();
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    registerForPushNotificationsAsync().then((token) => setExpoPushToken(token));
+    registerForPushNotificationsAsync().then((token) => {
+      // TODO: Store or display the push token
+      console.log('Push token registered:', token);
+    });
 
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      setNotification(notification);
+      // TODO: Handle and display notification
+      console.log('Notification received:', notification);
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
