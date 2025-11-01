@@ -1,3 +1,4 @@
+import logging
 import pathlib
 from typing import Any, Dict, Optional
 
@@ -8,6 +9,8 @@ from google.generativeai.types.safety_types import (  # type: ignore
 
 from ..config.settings import settings
 from .ai_service import AIService
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiAIService(AIService):
@@ -170,7 +173,7 @@ Data for meditation transcript:"""
         Returns:
             JSON string containing sentiment analysis results
         """
-        print("Gemini getSummary started")
+        logger.info("Starting sentiment analysis")
 
         model = genai.GenerativeModel(
             model_name="gemini-2.0-flash", safety_settings=self.safety_settings
@@ -179,36 +182,47 @@ Data for meditation transcript:"""
         text_response = None
         audio_response = None
 
-        print(f"Audio_File: {audio_file}")
-        print(f"User_Text: {user_text}")
+        logger.debug("Inputs - Audio: %s, Text length: %s", audio_file is not None, len(user_text) if user_text else 0)
 
         # Process text if available
         if user_text and "NotAvailable" not in user_text:
-            prompt = self.prompt_text + user_text
-            print(f"User Text: {user_text}")
-            text_response = model.generate_content([prompt])
-            print(f"Text Response: {text_response.text}")
+            try:
+                prompt = self.prompt_text + user_text
+                logger.debug("Generating sentiment analysis for text input")
+                text_response = model.generate_content([prompt])
+            except Exception as e:  # type: ignore[misc]
+                logger.error("Error generating text sentiment: %s", str(e))
+                raise ValueError(f"Failed to analyze text sentiment: {str(e)}") from e
 
         # Process audio if available
         if audio_file and "NotAvailable" not in audio_file:
-            audio_load = {"mime_type": "audio/mp3", "data": pathlib.Path(audio_file).read_bytes()}
-            call = [self.prompt_audio, audio_load]
-            audio_response = model.generate_content(call)
-            print(f"Audio Response: {audio_response.text}")
+            try:
+                audio_load = {"mime_type": "audio/mp3", "data": pathlib.Path(audio_file).read_bytes()}
+                call = [self.prompt_audio, audio_load]
+                logger.debug("Generating sentiment analysis for audio input")
+                audio_response = model.generate_content(call)
+            except Exception as e:  # type: ignore[misc]
+                logger.error("Error generating audio sentiment: %s", str(e))
+                raise ValueError(f"Failed to analyze audio sentiment: {str(e)}") from e
 
         # Synthesize responses if both are available
-        if text_response and audio_response:
-            prompt = (
-                self.prompt_synthesis
-                + audio_response.text
-                + " Here's the Text Response: "
-                + text_response.text
-            )
-            response = model.generate_content([prompt])
-        elif text_response:
-            response = text_response
-        else:
-            response = audio_response
+        try:
+            if text_response and audio_response:
+                prompt = (
+                    self.prompt_synthesis
+                    + audio_response.text
+                    + " Here's the Text Response: "
+                    + text_response.text
+                )
+                logger.debug("Synthesizing text and audio sentiment results")
+                response = model.generate_content([prompt])
+            elif text_response:
+                response = text_response
+            else:
+                response = audio_response
+        except Exception as e:  # type: ignore[misc]
+            logger.error("Error synthesizing sentiment results: %s", str(e))
+            raise ValueError(f"Failed to synthesize sentiment results: {str(e)}") from e
 
         return response.text  # type: ignore[no-any-return]
 
@@ -222,12 +236,16 @@ Data for meditation transcript:"""
         Returns:
             Meditation transcript text
         """
-        print("Gemini getMeditation started")
-        print(f"Data: {str(input_data)}")
+        logger.info("Starting meditation generation")
+        logger.debug("Input data keys: %s", list(input_data.keys()))
 
         model = genai.GenerativeModel(
             model_name="gemini-2.5-pro-preview-05-06", safety_settings=self.safety_settings
         )
 
-        response = model.generate_content([self.prompt_meditation + str(input_data)])
-        return response.text  # type: ignore[no-any-return]
+        try:
+            response = model.generate_content([self.prompt_meditation + str(input_data)])
+            return response.text  # type: ignore[no-any-return]
+        except Exception as e:  # type: ignore[misc]
+            logger.error("Error generating meditation: %s", str(e))
+            raise ValueError(f"Failed to generate meditation: {str(e)}") from e
