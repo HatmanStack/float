@@ -3,13 +3,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 try:
     import numpy as np  # type: ignore[import-not-found]
     from scipy.stats import norm  # type: ignore[import-untyped]
-    if TYPE_CHECKING:
-        from numpy.typing import NDArray
 except ImportError:
     np = None
     norm = None
-    if TYPE_CHECKING:
-        from numpy.typing import NDArray  # type: ignore[import-not-found]
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray  # type: ignore[import-not-found]
 
 
 def modified_sigmoid(x: "NDArray[Any]", k: float = 0.005) -> "NDArray[Any]":
