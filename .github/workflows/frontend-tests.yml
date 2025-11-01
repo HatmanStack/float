@@ -14,18 +14,6 @@ on:
       - '.eslintrc.json'
       - '.prettierrc.json'
       - '.github/workflows/frontend-tests.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'app/**'
-      - 'components/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
-      - '.eslintrc.json'
-      - '.prettierrc.json'
-      - '.github/workflows/frontend-tests.yml'
 
 jobs:
   test:
