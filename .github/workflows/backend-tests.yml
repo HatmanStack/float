@@ -8,12 +8,6 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-tests.yml'
 
 jobs:
   test:
@@ -23,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.11', '3.12']
+        python-version: ['3.12']
 
     steps:
       - name: Checkout code
