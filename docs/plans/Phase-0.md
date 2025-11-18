@@ -217,6 +217,141 @@ fix(frontend): resolve BackendSummaryCall test timeout issues
 
 ---
 
+### ADR-9: FFmpeg Lambda Layer - External Dependency
+
+**Decision:** Use pre-built FFmpeg Lambda layer; document setup process for new environments.
+
+**Rationale:**
+- FFmpeg compilation is complex and time-consuming
+- Layer is stable and changes infrequently
+- Separate lifecycle from application code
+- Allows independent layer version management across environments
+
+**Setup Process:**
+
+**Option 1: Use Existing Layer (Recommended)**
+
+If FFmpeg layer already exists in your AWS account:
+1. Find layer ARN: `aws lambda list-layer-versions --layer-name ffmpeg --region us-east-1`
+2. Copy ARN for parameter file: `arn:aws:lambda:us-east-1:ACCOUNT_ID:layer:ffmpeg:VERSION`
+3. Skip to Phase 1
+
+**Option 2: Use Public FFmpeg Layer**
+
+Use community-maintained layer (verify before production use):
+1. Search AWS Serverless Application Repository for "ffmpeg layer"
+2. **WARNING:** Verify compatibility with Python 3.12 and x86_64 architecture
+3. Test layer before using in production
+
+**Option 3: Build FFmpeg Layer (Advanced)**
+
+If you must build from scratch:
+
+1. Clone FFmpeg layer build repository:
+   ```bash
+   git clone https://github.com/serverlesspub/ffmpeg-aws-lambda-layer
+   cd ffmpeg-aws-lambda-layer
+   ```
+
+2. Build layer using Docker:
+   ```bash
+   docker build -t ffmpeg-layer .
+   ./package.sh
+   ```
+
+3. Deploy layer to AWS:
+   ```bash
+   aws lambda publish-layer-version \
+     --layer-name ffmpeg \
+     --description "FFmpeg for audio processing" \
+     --zip-file fileb://layer.zip \
+     --compatible-runtimes python3.12 \
+     --region us-east-1
+   ```
+
+4. Save the returned LayerVersionArn for parameter files
+
+5. Test layer works:
+   ```bash
+   # Create test Lambda
+   # Attach layer
+   # Run: /opt/bin/ffmpeg -version
+   # Should output: ffmpeg version X.X.X
+   ```
+
+**Verification:**
+- FFmpeg binary exists at `/opt/bin/ffmpeg`
+- Version is 4.x or newer
+- Architecture matches Lambda (x86_64)
+- Binary executes without errors
+
+**Troubleshooting:**
+- "Layer not found": Check region matches Lambda function region
+- "Binary not found": Verify layer path is `/opt/bin/ffmpeg` not `/opt/ffmpeg`
+- "Permission denied": Layer must be compatible with Lambda runtime
+- "Exec format error": Architecture mismatch (need x86_64, not ARM64)
+
+---
+
+### ADR-10: E2E Testing Framework - Detox
+
+**Decision:** Use Detox for React Native end-to-end testing.
+
+**Rationale:**
+- **Native React Native support:** Built specifically for React Native (no WebViews or bridges needed)
+- **Gray-box testing:** Can access React Native internals for faster, more reliable tests
+- **Automatic synchronization:** Waits for React Native to be idle (no manual waits)
+- **Cross-platform:** Works with both iOS and Android
+- **Active development:** Maintained by Wix, good community support
+- **Integrates with Jest:** Familiar testing patterns
+
+**Trade-offs:**
+- **Requires native builds:** Slower CI builds (need to compile iOS/Android apps)
+- **More complex setup:** Requires Xcode or Android Studio for local development
+- **Learning curve:** More complex than pure JavaScript solutions
+- **CI resource requirements:** Needs macOS runners for iOS tests (expensive)
+
+**Alternatives Considered:**
+
+1. **Maestro**
+   - Pros: Simpler setup, no native builds, easier debugging, YAML-based tests
+   - Cons: Newer tool (less mature), less control over RN internals
+   - Rejected: Less ecosystem support, uncertain long-term maintenance
+
+2. **Appium**
+   - Pros: Cross-platform (mobile + web), industry standard, WebDriver protocol
+   - Cons: Slower (WebDriver overhead), more complex setup, not RN-specific
+   - Rejected: Overkill for RN-only app, slower test execution
+
+3. **Playwright (experimental RN support)**
+   - Cons: RN support still experimental, better suited for web
+   - Rejected: Not mature enough for React Native
+
+**Implementation Plan (Phase 5):**
+- Install Detox and dependencies
+- Configure for iOS simulator (local development)
+- Configure for Android emulator (CI/CD on Linux)
+- Use Detox matchers: `by.id()`, `by.text()`, `by.type()`
+- Run E2E tests in CI on Android only (cost efficiency)
+- Document iOS E2E testing for manual testing
+
+**Testing Strategy:**
+- E2E tests represent 10% of total test suite (per ADR-5)
+- Focus on critical user flows only:
+  - Authentication flow (sign in, sign out)
+  - Recording flow (record audio, submit)
+  - Meditation generation flow (generate, play, save)
+- Integration tests cover component interactions
+- Unit tests cover business logic
+
+**Configuration:**
+- Test on Android API 31+ (Linux CI runners)
+- Test on iOS 15+ (local development only)
+- Use release builds for E2E tests (matches production)
+- Mock backend API for E2E tests (deterministic results)
+
+---
+
 ## Testing Strategy
 
 ### Backend Testing Strategy
@@ -502,10 +637,15 @@ export function MyComponent({ title, onPress }: MyComponentProps) {
    - Understand which resource changes require replacement
    - Have rollback plan for failed deployments
 
-3. **Parameter File Security:**
+3. **Parameter File Security - Committing Secrets to Git:**
+   - **ALWAYS test .gitignore before creating files with real secrets**
+   - Create test file first, verify it's ignored, then create real file
+   - Use `git status` and `git ls-files` to double-check
+   - Never use `git add .` without reviewing what's staged
    - Never commit parameter files with real API keys
    - Add `infrastructure/parameters/*.json` to .gitignore (except examples)
    - Use placeholder values in example parameter files
+   - **If secrets committed: rotate ALL secrets immediately, rewrite history**
 
 4. **Environment Name Confusion:**
    - Use clear parameter names (staging vs production, not env1 vs env2)
@@ -524,7 +664,7 @@ export function MyComponent({ title, onPress }: MyComponentProps) {
 ### Daily Development Flow
 
 1. **Start of Day:**
-   - Pull latest changes: `git pull origin claude/sam-deployment-testing-01KSjcbwLqaXQJQ8c9JQrV9h`
+   - Pull latest changes: `git pull origin <your-feature-branch>`
    - Check CI/CD status for any failures
    - Review current phase checklist
 
@@ -543,7 +683,7 @@ export function MyComponent({ title, onPress }: MyComponentProps) {
    - Commit with conventional message: `git commit -m "type(scope): description"`
 
 4. **End of Day/Task:**
-   - Push changes: `git push -u origin claude/sam-deployment-testing-01KSjcbwLqaXQJQ8c9JQrV9h`
+   - Push changes: `git push -u origin <your-feature-branch>`
    - Update phase checklist
    - Document any blockers or questions
 
@@ -566,12 +706,27 @@ export function MyComponent({ title, onPress }: MyComponentProps) {
 
 ## Phase Completion
 
-This phase is complete when:
-- All ADRs are reviewed and understood
-- Testing strategy is clear
-- Coding conventions are documented
-- Common pitfalls are identified
-- Team (or engineer) is ready to begin Phase 1
+This phase is complete when you can answer YES to all checkpoints:
+
+**Verification Checkpoints:**
+- [ ] I have read all 10 ADRs (ADR-1 through ADR-10)
+- [ ] I have read the Backend Testing Strategy section (lines 357-421)
+- [ ] I have read the Frontend Testing Strategy section (lines 423-487)
+- [ ] I have read the Coding Conventions sections (Backend + Frontend)
+- [ ] I have read the Common Pitfalls sections (Backend, Frontend, SAM/Infrastructure)
+- [ ] I can answer: "What is our SAM template structure?" (Answer: ADR-1, single environment-agnostic template)
+- [ ] I can answer: "What testing pyramid do we follow?" (Answer: ADR-5, 70% unit, 20% integration, 10% E2E)
+- [ ] I can answer: "What API Gateway type are we using?" (Answer: ADR-2, HTTP API v2)
+- [ ] I can answer: "How do we manage FFmpeg?" (Answer: ADR-9, separate Lambda layer)
+- [ ] I can answer: "What E2E framework are we using?" (Answer: ADR-10, Detox)
+- [ ] I understand the TDD workflow (lines 686-699)
+
+**Self-Assessment Questions:**
+1. If a test fails due to mock leakage, where would I look? (Answer: Backend Pitfall #2, line 582)
+2. What commit message format should I use? (Answer: Conventional Commits, ADR-8, line 174)
+3. Where do API keys go in SAM? (Answer: Environment variables, ADR-3, line 63)
+
+If you can answer these questions, proceed to Phase 1. If not, review the relevant sections.
 
 No code changes or tests are created in this phase.
 

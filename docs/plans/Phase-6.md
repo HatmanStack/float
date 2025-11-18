@@ -26,6 +26,131 @@ Integrate SAM deployment automation into CI/CD pipeline, update GitHub Actions w
 
 ## Tasks
 
+### Task 0: Deploy SAM Stack to Production Environment
+
+**Goal:** Deploy the SAM infrastructure to production AWS environment using the production parameter file, following ADR-7 manual deployment requirement.
+
+**Files to Create:**
+- `infrastructure/parameters/production.json` - Production parameters (git-ignored)
+
+**Prerequisites:**
+- Phase 1-5 complete
+- Staging deployment verified and stable for at least 1 week
+- Production AWS account/region confirmed
+- Production API keys obtained (Google Gemini, OpenAI, ElevenLabs)
+- Production FFmpeg layer deployed to production AWS account
+- Stakeholder approval for production deployment
+
+**Implementation Steps:**
+
+1. Create production parameter file:
+   - Copy production-example.json to production.json
+   - Verify .gitignore excludes production.json
+   - Fill in production API keys
+   - Fill in production FFmpeg layer ARN
+   - Use production bucket names (with -production suffix and account ID)
+   - Set environment: "production"
+   - Double-check all values are production-appropriate
+
+2. Review production deployment plan:
+   - Run SAM validate: `./infrastructure/scripts/validate-template.sh`
+   - Review deployment script: `cat ./infrastructure/scripts/deploy-production.sh`
+   - Verify script has safety confirmations
+   - Understand rollback plan
+
+3. Create CloudFormation change set (dry-run):
+   - Modify deploy-production.sh to create change set only:
+   ```bash
+   sam deploy --no-execute-changeset \
+     --template-file template.yaml \
+     --parameter-overrides file://parameters/production.json
+   ```
+   - Review change set in AWS Console
+   - Verify all resources are correct
+   - Get stakeholder approval for changes
+
+4. Execute production deployment:
+   - Run deployment script: `./infrastructure/scripts/deploy-production.sh`
+   - Confirm safety prompts
+   - Monitor CloudFormation Events in AWS Console
+   - Wait for CREATE_COMPLETE status
+
+5. Verify production deployment:
+   - Check Lambda function: `aws lambda get-function --function-name float-meditation-production`
+   - Check S3 buckets: `aws s3 ls | grep production`
+   - Check API Gateway: Get endpoint from stack outputs
+   - Verify environment variables in Lambda console
+
+6. Run production smoke tests:
+   - Test summary request:
+   ```bash
+   curl -X POST https://[production-api-endpoint]/meditation \
+     -H "Content-Type: application/json" \
+     -d '{"type":"summary","user_id":"smoke-test","prompt":"test","audio":"NotAvailable"}'
+   ```
+   - Verify response is valid JSON with expected fields
+   - Check S3 bucket for created files
+   - Check CloudWatch Logs for successful execution
+
+7. Update documentation:
+   - Document production endpoint URL
+   - Document production stack name
+   - Add production deployment to infrastructure/README.md
+   - Update ADR-7 with production deployment date
+
+**Architecture Guidance:**
+- Production deployments are always manual (per ADR-7)
+- Require thorough testing in staging first
+- Review change sets carefully before executing
+- Have rollback plan ready
+- Monitor deployment closely
+
+**Verification Checklist:**
+- [ ] Production parameter file created and git-ignored
+- [ ] CloudFormation change set reviewed and approved
+- [ ] Production stack deployed successfully
+- [ ] Lambda function configured correctly (4GB memory, 15min timeout)
+- [ ] S3 buckets created with production names
+- [ ] API Gateway endpoint accessible
+- [ ] Environment variables configured
+- [ ] FFmpeg layer attached
+- [ ] Smoke tests passed
+- [ ] Production endpoint documented
+
+**Testing Instructions:**
+```bash
+# Verify production stack exists
+aws cloudformation describe-stacks --stack-name float-meditation-production
+
+# Test production endpoint
+curl -X POST https://[prod-endpoint]/meditation \
+  -H "Content-Type: application/json" \
+  -d @infrastructure/test-requests/summary-request.json
+
+# Check logs
+aws logs tail /aws/lambda/float-meditation-production --follow
+
+# Verify S3 files created
+aws s3 ls s3://float-cust-data-production-[ACCOUNT_ID]/ --recursive | head -10
+```
+
+**Commit Message Template:**
+```
+feat(infrastructure): deploy SAM stack to production
+
+- Create production.json parameter file (git-ignored)
+- Deploy CloudFormation stack: float-meditation-production
+- Verify Lambda, S3, API Gateway resources
+- Run production smoke tests
+- Document production endpoint and configuration
+
+Production deployment completed successfully.
+```
+
+**Estimated Tokens:** ~3,000
+
+---
+
 ### Task 1: Add GitHub Actions Workflow for SAM Deployment
 
 **Goal:** Create GitHub Actions workflow to automate SAM deployment to staging environment on merge to main branch.

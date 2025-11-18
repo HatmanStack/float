@@ -1,12 +1,12 @@
-# Phase 5: Frontend Test Improvements - Integration & E2E
+# Phase 5: Frontend Test Improvements - Integration & E2E (Detox)
 
 ## Phase Goal
 
-Add integration tests for components with React Context and hooks, set up end-to-end testing infrastructure, and create critical user flow tests. Verify that frontend components work together correctly and that complete user journeys function as expected.
+Add integration tests for components with React Context and hooks, set up Detox end-to-end testing infrastructure (per ADR-10), and create critical user flow tests. Verify that frontend components work together correctly and that complete user journeys function as expected.
 
 **Success Criteria:**
 - Integration tests added for components with Context providers
-- E2E testing framework set up (Detox or similar)
+- E2E testing framework set up (Detox, per ADR-10)
 - Critical user flows tested end-to-end (auth, recording, meditation)
 - All integration and E2E tests pass reliably
 - Test isolation maintained across test types
@@ -17,10 +17,12 @@ Add integration tests for components with React Context and hooks, set up end-to
 ## Prerequisites
 
 - Phase 4 complete (component tests at 75%+ coverage)
+- **Phase 0 ADR-10 reviewed (E2E framework decision: Detox)**
 - Understanding of React Context API usage in the app
 - Understanding of navigation structure
 - Familiarity with E2E testing concepts
 - Review existing Context providers in `context/` directory
+- **Android Studio installed (for Android emulator) OR Xcode installed (for iOS simulator)**
 
 ## Tasks
 
@@ -357,9 +359,9 @@ test(frontend): add meditation flow integration tests
 
 ---
 
-### Task 5: Set Up E2E Testing Framework
+### Task 5: Set Up Detox E2E Testing Framework
 
-**Goal:** Set up end-to-end testing infrastructure using Detox (or alternative) to test complete user journeys through the app.
+**Goal:** Install and configure Detox for React Native E2E testing, following ADR-10.
 
 **Files to Create:**
 - `.detoxrc.js` - Detox configuration
@@ -368,15 +370,18 @@ test(frontend): add meditation flow integration tests
 - `e2e/config.json` - E2E test configuration
 
 **Prerequisites:**
-- Review Detox documentation or chosen E2E framework
+- Phase 0 ADR-10 reviewed (Detox decision and rationale)
+- Detox documentation reviewed
 - Understand Expo app testing with Detox
 - Review app navigation structure
+- Android Studio or Xcode installed
 
 **Implementation Steps:**
 
-1. Choose and install E2E testing framework:
-   - Evaluate options: Detox, Maestro, Appium
-   - Install chosen framework and dependencies
+1. Install Detox and dependencies:
+   - Install Detox CLI: `npm install -g detox-cli`
+   - Install Detox: `npm install --save-dev detox`
+   - Install Jest integration: `npm install --save-dev jest`
    - Configure for React Native / Expo
 2. Configure E2E testing:
    - Create configuration file

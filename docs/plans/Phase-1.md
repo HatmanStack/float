@@ -19,7 +19,9 @@ Create a complete AWS SAM infrastructure-as-code solution that automates deploym
 - Phase 0 reviewed and understood
 - AWS SAM CLI installed (`sam --version`)
 - AWS CLI configured with credentials (`aws configure list`)
-- FFmpeg Lambda layer ARN available for staging environment
+- **FFmpeg Lambda layer ARN available (see Phase-0 ADR-9 for setup)**
+  - If not available, complete ADR-9 setup before starting Phase 1
+  - Have layer ARN ready for both staging and production
 - API keys ready for staging environment (Google Gemini, OpenAI, ElevenLabs)
 - Docker installed (for local SAM testing)
 
@@ -153,16 +155,46 @@ feat(infrastructure): create base SAM template with Lambda function
 1. Add S3 bucket parameters to Parameters section:
    - Customer data bucket name parameter
    - Audio bucket name parameter
-2. Add two S3 bucket resources to Resources section:
+
+2. **IMPORTANT - Bucket Naming Strategy:**
+   S3 bucket names are globally unique across ALL AWS accounts. To avoid collisions:
+
+   **Option A: Include AWS Account ID (Recommended)**
+   ```yaml
+   CustomerDataBucket:
+     Type: AWS::S3::Bucket
+     Properties:
+       BucketName: !Sub '${AWS::StackName}-cust-data-${AWS::AccountId}'
+   ```
+   Result: `float-meditation-staging-cust-data-123456789012`
+
+   **Option B: Use CloudFormation-generated names**
+   ```yaml
+   CustomerDataBucket:
+     Type: AWS::S3::Bucket
+     # No BucketName property - CloudFormation generates unique name
+   ```
+   Result: `float-meditation-staging-customerdatabucket-a1b2c3d4e5f6`
+
+   **Option C: Use parameter with account ID suffix**
+   - Parameter file: `"CustomerDataBucketName": "float-cust-data-staging-123456789012"`
+   - Requires manual account ID entry
+
+   **Recommendation:** Use Option A for predictable, unique names.
+
+3. Add two S3 bucket resources to Resources section:
    - Customer data bucket (stores user data, summaries, meditation records)
    - Audio bucket (stores generated meditation audio files)
-3. Configure bucket properties:
+
+4. Configure bucket properties:
    - Encryption: AES256 (server-side encryption enabled by default)
    - Versioning: Consider enabling for production data recovery
    - Lifecycle policies: Consider adding expiration rules for cost optimization
    - Access control: Private access only
-4. Add bucket policies if needed for cross-service access
-5. Update Lambda execution role to grant S3 permissions:
+
+5. Add bucket policies if needed for cross-service access
+
+6. Update Lambda execution role to grant S3 permissions:
    - s3:PutObject for both buckets
    - s3:GetObject for both buckets
    - s3:DeleteObject for both buckets
@@ -176,16 +208,27 @@ feat(infrastructure): create base SAM template with Lambda function
 
 **Verification Checklist:**
 - [ ] Two S3 bucket resources defined (customer data and audio)
-- [ ] Bucket names use parameters with environment suffix
+- [ ] Bucket names use CloudFormation intrinsic functions for uniqueness (!Sub with ${AWS::AccountId})
+- [ ] OR BucketName property omitted (CloudFormation generates unique name)
 - [ ] Server-side encryption enabled
 - [ ] Lambda execution role has appropriate S3 permissions
 - [ ] Bucket ARNs exported as outputs for reference
 - [ ] Template still validates successfully
+- [ ] Bucket naming documented in parameter file examples with account ID
 
 **Testing Instructions:**
 - Run `sam validate` to ensure template is still valid
 - Review IAM permissions to ensure they follow least-privilege principle
-- Verify bucket naming will be unique (include account ID or random suffix if needed)
+- Verify bucket naming strategy prevents global name collisions:
+  ```bash
+  # Check what bucket names will be created
+  aws cloudformation describe-stack-resources \
+    --stack-name float-meditation-staging \
+    --query 'StackResources[?ResourceType==`AWS::S3::Bucket`].PhysicalResourceId'
+  ```
+- If deployment fails with "bucket already exists":
+  - Change bucket naming strategy to Option A or B above
+  - OR change ParameterValue in staging.json to include unique suffix
 
 **Commit Message Template:**
 ```
@@ -354,17 +397,59 @@ feat(infrastructure): configure Lambda environment variables
 **Implementation Steps:**
 
 1. Create example parameter files with placeholder values:
-   - Use "your-api-key-here" for API keys
-   - Use "arn:aws:lambda:region:account:layer:ffmpeg:1" for layer ARN
-   - Use "float-cust-data-staging" for bucket names
+   - Use "YOUR_API_KEY_HERE" for API keys
+   - Use "arn:aws:lambda:REGION:ACCOUNT:layer:ffmpeg:VERSION" for layer ARN
+   - Use "float-cust-data-staging-ACCOUNT_ID" for bucket names
    - Include all parameters defined in template
-2. Create actual staging.json with real values:
-   - Real API keys for staging environment
-   - Real FFmpeg layer ARN
-   - Real bucket names (with -staging suffix)
-   - Appropriate environment name: "staging"
-3. Document parameter file format in infrastructure/README.md
-4. Verify staging.json is git-ignored
+   - Include comments explaining each parameter
+
+2. **SECURITY CHECKPOINT - Verify .gitignore before creating real parameter file:**
+
+   ```bash
+   # Test that .gitignore works BEFORE adding real secrets
+   cd infrastructure/parameters/
+
+   # Create test file with fake secret
+   echo '{"test": "secret"}' > test-secret.json
+
+   # Check git status
+   git status
+
+   # EXPECTED: test-secret.json should NOT appear in output
+   # If it appears in "Untracked files", STOP - .gitignore is broken
+
+   # Also verify example files ARE tracked
+   git status staging-example.json
+   # EXPECTED: Should show as tracked or staged
+
+   # Clean up test file
+   rm test-secret.json
+
+   # If .gitignore test fails, go back to Task 1 and fix .gitignore
+   # DO NOT PROCEED until .gitignore works correctly
+   ```
+
+3. Create actual staging.json with real values **ONLY after .gitignore verified:**
+   - Copy staging-example.json: `cp staging-example.json staging.json`
+   - Replace placeholder values with real API keys
+   - **IMMEDIATELY verify not tracked:** `git status` (should not list staging.json)
+   - Fill in real FFmpeg layer ARN (from Phase-0 ADR-9 setup)
+   - Fill in real bucket names (with -staging suffix and account ID)
+   - Set environment name: "staging"
+
+4. **Double-check security:**
+   ```bash
+   # Verify staging.json is ignored
+   git status
+   git ls-files | grep staging.json
+   # Should return nothing
+
+   # Verify example files are tracked
+   git ls-files | grep example.json
+   # Should show staging-example.json and production-example.json
+   ```
+
+5. Document parameter file format in infrastructure/README.md
 
 **Architecture Guidance:**
 - Parameter file format follows AWS CLI parameter override syntax
@@ -388,14 +473,17 @@ feat(infrastructure): configure Lambda environment variables
 
 **Verification Checklist:**
 - [ ] Example parameter files exist and are tracked by git
+- [ ] .gitignore test passed (test-secret.json was ignored)
 - [ ] staging.json exists with real values
-- [ ] staging.json is git-ignored
+- [ ] staging.json is git-ignored (`git status` does not list it)
+- [ ] staging.json is NOT in git index (`git ls-files | grep staging.json` returns nothing)
 - [ ] All template parameters have corresponding entries in parameter files
-- [ ] Example files have clear placeholder values
+- [ ] Example files have clear placeholder values (not real secrets)
 - [ ] README.md documents parameter file usage
 
 **Testing Instructions:**
 - Run `git status` and verify staging.json is not listed
+- Run `git ls-files | grep staging.json` and verify it returns nothing
 - Run `git status` and verify example files are listed
 - Validate parameter files match template parameter names
 - Ensure parameter file JSON is valid
@@ -537,11 +625,70 @@ feat(infrastructure): create deployment automation scripts
    - Note API Gateway endpoint URL from outputs
 5. Update infrastructure/README.md with actual deployment results
 
+6. If deployment fails:
+
+   **Debugging Failed Deployments:**
+   1. Check CloudFormation Events:
+      ```bash
+      aws cloudformation describe-stack-events \
+        --stack-name float-meditation-staging \
+        --max-items 20
+      ```
+
+   2. Look for "CREATE_FAILED" or "UPDATE_FAILED" events
+
+   3. Common failure scenarios:
+
+      **FFmpeg layer ARN invalid:**
+      - Error: "Layer version arn:... does not exist"
+      - Fix: Verify layer exists: `aws lambda get-layer-version --arn [ARN]`
+      - Fix: Check region matches (layer must be in same region as Lambda)
+      - Fix: See Phase-0 ADR-9 for layer setup
+
+      **S3 bucket name taken:**
+      - Error: "Bucket name already exists"
+      - Fix: S3 names are globally unique - change bucket names in staging.json
+      - Fix: Add account ID suffix (see Phase-1, Task-3 guidance)
+
+      **IAM permissions insufficient:**
+      - Error: "User is not authorized to perform: iam:CreateRole"
+      - Fix: Ensure AWS credentials have CloudFormation/Lambda/S3/IAM permissions
+      - Fix: Add `--capabilities CAPABILITY_IAM` to deploy command (should be default)
+
+      **Parameter validation error:**
+      - Error: "Parameter validation failed"
+      - Fix: Check all required parameters present in staging.json
+      - Fix: Verify parameter types match template (string vs number)
+
+   4. Rollback behavior:
+      - CloudFormation automatically rolls back on failure
+      - All created resources are deleted
+      - Stack state returns to previous working state (or DELETE_COMPLETE if first deploy)
+
+   5. To retry after fixing issue:
+      ```bash
+      # Fix the parameter file or template
+      # Then re-run deployment
+      ./infrastructure/scripts/deploy-staging.sh
+      ```
+
+   6. To manually delete failed stack:
+      ```bash
+      aws cloudformation delete-stack --stack-name float-meditation-staging
+      # Wait for deletion
+      aws cloudformation wait stack-delete-complete --stack-name float-meditation-staging
+      ```
+
+   7. Check CloudFormation console for visual debugging:
+      - AWS Console → CloudFormation → float-meditation-staging
+      - Events tab shows detailed error messages
+      - Resources tab shows which resources failed
+
 **Architecture Guidance:**
 - First deployment uses --guided mode to generate samconfig.toml
 - Subsequent deployments can use saved configuration
 - Review CloudFormation change sets carefully
-- If deployment fails, review CloudFormation events for root cause
+- See Implementation Step 6 above for debugging failed deployments
 
 **Verification Checklist:**
 - [ ] CloudFormation stack created successfully: float-meditation-staging
