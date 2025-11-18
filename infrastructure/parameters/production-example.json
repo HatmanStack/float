@@ -1,7 +1,7 @@
 [
   {
     "ParameterKey": "Environment",
-    "ParameterValue": "staging"
+    "ParameterValue": "production"
   },
   {
     "ParameterKey": "FFmpegLayerArn",

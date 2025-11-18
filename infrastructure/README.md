@@ -73,26 +73,72 @@ aws lambda list-layer-versions --layer-name ffmpeg --region us-east-1
 
 If layer doesn't exist, follow ADR-9 setup before proceeding.
 
+## Parameter Files
+
+Parameter files store environment-specific configuration values using the AWS CloudFormation parameter override format.
+
+**Files:**
+- `staging-example.json` - Template with placeholders (safe to commit)
+- `production-example.json` - Template with placeholders (safe to commit)
+- `staging.json` - Actual staging values (git-ignored, DO NOT COMMIT)
+- `production.json` - Actual production values (git-ignored, DO NOT COMMIT)
+
+**Parameter Format:**
+```json
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "GoogleGeminiApiKey",
+    "ParameterValue": "your-actual-api-key-here"
+  }
+]
+```
+
+**Required Parameters:**
+- `Environment`: "staging" or "production"
+- `FFmpegLayerArn`: ARN of your FFmpeg Lambda layer (see Phase-0 ADR-9)
+- `GoogleGeminiApiKey`: Your Google Gemini API key
+- `OpenAIApiKey`: Your OpenAI API key
+- `ElevenLabsApiKey`: Optional, can be empty string ""
+
+**Optional Parameters with Defaults:**
+- `SimilarityBoost`: "0.7" (voice similarity)
+- `Stability`: "0.3" (voice stability)
+- `VoiceStyle`: "0.3" (voice style)
+- `VoiceId`: "jKX50Q2OBT1CsDwwcTkZ" (ElevenLabs voice)
+
 ## Deployment Process
 
 ### First-Time Setup
 
-1. **Create parameter file for staging:**
+1. **Edit staging.json with real values:**
+
+   The file `infrastructure/parameters/staging.json` already exists as a template. Edit it to add your actual values:
+
    ```bash
    cd infrastructure/parameters/
-   cp staging-example.json staging.json
+   # Edit staging.json - replace ALL placeholder values
+   # - FFmpegLayerArn: Get from AWS Console or `aws lambda list-layer-versions --layer-name ffmpeg`
+   # - GoogleGeminiApiKey: Your Google AI Studio API key
+   # - OpenAIApiKey: Your OpenAI API key
+   # - ElevenLabsApiKey: Optional, can leave as empty string
    ```
 
-2. **Edit staging.json with real values:**
-   - Add your API keys (Google Gemini, OpenAI, ElevenLabs)
-   - Add your FFmpeg layer ARN
-   - Update bucket names (must include AWS account ID for uniqueness)
-   - Set environment name to "staging"
-
-3. **Verify .gitignore protection:**
+2. **Verify .gitignore protection:**
    ```bash
-   git status  # staging.json should NOT appear
+   cd /home/user/float
+   git status  # staging.json should NOT appear in output
+   git ls-files | grep staging.json  # Should return nothing
    ```
+
+3. **Important Security Note:**
+   - NEVER commit `staging.json` or `production.json`
+   - These files contain sensitive API keys
+   - The .gitignore is configured to exclude them
+   - Only example files should be committed
 
 ### Deploy to Staging
 
