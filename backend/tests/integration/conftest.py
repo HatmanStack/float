@@ -11,7 +11,7 @@ from botocore.exceptions import ClientError
 
 from src.config.settings import settings
 from src.providers.openai_tts import OpenAITTSProvider
-from src.services.gemini_service import GeminiService
+from src.services.gemini_service import GeminiAIService
 from src.services.s3_storage_service import S3StorageService
 from tests.integration.test_config import test_config
 
@@ -63,7 +63,7 @@ def real_gemini_service(skip_if_no_gemini):
     if test_config.GEMINI_API_KEY:
         settings.GEMINI_API_KEY = test_config.GEMINI_API_KEY
 
-    service = GeminiService()
+    service = GeminiAIService()
 
     yield service
 
