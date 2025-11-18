@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.1, pluggy-1.6.0
+rootdir: /home/user/float/backend
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.0.0, anyio-4.11.0
+collected 99 items
+
+tests/unit/test_lambda_handler.py ........................               [ 24%]
+tests/unit/test_middleware.py ............................               [ 52%]
+tests/unit/test_models.py ..................                             [ 70%]
+tests/unit/test_services.py .............................                [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.11.14-final-0 _______________
+
+Name                                   Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------
+src/handlers/lambda_handler.py           112     19    83%   44, 121, 168, 246-248, 258-260, 265-274
+src/handlers/middleware.py               109     17    84%   82-84, 154-156, 202-219
+src/models/domain.py                      60     60     0%   1-101
+src/models/requests.py                    68      6    91%   95-99, 166
+src/models/responses.py                   53      3    94%   92, 110-111
+src/providers/openai_tts.py               21      0   100%
+src/services/ai_service.py                 3      0   100%
+src/services/audio_service.py              3      0   100%
+src/services/ffmpeg_audio_service.py     120     38    68%   33-41, 62-66, 107, 198, 203-206, 227, 230-235, 237, 246-249, 254-256, 274, 278-281
+src/services/gemini_service.py            65     12    82%   209-211, 216-223, 228-230, 256-258
+src/services/s3_storage_service.py        46     19    59%   35-36, 61-63, 76-93
+src/services/service_factory.py           46     46     0%   3-76
+src/services/storage_service.py            3      0   100%
+src/services/tts_service.py                2      0   100%
+src/utils/audio_utils.py                  31     14    55%   39-41, 54-60, 73-76
+src/utils/color_utils.py                  70     70     0%   1-130
+src/utils/file_utils.py                   35     22    37%   27-32, 45, 58-59, 73-85, 100-105
+--------------------------------------------------------------------
+TOTAL                                    847    326    62%
+Coverage HTML written to dir htmlcov
+============================= 99 passed in 36.46s ==============================
