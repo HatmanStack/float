@@ -16,7 +16,10 @@
     "type-check": "tsc --noEmit --skipLibCheck"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.js"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
