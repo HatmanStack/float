@@ -115,10 +115,7 @@ def real_s3_storage_service(skip_if_no_aws):
 
     Uses actual AWS S3 with test bucket or test prefix.
     """
-    service = S3StorageService(
-        bucket_name=test_config.AWS_S3_BUCKET,
-        audio_bucket_name=test_config.AWS_AUDIO_BUCKET,
-    )
+    service = S3StorageService()
 
     yield service
 
