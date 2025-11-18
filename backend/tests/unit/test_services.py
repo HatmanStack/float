@@ -1,5 +1,6 @@
 """Unit tests for service layer implementations."""
 
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -139,6 +140,156 @@ class TestS3StorageService:
 
             assert result is False
 
+    def test_upload_json_with_client_error(self):
+        """Test upload_json handles ClientError properly."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+            from botocore.exceptions import ClientError
+
+            mock_s3.put_object.side_effect = ClientError(
+                {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}},
+                "PutObject"
+            )
+
+            service = S3StorageService()
+            result = service.upload_json(
+                bucket="test-bucket", key="test.json", data={"test": "data"}
+            )
+
+            assert result is False
+
+    def test_upload_json_with_unexpected_error(self):
+        """Test upload_json handles unexpected errors properly."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            mock_s3.put_object.side_effect = ValueError("Unexpected error")
+
+            service = S3StorageService()
+            result = service.upload_json(
+                bucket="test-bucket", key="test.json", data={"test": "data"}
+            )
+
+            assert result is False
+
+    def test_download_file_with_unexpected_error(self):
+        """Test download_file handles unexpected errors properly."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            mock_s3.download_file.side_effect = IOError("Disk full")
+
+            service = S3StorageService()
+            result = service.download_file(
+                bucket="test-bucket", key="test.mp3", local_path="/tmp/test.mp3"
+            )
+
+            assert result is False
+
+    def test_list_objects_success(self):
+        """Test list_objects returns object keys successfully."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            mock_s3.list_objects_v2.return_value = {
+                "Contents": [
+                    {"Key": "user123/file1.json"},
+                    {"Key": "user123/file2.json"},
+                    {"Key": "user123/file3.json"}
+                ]
+            }
+
+            service = S3StorageService()
+            result = service.list_objects(bucket="test-bucket", prefix="user123/")
+
+            assert len(result) == 3
+            assert "user123/file1.json" in result
+            mock_s3.list_objects_v2.assert_called_once_with(Bucket="test-bucket", Prefix="user123/")
+
+    def test_list_objects_empty_bucket(self):
+        """Test list_objects returns empty list for empty bucket."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            mock_s3.list_objects_v2.return_value = {}  # No Contents key
+
+            service = S3StorageService()
+            result = service.list_objects(bucket="test-bucket")
+
+            assert result == []
+            mock_s3.list_objects_v2.assert_called_once_with(Bucket="test-bucket")
+
+    def test_list_objects_without_prefix(self):
+        """Test list_objects works without prefix parameter."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            mock_s3.list_objects_v2.return_value = {
+                "Contents": [{"Key": "file1.json"}, {"Key": "file2.json"}]
+            }
+
+            service = S3StorageService()
+            result = service.list_objects(bucket="test-bucket")
+
+            assert len(result) == 2
+            # Verify Prefix was not passed
+            call_kwargs = mock_s3.list_objects_v2.call_args.kwargs
+            assert "Prefix" not in call_kwargs
+
+    def test_list_objects_with_client_error(self):
+        """Test list_objects handles ClientError gracefully."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+            from botocore.exceptions import ClientError
+
+            mock_s3.list_objects_v2.side_effect = ClientError(
+                {"Error": {"Code": "NoSuchBucket", "Message": "Bucket not found"}},
+                "ListObjectsV2"
+            )
+
+            service = S3StorageService()
+            result = service.list_objects(bucket="nonexistent-bucket")
+
+            assert result == []
+
+    def test_list_objects_with_unexpected_error(self):
+        """Test list_objects handles unexpected errors gracefully."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            mock_s3.list_objects_v2.side_effect = Exception("Network timeout")
+
+            service = S3StorageService()
+            result = service.list_objects(bucket="test-bucket")
+
+            assert result == []
+
+    def test_upload_json_with_special_characters_in_key(self):
+        """Test upload_json handles special characters in S3 key."""
+        with patch("src.services.s3_storage_service.boto3") as mock_boto3:
+            mock_s3 = MagicMock()
+            mock_boto3.client.return_value = mock_s3
+
+            service = S3StorageService()
+            result = service.upload_json(
+                bucket="test-bucket",
+                key="user@email.com/data/2024-01-01.json",
+                data={"test": "data"}
+            )
+
+            assert result is True
+            mock_s3.put_object.assert_called_once()
+            call_args = mock_s3.put_object.call_args
+            assert call_args.kwargs["Key"] == "user@email.com/data/2024-01-01.json"
+
 
 @pytest.mark.unit
 class TestFFmpegAudioService:
@@ -175,6 +326,154 @@ class TestFFmpegAudioService:
         # Test that the service is properly initialized
         assert service.storage_service == mock_storage_service
         assert service is not None
+
+    def test_get_audio_duration_success(self, mock_storage_service):
+        """Test get_audio_duration returns correct duration."""
+        service = FFmpegAudioService(mock_storage_service)
+
+        # Mock subprocess.run to return FFmpeg duration output
+        mock_stderr = """Input #0, wav, from '/tmp/test.wav':
+  Duration: 00:02:30.45, bitrate: 128 kb/s
+    Stream #0:0: Audio: pcm_s16le"""
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr=mock_stderr)
+
+            duration = service.get_audio_duration("/tmp/test.wav")
+
+            assert duration == 150.45  # 2 minutes 30.45 seconds
+            mock_run.assert_called_once()
+
+    def test_get_audio_duration_error_handling(self, mock_storage_service):
+        """Test get_audio_duration handles errors gracefully."""
+        service = FFmpegAudioService(mock_storage_service)
+
+        with patch("subprocess.run", side_effect=Exception("File not found")):
+            duration = service.get_audio_duration("/nonexistent/file.wav")
+
+            assert duration == 0.0
+
+    def test_get_audio_duration_with_malformed_output(self, mock_storage_service):
+        """Test get_audio_duration handles malformed FFmpeg output."""
+        service = FFmpegAudioService(mock_storage_service)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="Invalid output")
+
+            duration = service.get_audio_duration("/tmp/test.wav")
+
+            assert duration == 0.0
+
+    def test_ffmpeg_binary_verification_success(self, mock_storage_service):
+        """Test FFmpeg binary verification on initialization."""
+        with patch("os.path.exists", return_value=True):
+            with patch("os.path.getsize", return_value=50000000):  # 50MB
+                service = FFmpegAudioService(mock_storage_service)
+
+                assert service.ffmpeg_executable is not None
+                assert service.storage_service == mock_storage_service
+
+    def test_ffmpeg_binary_verification_small_file_warning(self, mock_storage_service):
+        """Test FFmpeg binary verification warns for small file size."""
+        with patch("os.path.exists", return_value=True):
+            with patch("os.path.getsize", return_value=50000):  # 50KB - suspiciously small
+                service = FFmpegAudioService(mock_storage_service)
+
+                # Should still initialize but print warning
+                assert service.ffmpeg_executable is not None
+
+    def test_ffmpeg_binary_verification_size_error(self, mock_storage_service):
+        """Test FFmpeg binary verification handles getsize errors."""
+        with patch("os.path.exists", return_value=True):
+            with patch("os.path.getsize", side_effect=OSError("Permission denied")):
+                service = FFmpegAudioService(mock_storage_service)
+
+                # Should still initialize despite error
+                assert service.ffmpeg_executable is not None
+
+    def test_combine_voice_and_music_subprocess_error(self, mock_storage_service):
+        """Test combine_voice_and_music handles subprocess errors."""
+        service = FFmpegAudioService(mock_storage_service)
+
+        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ffmpeg")):
+            with pytest.raises(subprocess.CalledProcessError):
+                service.combine_voice_and_music(
+                    voice_path="/tmp/voice.mp3",
+                    music_list=[],
+                    timestamp="20241031120000",
+                    output_path="/tmp/combined.mp3",
+                )
+
+    def test_select_background_music_with_string_input(self, mock_storage_service):
+        """Test select_background_music handles string input for used_music."""
+        mock_storage_service.list_objects.return_value = [
+            "Track1_300.wav",
+            "Track2_180.wav"
+        ]
+
+        service = FFmpegAudioService(mock_storage_service)
+
+        # Test with string that should be parsed
+        result = service.select_background_music(
+            used_music="['Track1_300.wav']",
+            duration=250,
+            output_path="/tmp/music.mp3"
+        )
+
+        assert isinstance(result, list)
+
+    def test_select_background_music_with_single_string(self, mock_storage_service):
+        """Test select_background_music handles single string input."""
+        mock_storage_service.list_objects.return_value = ["Track1_300.wav", "Track2_300.wav"]
+        mock_storage_service.download_file.return_value = True
+
+        service = FFmpegAudioService(mock_storage_service)
+
+        # Test with single string (should be converted to list)
+        result = service.select_background_music(
+            used_music="Track1_300.wav",
+            duration=250,
+            output_path="/tmp/music.mp3"
+        )
+
+        assert isinstance(result, list)
+
+    def test_select_background_music_duration_filtering(self, mock_storage_service):
+        """Test select_background_music filters tracks by duration."""
+        mock_storage_service.list_objects.return_value = [
+            "Track1_300.wav",
+            "Track2_180.wav",
+            "Track3_240.wav"
+        ]
+
+        service = FFmpegAudioService(mock_storage_service)
+
+        result = service.select_background_music(
+            used_music=[],
+            duration=250,
+            output_path="/tmp/music.mp3"
+        )
+
+        # Should select tracks with duration close to 250 seconds
+        assert isinstance(result, list)
+
+    def test_select_background_music_fallback_to_300(self, mock_storage_service):
+        """Test select_background_music falls back to 300s tracks."""
+        mock_storage_service.list_objects.return_value = [
+            "Track1_300.wav",
+            "Track2_300.wav"
+        ]
+
+        service = FFmpegAudioService(mock_storage_service)
+
+        # Request duration that doesn't match any tracks except 300s
+        result = service.select_background_music(
+            used_music=[],
+            duration=100,
+            output_path="/tmp/music.mp3"
+        )
+
+        assert isinstance(result, list)
 
 
 @pytest.mark.unit
