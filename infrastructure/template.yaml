@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Float Meditation App - Serverless Backend
+
+  Infrastructure for the Float meditation app including Lambda function,
+  S3 buckets for data storage, and API Gateway for public access.
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: float-meditation-backend
+    Description: Serverless backend for Float meditation app with AI-powered meditation generation
+    Author: Float Team
+
+# Parameters allow the same template to be used for different environments
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name (staging or production)
+    AllowedValues:
+      - staging
+      - production
+    Default: staging
+
+  FFmpegLayerArn:
+    Type: String
+    Description: ARN of the FFmpeg Lambda layer for audio processing
+    AllowedPattern: '^arn:aws:lambda:[a-z0-9-]+:[0-9]+:layer:.*:[0-9]+$'
+
+  GoogleGeminiApiKey:
+    Type: String
+    Description: Google Gemini API key for AI services
+    NoEcho: true
+
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API key for text-to-speech services
+    NoEcho: true
+
+  ElevenLabsApiKey:
+    Type: String
+    Description: ElevenLabs API key (optional)
+    Default: ''
+    NoEcho: true
+
+  SimilarityBoost:
+    Type: String
+    Description: Voice similarity boost setting
+    Default: '0.7'
+
+  Stability:
+    Type: String
+    Description: Voice stability setting
+    Default: '0.3'
+
+  VoiceStyle:
+    Type: String
+    Description: Voice style setting
+    Default: '0.3'
+
+  VoiceId:
+    Type: String
+    Description: ElevenLabs voice ID
+    Default: 'jKX50Q2OBT1CsDwwcTkZ'
+
+# Global configuration for all serverless resources
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 4096
+    Runtime: python3.12
+    Architecture: x86_64
+
+Resources:
+  # Lambda Function - Main application logic
+  FloatMeditationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'float-meditation-${Environment}'
+      Description: Float meditation app Lambda function for AI-powered meditation generation
+      CodeUri: ../backend/
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - !Ref FFmpegLayerArn
+      Role: !GetAtt FloatMeditationExecutionRole.Arn
+      Environment:
+        Variables:
+          # Placeholder - will be populated in Task 5
+          ENVIRONMENT: !Ref Environment
+
+  # IAM Role for Lambda execution
+  FloatMeditationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'FloatMeditationLambdaRole-${Environment}'
+      Description: Execution role for Float meditation Lambda function
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Basic Lambda execution permissions (CloudWatch Logs)
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        # Additional permissions will be added in subsequent tasks
+        - PolicyName: FloatMeditationLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/float-meditation-${Environment}:*'
+
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the Float Meditation Lambda function
+    Value: !GetAtt FloatMeditationFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionArn'
+
+  LambdaFunctionName:
+    Description: Name of the Float Meditation Lambda function
+    Value: !Ref FloatMeditationFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionName'
