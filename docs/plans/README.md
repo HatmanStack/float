@@ -43,6 +43,25 @@ The testing improvements address current gaps in both backend and frontend test 
 | [Phase 6](Phase-6.md) | CI/CD Integration & Documentation | ~15,000 |
 | **Total** | | **~155,000** |
 
+## Token Budget Notes
+
+**Baseline Estimates:** ~155,000 tokens across all phases
+
+**Contingency Planning:**
+- Individual tasks may exceed estimates if debugging is required
+- Estimates assume tests can be fixed/written without major code refactoring
+- If component needs significant changes to be testable, task may grow 2-3x
+- E2E framework setup (Phase 5) may require additional debugging (budget +5k tokens)
+- Integration tests (Phase 3, 5) may hit API rate limits requiring retry logic (+2k tokens)
+
+**Recommended Budget:** 175,000 - 200,000 tokens (includes 15-20% contingency)
+
+**If Budget Exceeded:**
+- Complete current phase before stopping
+- Phases 1-3 are highest priority (infrastructure + backend)
+- Phases 4-5 (frontend tests) can be deferred if needed
+- Phase 6 (CI/CD) can be done incrementally
+
 ## Phase Breakdown
 
 ### Phase 0: Foundation
