@@ -93,8 +93,27 @@ Resources:
             Method: POST
       Environment:
         Variables:
-          # Placeholder - will be populated in Task 5
+          # Environment identifier
           ENVIRONMENT: !Ref Environment
+
+          # AWS S3 Configuration
+          AWS_S3_BUCKET: !Ref CustomerDataBucket
+          AWS_AUDIO_BUCKET: !Ref AudioBucket
+
+          # AI Service API Keys
+          G_KEY: !Ref GoogleGeminiApiKey
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          XI_KEY: !Ref ElevenLabsApiKey
+
+          # FFmpeg Configuration (Lambda layer location)
+          FFMPEG_BINARY: /opt/bin/ffmpeg
+          FFMPEG_PATH: /opt/bin/ffmpeg
+
+          # Voice Configuration
+          SIMILARITY_BOOST: !Ref SimilarityBoost
+          STABILITY: !Ref Stability
+          STYLE: !Ref VoiceStyle
+          VOICE_ID: !Ref VoiceId
 
   # IAM Role for Lambda execution
   FloatMeditationExecutionRole:
