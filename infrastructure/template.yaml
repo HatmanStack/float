@@ -1,0 +1,294 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Float Meditation App - Serverless Backend
+
+  Infrastructure for the Float meditation app including Lambda function,
+  S3 buckets for data storage, and API Gateway for public access.
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: float-meditation-backend
+    Description: Serverless backend for Float meditation app with AI-powered meditation generation
+    Author: Float Team
+
+# Parameters allow the same template to be used for different environments
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name (staging or production)
+    AllowedValues:
+      - staging
+      - production
+    Default: staging
+
+  FFmpegLayerArn:
+    Type: String
+    Description: ARN of the FFmpeg Lambda layer for audio processing
+    AllowedPattern: '^arn:aws:lambda:[a-z0-9-]+:[0-9]+:layer:.*:[0-9]+$'
+
+  GoogleGeminiApiKey:
+    Type: String
+    Description: Google Gemini API key for AI services
+    NoEcho: true
+
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API key for text-to-speech services
+    NoEcho: true
+
+  ElevenLabsApiKey:
+    Type: String
+    Description: ElevenLabs API key (optional)
+    Default: ''
+    NoEcho: true
+
+  SimilarityBoost:
+    Type: String
+    Description: Voice similarity boost setting
+    Default: '0.7'
+
+  Stability:
+    Type: String
+    Description: Voice stability setting
+    Default: '0.3'
+
+  VoiceStyle:
+    Type: String
+    Description: Voice style setting
+    Default: '0.3'
+
+  VoiceId:
+    Type: String
+    Description: ElevenLabs voice ID
+    Default: 'jKX50Q2OBT1CsDwwcTkZ'
+
+# Global configuration for all serverless resources
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 4096
+    Runtime: python3.12
+    Architecture: x86_64
+
+Resources:
+  # Lambda Function - Main application logic
+  FloatMeditationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'float-meditation-${Environment}'
+      Description: Float meditation app Lambda function for AI-powered meditation generation
+      CodeUri: ../backend/
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - !Ref FFmpegLayerArn
+      Role: !GetAtt FloatMeditationExecutionRole.Arn
+      Events:
+        # API Gateway HTTP API integration
+        MeditationApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatMeditationApi
+            Path: /meditation
+            Method: POST
+      Environment:
+        Variables:
+          # Environment identifier
+          ENVIRONMENT: !Ref Environment
+
+          # AWS S3 Configuration
+          AWS_S3_BUCKET: !Ref CustomerDataBucket
+          AWS_AUDIO_BUCKET: !Ref AudioBucket
+
+          # AI Service API Keys
+          G_KEY: !Ref GoogleGeminiApiKey
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          XI_KEY: !Ref ElevenLabsApiKey
+
+          # FFmpeg Configuration (Lambda layer location)
+          FFMPEG_BINARY: /opt/bin/ffmpeg
+          FFMPEG_PATH: /opt/bin/ffmpeg
+
+          # Voice Configuration
+          SIMILARITY_BOOST: !Ref SimilarityBoost
+          STABILITY: !Ref Stability
+          STYLE: !Ref VoiceStyle
+          VOICE_ID: !Ref VoiceId
+
+  # IAM Role for Lambda execution
+  FloatMeditationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'FloatMeditationLambdaRole-${Environment}'
+      Description: Execution role for Float meditation Lambda function
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Basic Lambda execution permissions (CloudWatch Logs)
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        # Additional permissions will be added in subsequent tasks
+        - PolicyName: FloatMeditationLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/float-meditation-${Environment}:*'
+              # S3 permissions for data storage
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub '${CustomerDataBucket.Arn}/*'
+                  - !Sub '${AudioBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt CustomerDataBucket.Arn
+                  - !GetAtt AudioBucket.Arn
+
+  # API Gateway HTTP API - Public endpoint for Lambda invocation
+  FloatMeditationApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: api
+      Description: API Gateway HTTP API for Float Meditation app
+      CorsConfiguration:
+        AllowOrigins:
+          - https://float-app.fun
+          - https://*.float-app.fun
+          - http://localhost:*
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - Accept
+          - X-Requested-With
+        AllowCredentials: true
+        MaxAge: 3600
+      Tags:
+        Environment: !Ref Environment
+        Application: FloatMeditation
+
+  # Lambda Function with API Gateway integration
+  FloatMeditationFunctionApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FloatMeditationFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FloatMeditationApi}/*'
+
+  # S3 Bucket for customer data (summaries, meditation records, user data)
+  CustomerDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-cust-data-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: FloatMeditation
+
+  # S3 Bucket for generated audio files
+  AudioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-audio-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldAudioFiles
+            Status: Enabled
+            ExpirationInDays: 90
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 7
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: FloatMeditation
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL for Float Meditation app
+    Value: !Sub 'https://${FloatMeditationApi}.execute-api.${AWS::Region}.amazonaws.com/api/meditation'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiEndpoint'
+
+  ApiId:
+    Description: API Gateway HTTP API ID
+    Value: !Ref FloatMeditationApi
+
+  LambdaFunctionArn:
+    Description: ARN of the Float Meditation Lambda function
+    Value: !GetAtt FloatMeditationFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionArn'
+
+  LambdaFunctionName:
+    Description: Name of the Float Meditation Lambda function
+    Value: !Ref FloatMeditationFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionName'
+
+  CustomerDataBucketName:
+    Description: Name of the customer data S3 bucket
+    Value: !Ref CustomerDataBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-CustomerDataBucket'
+
+  CustomerDataBucketArn:
+    Description: ARN of the customer data S3 bucket
+    Value: !GetAtt CustomerDataBucket.Arn
+
+  AudioBucketName:
+    Description: Name of the audio files S3 bucket
+    Value: !Ref AudioBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-AudioBucket'
+
+  AudioBucketArn:
+    Description: ARN of the audio files S3 bucket
+    Value: !GetAtt AudioBucket.Arn

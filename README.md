@@ -8,6 +8,8 @@
   <a href="https://github.com/circlemind-ai/fast-graphrag/blob/main/CONTRIBUTING.md">
     <img src="https://img.shields.io/badge/Expo-51+-green" alt="Expo Version" />
   </a>
+  <img src="https://img.shields.io/badge/Backend%20Coverage-68%25-brightgreen" alt="Backend Test Coverage" />
+  <img src="https://img.shields.io/badge/Frontend%20Coverage-75%25-brightgreen" alt="Frontend Test Coverage" />
   <a href="https://cloud.google.com/text-to-speech/docs/basics">
     <img src="https://img.shields.io/badge/Google%20TTS->=2.6-yellow" alt="Google Text-To-Speech" />
   </a>
@@ -69,13 +71,59 @@ npm install
 
 See [FRONTEND_QUALITY.md](FRONTEND_QUALITY.md) for detailed standards.
 
+## Testing
+
+Float has comprehensive test coverage across both frontend and backend:
+
+**Backend (Python):**
+- 200+ tests (unit, integration, E2E)
+- 68% code coverage
+- Tests run on every push via GitHub Actions
+
+**Frontend (TypeScript/React Native):**
+- 145+ tests (component, integration, E2E with Detox)
+- 75% code coverage
+- Tests run on every push via GitHub Actions
+
+```bash
+# Run backend tests
+cd backend
+pytest tests/ --cov=src --cov-report=term-missing
+
+# Run frontend tests
+npm test -- --coverage --watchAll=false
+```
+
+See [TESTING.md](TESTING.md) for comprehensive testing guide.
+
+## Deployment
+
+Float uses AWS SAM (Serverless Application Model) for infrastructure-as-code deployment:
+
+**Environments:**
+- **Staging**: Auto-deploys on merge to main branch
+- **Production**: Manual deployment with approval workflow
+
+```bash
+# Deploy to staging (or use GitHub Actions)
+cd infrastructure
+./scripts/deploy-staging.sh
+
+# Deploy to production (requires approval)
+# Use GitHub Actions workflow: "Deploy Backend Production"
+```
+
+See [infrastructure/README.md](infrastructure/README.md) and [infrastructure/DEPLOYMENT.md](infrastructure/DEPLOYMENT.md) for detailed deployment instructions.
+
 ## Quick Start
 
 ### Prerequisites
 
-- **Node.js** 22+ ([via nvm](https://github.com/nvm-sh/nvm))
+- **Node.js** 24+ ([via nvm](https://github.com/nvm-sh/nvm))
 - **Python** 3.12+
 - **Git**
+- **AWS SAM CLI** (for infrastructure deployment)
+- **Docker** (for SAM local testing)
 - API keys: Google Gemini, OpenAI (TTS), AWS credentials
 
 ### Setup
@@ -139,9 +187,17 @@ npm run lint && npm run format
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, code standards, and pull request process.
 
-### Continuous Integration
+### Continuous Integration & Deployment
 
-Tests run automatically on push/PR via GitHub Actions. See [docs/CI_CD.md](docs/CI_CD.md) for details.
+**GitHub Actions Workflows:**
+- **Backend Tests**: Runs unit, integration, and E2E tests with coverage reporting
+- **Frontend Tests**: Runs component, integration tests with coverage reporting
+- **Deploy Backend Staging**: Auto-deploys to AWS on merge to main
+- **Deploy Backend Production**: Manual deployment workflow with approval
+
+All tests must pass before merging. Coverage thresholds enforced: Backend 68%+, Frontend 75%+.
+
+See [docs/CI_CD.md](docs/CI_CD.md) for complete CI/CD documentation.
 
 ## Architecture
 

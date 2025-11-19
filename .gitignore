@@ -22,3 +22,5 @@ yarn.lock
 .vscode
 .claude/
 coverage/
+__pycache__/
+*.pyc
