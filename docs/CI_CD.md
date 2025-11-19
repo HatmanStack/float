@@ -1,55 +1,119 @@
 # CI/CD Process Documentation
 
-This document explains how the Float project uses GitHub Actions for continuous integration and testing.
+This document explains how the Float project uses GitHub Actions for continuous integration, testing, and deployment.
 
 ## Overview
 
-The Float project uses GitHub Actions to automatically run tests and code quality checks on pull requests and commits. Our CI/CD pipeline follows a minimal strategy per ADR 5:
+The Float project uses GitHub Actions to automatically run tests, code quality checks, and deploy infrastructure on pull requests and commits. Our comprehensive CI/CD pipeline includes:
 
-- **Tests run automatically** on PR creation and commit pushes
-- **Status checks are informational only** (do not block merges)
-- **No automatic deployment** (manual Lambda deployment still required)
+- **Automated testing** on PR creation and commit pushes (unit, integration, E2E)
+- **Coverage enforcement** (Backend 68%+, Frontend 75%+)
+- **Automated staging deployment** on merge to main branch
+- **Manual production deployment** with approval workflow
 - **Fast feedback loop** for developers
 
-## Workflow Triggers
+## Workflows
 
-### Frontend Tests (`frontend-tests.yml`)
+The project has **4 GitHub Actions workflows**:
 
-Runs automatically when:
+1. **Backend Tests** (`.github/workflows/backend-tests.yml`) - Comprehensive backend testing
+2. **Frontend Tests** (`.github/workflows/frontend-tests.yml`) - Comprehensive frontend testing
+3. **Deploy Backend Staging** (`.github/workflows/deploy-backend-staging.yml`) - Automated staging deployment
+4. **Deploy Backend Production** (`.github/workflows/deploy-backend-production.yml`) - Manual production deployment
 
-- **Push** to `main` or `refactor-upgrade` branch
-- **Pull Request** to `main` branch
-- **File changes** in: `app/`, `components/`, `package.json`, `tsconfig.json`, `.eslintrc.json`, `.prettierrc.json`
+## Workflow Details
 
-**Runs on**: Node.js 22.x
+### 1. Backend Tests (`backend-tests.yml`)
 
-**Tests performed**:
+**Triggers:**
+- **Push** to any branch with backend changes
+- **Pull Request** with backend changes
 
-1. Jest tests with coverage
-2. TypeScript type checking
-3. ESLint linting
-4. Prettier formatting check
+**Jobs:**
 
-**Typical duration**: 5-10 minutes
+| Job | Purpose | Duration | Required for Merge |
+|-----|---------|----------|-------------------|
+| Lint | Ruff, Black, MyPy checks | 2-3 min | ✅ Yes |
+| Unit Tests | Fast isolated tests | 3-5 min | ✅ Yes |
+| Integration Tests | External API tests | 5-10 min | ⚠️ Optional (needs API keys) |
+| E2E Tests | Full Lambda flow tests | 5-10 min | ⚠️ Optional (needs API keys) |
+| Coverage | Combined coverage report | 5-10 min | ✅ Yes (must be 68%+) |
 
-### Backend Tests (`backend-tests.yml`)
+**Environment**: Python 3.12, Ubuntu Latest
 
-Runs automatically when:
+**Coverage Threshold**: 68% (enforced)
 
-- **Push** to `main` or `refactor-upgrade` branch
-- **Pull Request** to `main` branch
-- **File changes** in: `backend/`, `.github/workflows/backend-tests.yml`
+### 2. Frontend Tests (`frontend-tests.yml`)
 
-**Runs on**: Python 3.11 and 3.12 (parallel matrix)
+**Triggers:**
+- **Push** to any branch with frontend changes
+- **Pull Request** with frontend changes
 
-**Tests performed**:
+**Jobs:**
 
-1. Ruff linting
-2. Black formatting check
-3. MyPy type checking
-4. Pytest tests with coverage
+| Job | Purpose | Duration | Required for Merge |
+|-----|---------|----------|-------------------|
+| Lint | ESLint, TypeScript, Prettier | 2-3 min | ✅ Yes |
+| Component Tests | React component tests | 3-5 min | ✅ Yes |
+| Integration Tests | Context/hook integration | 3-5 min | ✅ Yes |
+| E2E Tests | Detox E2E (main only) | 15-30 min | ⚠️ Optional (main branch) |
+| Coverage | Combined coverage report | 5-10 min | ✅ Yes (informational) |
 
-**Typical duration**: 5-10 minutes per Python version
+**Environment**: Node.js 24.x, Ubuntu Latest
+
+**Coverage Threshold**: 75% (informational, not enforced)
+
+### 3. Deploy Backend Staging (`deploy-backend-staging.yml`)
+
+**Triggers:**
+- **Push to main** branch (automatic deployment)
+- **Manual** via workflow_dispatch
+
+**Steps:**
+1. Validate SAM template
+2. Build SAM application (with Docker)
+3. Deploy to AWS CloudFormation stack: `float-meditation-staging`
+4. Run smoke tests against deployed API
+5. Check Lambda health
+6. Post deployment summary to workflow
+
+**Duration**: 10-15 minutes
+
+**Requirements**:
+- AWS credentials (from GitHub secrets)
+- API keys for staging environment
+- FFmpeg layer ARN
+
+**Deployment Target**: AWS CloudFormation stack `float-meditation-staging`
+
+### 4. Deploy Backend Production (`deploy-backend-production.yml`)
+
+**Triggers:**
+- **Manual only** via workflow_dispatch
+- Requires confirmation: type "DEPLOY TO PRODUCTION"
+- Requires deployment notes
+
+**Steps:**
+1. Pre-deployment checks (staging health, branch verification)
+2. **Manual approval required** (GitHub environment protection)
+3. Validate SAM template
+4. Build SAM application
+5. Create CloudFormation change set
+6. **Review change set** (pause for manual verification)
+7. Execute change set
+8. Run production smoke tests
+9. Monitor initial traffic for errors
+10. Post deployment summary
+
+**Duration**: 20-30 minutes
+
+**Requirements**:
+- Manual approval from designated reviewers
+- Production AWS credentials
+- Production API keys
+- Production FFmpeg layer ARN
+
+**Deployment Target**: AWS CloudFormation stack `float-meditation-production`
 
 ## Viewing Workflow Results
 
@@ -301,11 +365,166 @@ See [README.md](../README.md) for local setup instructions.
 - **Feature requests**: Create an issue in GitHub
 - **Configuration changes**: Update both documentation and workflow files
 
+## GitHub Secrets Configuration
+
+The following secrets must be configured in GitHub repository settings for CI/CD workflows to function:
+
+### AWS Credentials
+
+**Staging Environment:**
+- `AWS_ACCESS_KEY_ID_STAGING` - AWS access key for staging deployments
+- `AWS_SECRET_ACCESS_KEY_STAGING` - AWS secret key for staging deployments
+- `AWS_REGION_STAGING` - AWS region (e.g., `us-east-1`)
+
+**Production Environment:**
+- `AWS_ACCESS_KEY_ID_PRODUCTION` - AWS access key for production deployments
+- `AWS_SECRET_ACCESS_KEY_PRODUCTION` - AWS secret key for production deployments
+- `AWS_REGION_PRODUCTION` - AWS region (e.g., `us-east-1`)
+
+### API Keys
+
+**Test Environment** (for integration/E2E tests):
+- `G_KEY_TEST` - Google Gemini API key for testing
+- `OPENAI_API_KEY_TEST` - OpenAI API key for testing
+- `XI_KEY_TEST` - ElevenLabs API key for testing (optional)
+
+**Staging Environment:**
+- `G_KEY_STAGING` - Google Gemini API key for staging
+- `OPENAI_API_KEY_STAGING` - OpenAI API key for staging
+- `XI_KEY_STAGING` - ElevenLabs API key for staging
+
+**Production Environment:**
+- `G_KEY_PRODUCTION` - Google Gemini API key for production
+- `OPENAI_API_KEY_PRODUCTION` - OpenAI API key for production
+- `XI_KEY_PRODUCTION` - ElevenLabs API key for production
+
+### Infrastructure
+
+**FFmpeg Layer ARNs:**
+- `FFMPEG_LAYER_ARN_STAGING` - Lambda layer ARN for staging (e.g., `arn:aws:lambda:us-east-1:123456789:layer:ffmpeg:1`)
+- `FFMPEG_LAYER_ARN_PRODUCTION` - Lambda layer ARN for production
+
+### GitHub Environments
+
+Two GitHub Environments should be configured:
+
+**`staging` Environment:**
+- No special protection rules
+- Automatically deployed on merge to main
+- Uses staging secrets
+
+**`production` Environment:**
+- **Required reviewers**: 2+ people
+- **Deployment branches**: main only
+- **Wait timer**: Optional (e.g., 5 minutes)
+- Uses production secrets
+
+### How to Configure Secrets
+
+1. Go to GitHub repository → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Enter secret name and value
+4. Click **Add secret**
+5. Repeat for all required secrets
+
+### How to Configure Environments
+
+1. Go to GitHub repository → **Settings** → **Environments**
+2. Click **New environment**
+3. Enter environment name (`staging` or `production`)
+4. For production:
+   - Enable **Required reviewers**
+   - Add reviewer usernames
+   - Enable **Deployment branches** → select main only
+5. Click **Save protection rules**
+
+### Secret Rotation
+
+API keys and AWS credentials should be rotated regularly:
+
+1. Generate new credentials in AWS Console / API provider
+2. Update GitHub secrets with new values
+3. Test in staging environment first
+4. Update production secrets after verification
+5. Revoke old credentials after successful deployment
+
+## Deployment Process
+
+### Staging Deployment (Automatic)
+
+1. Create PR with backend or infrastructure changes
+2. All tests must pass
+3. Get code review approval
+4. **Merge to main** branch
+5. **Automatic deployment** workflow triggers
+6. SAM builds and deploys to staging
+7. Smoke tests verify deployment
+8. Staging is updated with latest code
+
+**Rollback**: If deployment fails, workflow provides rollback instructions.
+
+### Production Deployment (Manual)
+
+1. Verify staging is healthy and stable
+2. Go to GitHub Actions → **Deploy Backend Production**
+3. Click **Run workflow**
+4. Fill in required inputs:
+   - Confirmation: Type "DEPLOY TO PRODUCTION"
+   - Deployment notes: Describe what changed
+5. Click **Run workflow**
+6. **Wait for approval** (GitHub environment protection)
+7. Designated reviewers approve deployment
+8. Workflow creates CloudFormation change set
+9. **Review change set** in AWS Console
+10. Workflow executes change set
+11. Smoke tests verify production deployment
+12. Monitor CloudWatch Logs for errors
+
+**Rollback**: See workflow summary for rollback commands if deployment fails.
+
+## Deployment Architecture
+
+```
+┌─────────────┐
+│   GitHub    │
+│  Repository │
+└──────┬──────┘
+       │
+       │ Push to main
+       │
+       ▼
+┌─────────────────────────────────┐
+│  GitHub Actions                 │
+│  (Deploy Backend Staging)       │
+├─────────────────────────────────┤
+│  1. Validate SAM template       │
+│  2. Build with Docker           │
+│  3. Deploy to AWS               │
+│  4. Run smoke tests             │
+└──────┬──────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────┐
+│  AWS CloudFormation             │
+│  Stack: float-meditation-staging│
+├─────────────────────────────────┤
+│  - Lambda Function              │
+│  - S3 Buckets                   │
+│  - API Gateway HTTP API         │
+│  - IAM Roles                    │
+│  - CloudWatch Logs              │
+└─────────────────────────────────┘
+
+Production follows same flow but requires manual approval.
+```
+
 ## Next Steps
 
-When Phase 4 is complete:
+With Phase 6 complete:
 
-- Workflows are set up and running on PRs
-- Status checks appear on all PRs (informational only)
-- Tests provide fast feedback to developers
-- Ready to proceed to Phase 5: Documentation
+- **All 4 workflows** are configured and functional
+- **Staging deploys automatically** on merge to main
+- **Production deploys manually** with approval
+- **All tests run** on every PR with coverage enforcement
+- **Documentation** is complete and up-to-date
+- **Project is production-ready**

@@ -1,0 +1,141 @@
+name: Deploy Backend Staging
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'infrastructure/**'
+      - '.github/workflows/deploy-backend-staging.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.api_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: ${{ secrets.AWS_REGION_STAGING }}
+
+      - name: Validate SAM template
+        run: |
+          cd infrastructure
+          sam validate --lint
+
+      - name: Build SAM application
+        run: |
+          cd infrastructure
+          sam build --use-container
+
+      - name: Deploy to staging
+        id: deploy
+        run: |
+          cd infrastructure
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name float-meditation-staging \
+            --s3-prefix float-meditation-staging \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              Environment=staging \
+              FFmpegLayerArn=${{ secrets.FFMPEG_LAYER_ARN_STAGING }} \
+              GKey=${{ secrets.G_KEY_STAGING }} \
+              OpenAIKey=${{ secrets.OPENAI_API_KEY_STAGING }} \
+              XIKey=${{ secrets.XI_KEY_STAGING }}
+
+      - name: Get stack outputs
+        id: outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name float-meditation-staging \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "### Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API Endpoint:** $API_URL" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run smoke test
+        run: |
+          API_URL="${{ steps.outputs.outputs.api_url }}"
+          echo "Testing endpoint: $API_URL"
+
+          RESPONSE=$(curl -s -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            -d @infrastructure/test-requests/summary-request.json)
+
+          echo "Response: $RESPONSE"
+
+          # Check if response contains expected fields
+          if echo "$RESPONSE" | grep -q "sentiment"; then
+            echo "✅ Smoke test passed - API responding correctly"
+            echo "**Smoke Test:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Smoke test failed - unexpected response"
+            echo "**Smoke Test:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Check Lambda function health
+        run: |
+          FUNCTION_NAME="float-meditation-staging"
+
+          # Get function configuration
+          aws lambda get-function --function-name $FUNCTION_NAME
+
+          echo "**Lambda Function:** $FUNCTION_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Active" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** float-meditation-staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ secrets.AWS_REGION_STAGING }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+
+    steps:
+      - name: Deployment failed
+        run: |
+          echo "## ⚠️ Staging Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The staging deployment encountered an error." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Rollback Instructions:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check CloudFormation Events in AWS Console" >> $GITHUB_STEP_SUMMARY
+          echo "2. Review error messages above" >> $GITHUB_STEP_SUMMARY
+          echo "3. If needed, rollback stack:" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "   aws cloudformation rollback-stack --stack-name float-meditation-staging" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
