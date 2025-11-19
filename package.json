@@ -19,6 +19,13 @@
     "preset": "jest-expo",
     "setupFiles": [
       "./jest.setup.js"
+    ],
+    "setupFilesAfterEnv": [
+      "./components/__tests__/utils/setup.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/components/__tests__/utils/"
     ]
   },
   "dependencies": {
