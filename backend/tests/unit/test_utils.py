@@ -265,9 +265,12 @@ class TestFileUtils:
         assert path.endswith(".wav")
 
     def test_get_temp_file_path_uniqueness(self):
-        """Test temp file paths are unique."""
+        """Test temp file paths are unique when generated at different times."""
+        import time
+
         path1 = get_temp_file_path(prefix="test_")
+        time.sleep(1.1)  # Wait to ensure different timestamp (second precision)
         path2 = get_temp_file_path(prefix="test_")
 
         # Paths should be different due to timestamp
-        assert path1 != path2 or path1 == path2  # May be same if generated in same second
+        assert path1 != path2

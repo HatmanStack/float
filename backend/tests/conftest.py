@@ -6,6 +6,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.models.requests import MeditationRequest, SummaryRequest
+from tests.integration.test_config import test_config
+
+
+@pytest.fixture
+def test_user_id():
+    """Generate a unique test user ID for each test."""
+    return test_config.get_test_user_id()
 
 
 @pytest.fixture

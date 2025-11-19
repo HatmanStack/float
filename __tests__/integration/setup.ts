@@ -159,7 +159,10 @@ const originalWarn = console.warn;
 const originalError = console.error;
 
 beforeAll(() => {
-  console.warn = jest.fn((message) => {
+  console.warn = jest.fn((...args) => {
+    // Convert all arguments to strings for checking
+    const message = args.map(arg => String(arg)).join(' ');
+
     // Only suppress specific warnings
     if (
       message.includes('Warning: ReactDOM.render') ||
@@ -169,10 +172,13 @@ beforeAll(() => {
     ) {
       return;
     }
-    originalWarn(message);
+    originalWarn(...args);
   });
 
-  console.error = jest.fn((message) => {
+  console.error = jest.fn((...args) => {
+    // Convert all arguments to strings for checking
+    const message = args.map(arg => String(arg)).join(' ');
+
     // Only suppress specific errors
     if (
       message.includes('Warning: ReactDOM.render') ||
@@ -181,7 +187,7 @@ beforeAll(() => {
     ) {
       return;
     }
-    originalError(message);
+    originalError(...args);
   });
 });
 
