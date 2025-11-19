@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 20
     environment:
       name: staging
-      url: ${{ steps.deploy.outputs.api_url }}
+      url: ${{ steps.outputs.outputs.api_url }}
 
     steps:
       - name: Checkout code

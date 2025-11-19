@@ -273,6 +273,7 @@ class TestGeminiMeditationGeneration:
         assert result, "Meditation result should not be empty"
         assert len(result) > 100, "Meditation should have substantial content"
         assert elapsed_time < 60, "Meditation generation should complete within 60s"
+        validate_ssml_response(result)  # Validate SSML structure
 
         print(f"\n✓ Meditation for sad emotion generated in {elapsed_time:.2f}s")
         print(f"  Length: {len(result)} characters")

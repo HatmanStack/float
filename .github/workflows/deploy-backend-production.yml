@@ -74,14 +74,11 @@ jobs:
           echo "**Deployment Notes:**" >> $GITHUB_STEP_SUMMARY
           echo "${{ github.event.inputs.deployment_notes }}" >> $GITHUB_STEP_SUMMARY
 
-  deploy-production:
-    name: Deploy to Production
+  create-changeset:
+    name: Create Production Change Set
     runs-on: ubuntu-latest
     needs: pre-deployment-checks
-    timeout-minutes: 30
-    environment:
-      name: production
-      url: ${{ steps.deploy.outputs.api_url }}
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -132,30 +129,46 @@ jobs:
           echo "## 🔍 Change Set Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Change set has been created but NOT executed." >> $GITHUB_STEP_SUMMARY
-          echo "Review the change set in AWS Console before proceeding." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the change set in AWS CloudFormation console" >> $GITHUB_STEP_SUMMARY
+          echo "2. Approve the 'deploy-production' environment in GitHub Actions" >> $GITHUB_STEP_SUMMARY
+          echo "3. The workflow will execute the change set after approval" >> $GITHUB_STEP_SUMMARY
 
-      - name: Wait for manual review
-        run: |
-          echo "⏸️ Waiting for change set review..."
-          echo "Please review the change set in AWS CloudFormation console"
-          echo "This workflow will continue after manual approval"
+  deploy-production:
+    name: Execute Production Deployment
+    runs-on: ubuntu-latest
+    needs: create-changeset
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ steps.outputs.outputs.api_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PRODUCTION }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PRODUCTION }}
+          aws-region: ${{ secrets.AWS_REGION_PRODUCTION }}
 
       - name: Execute change set
         id: deploy
         run: |
-          cd infrastructure
-          sam deploy \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
+          # Execute the change set created in previous job
+          aws cloudformation execute-change-set \
             --stack-name float-meditation-production \
-            --s3-prefix float-meditation-production \
-            --capabilities CAPABILITY_IAM \
-            --parameter-overrides \
-              Environment=production \
-              FFmpegLayerArn=${{ secrets.FFMPEG_LAYER_ARN_PRODUCTION }} \
-              GKey=${{ secrets.G_KEY_PRODUCTION }} \
-              OpenAIKey=${{ secrets.OPENAI_API_KEY_PRODUCTION }} \
-              XIKey=${{ secrets.XI_KEY_PRODUCTION }}
+            --change-set-name $(aws cloudformation list-change-sets \
+              --stack-name float-meditation-production \
+              --query 'Summaries[0].ChangeSetName' \
+              --output text)
+
+          # Wait for stack update to complete
+          aws cloudformation wait stack-update-complete \
+            --stack-name float-meditation-production
 
           echo "✅ Production deployment complete!"
 
@@ -176,18 +189,39 @@ jobs:
           API_URL="${{ steps.outputs.outputs.api_url }}"
           echo "Testing production endpoint: $API_URL"
 
-          RESPONSE=$(curl -s -X POST "$API_URL" \
+          # Make request with timeout and capture HTTP status
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/smoke_test_response.json \
+            --max-time 30 \
+            -X POST "$API_URL" \
             -H "Content-Type: application/json" \
             -d @infrastructure/test-requests/summary-request.json)
 
+          RESPONSE=$(cat /tmp/smoke_test_response.json)
+          echo "HTTP Status: $HTTP_CODE"
           echo "Response: $RESPONSE"
 
-          if echo "$RESPONSE" | grep -q "sentiment"; then
+          # Validate HTTP status code
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Smoke test failed - HTTP $HTTP_CODE"
+            echo "**Smoke Test:** ❌ Failed (HTTP $HTTP_CODE) - INVESTIGATE IMMEDIATELY" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Validate response contains required fields
+          VALIDATION_PASSED=true
+          for field in "sentiment_label" "intensity" "user_summary"; do
+            if ! echo "$RESPONSE" | grep -q "$field"; then
+              echo "❌ Smoke test failed - missing field: $field"
+              VALIDATION_PASSED=false
+            fi
+          done
+
+          if [ "$VALIDATION_PASSED" = true ]; then
             echo "✅ Production smoke test passed"
-            echo "**Smoke Test:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+            echo "**Smoke Test:** ✅ Passed (HTTP 200, all fields present)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Production smoke test failed"
-            echo "**Smoke Test:** ❌ Failed - INVESTIGATE IMMEDIATELY" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Production smoke test failed - incomplete response"
+            echo "**Smoke Test:** ❌ Failed (missing fields) - INVESTIGATE IMMEDIATELY" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 

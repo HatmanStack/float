@@ -123,6 +123,10 @@ class TestOpenAITTSIntegration:
             assert result is True, "Synthesis should succeed"
             assert os.path.exists(output_path), "Audio file should be created"
 
+            # Guard against zero-size file before reading
+            file_size = os.path.getsize(output_path)
+            assert file_size > 0, "Audio file should not be zero bytes"
+
             # Check MP3 file signature (first 3 bytes should be ID3 or 0xFF 0xFB)
             with open(output_path, "rb") as f:
                 header = f.read(3)

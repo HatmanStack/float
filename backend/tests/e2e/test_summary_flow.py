@@ -34,6 +34,30 @@ class TestSummaryFlowHappyPath:
         )
         elapsed_time = time.time() - start_time
 
+        # Track S3 objects for cleanup
+        if test_config.has_aws_credentials():
+            import boto3
+            from src.config.settings import settings
+
+            s3_client = boto3.client(
+                "s3",
+                region_name=test_config.AWS_REGION,
+                aws_access_key_id=test_config.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=test_config.AWS_SECRET_ACCESS_KEY,
+            )
+
+            # List and track all objects created for this test user
+            for prefix in [f"{test_user_id}/summary/", f"{test_user_id}/audio/"]:
+                try:
+                    objects = s3_client.list_objects_v2(
+                        Bucket=settings.AWS_S3_BUCKET, Prefix=prefix
+                    )
+                    if "Contents" in objects:
+                        for obj in objects["Contents"]:
+                            e2e_test_s3_cleanup.append((settings.AWS_S3_BUCKET, obj["Key"]))
+                except Exception as e:
+                    print(f"Warning: Could not list S3 objects for cleanup: {e}")
+
         # Assert
         assert response, "Response should not be None"
         assert "sentiment_label" in response, "Response should have sentiment_label"
