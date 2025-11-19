@@ -79,6 +79,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: pre-deployment-checks
     timeout-minutes: 20
+    outputs:
+      changeset-name: ${{ steps.create-changeset.outputs.changeset_name }}
 
     steps:
       - name: Checkout code
@@ -112,6 +114,7 @@ jobs:
           sam build --use-container
 
       - name: Create change set
+        id: create-changeset
         run: |
           cd infrastructure
           sam deploy \
@@ -126,7 +129,17 @@ jobs:
               OpenAIKey=${{ secrets.OPENAI_API_KEY_PRODUCTION }} \
               XIKey=${{ secrets.XI_KEY_PRODUCTION }}
 
+          # Capture the exact changeset name that was just created
+          CHANGESET_NAME=$(aws cloudformation list-change-sets \
+            --stack-name float-meditation-production \
+            --query 'Summaries[0].ChangeSetName' \
+            --output text)
+
+          echo "changeset_name=$CHANGESET_NAME" >> $GITHUB_OUTPUT
+
           echo "## 🔍 Change Set Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Change Set Name:** \`$CHANGESET_NAME\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Change set has been created but NOT executed." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -158,13 +171,13 @@ jobs:
       - name: Execute change set
         id: deploy
         run: |
-          # Execute the change set created in previous job
+          # Execute the exact change set created in previous job
+          CHANGESET_NAME="${{ needs.create-changeset.outputs.changeset-name }}"
+          echo "Executing change set: $CHANGESET_NAME"
+
           aws cloudformation execute-change-set \
             --stack-name float-meditation-production \
-            --change-set-name $(aws cloudformation list-change-sets \
-              --stack-name float-meditation-production \
-              --query 'Summaries[0].ChangeSetName' \
-              --output text)
+            --change-set-name "$CHANGESET_NAME"
 
           # Wait for stack update to complete
           aws cloudformation wait stack-update-complete \
