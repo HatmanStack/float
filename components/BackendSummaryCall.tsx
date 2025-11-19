@@ -47,13 +47,21 @@ async function schedulePushNotification(sentiment: string, intensity: number): P
 
 /**
  * Makes a backend call to process audio/text and generate summary
+ * @param lambdaUrl - Optional override for the Lambda URL (mainly for testing)
  */
 export async function BackendSummaryCall(
   recordingURI: string | null,
   separateTextPrompt: string,
-  userId: string
+  userId: string,
+  lambdaUrl: string = LAMBDA_FUNCTION_URL
 ): Promise<SummaryResponse> {
-  if (LAMBDA_FUNCTION_URL === 'YOUR_LAMBDA_FUNCTION_URL_HERE' || !LAMBDA_FUNCTION_URL) {
+  // Allow mock URLs for testing (check if URL is set and not the placeholder)
+  const isValidUrl =
+    lambdaUrl &&
+    lambdaUrl !== 'YOUR_LAMBDA_FUNCTION_URL_HERE' &&
+    (lambdaUrl.startsWith('https://') || lambdaUrl.startsWith('http://'));
+
+  if (!isValidUrl) {
     const errorMessage =
       'FATAL: LAMBDA_FUNCTION_URL is not set. Please update it in BackendSummaryCall.';
     console.error(errorMessage);
@@ -72,8 +80,8 @@ export async function BackendSummaryCall(
   console.log(`Payload to Lambda: ${serializedData}`);
 
   try {
-    console.log(`Calling Summary Lambda URL: ${LAMBDA_FUNCTION_URL}`);
-    const httpResponse = await fetch(LAMBDA_FUNCTION_URL, {
+    console.log(`Calling Summary Lambda URL: ${lambdaUrl}`);
+    const httpResponse = await fetch(lambdaUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

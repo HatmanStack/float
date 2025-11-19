@@ -16,7 +16,19 @@
     "type-check": "tsc --noEmit --skipLibCheck"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.js"
+    ],
+    "setupFilesAfterEnv": [
+      "./components/__tests__/utils/setup.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/components/__tests__/utils/",
+      "/__tests__/integration/setup.ts",
+      "/__tests__/integration/test-utils.tsx"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
@@ -49,12 +61,14 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@types/detox": "^20.0.0",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.2.45",
     "@types/react-test-renderer": "^18.0.7",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "aws-sdk": "^2.1692.0",
+    "detox": "^20.0.0",
     "eslint": "^8.57.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",

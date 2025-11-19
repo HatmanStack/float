@@ -1,0 +1,14 @@
+# Ignore actual parameter files with sensitive data
+parameters/*.json
+
+# Allow example parameter files
+!parameters/*-example.json
+
+# Ignore SAM build artifacts
+.aws-sam/
+
+# Ignore deployment configuration (generated)
+samconfig.toml
+
+# Ignore test response files
+test-requests/response.json
