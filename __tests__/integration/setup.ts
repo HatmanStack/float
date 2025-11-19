@@ -5,7 +5,6 @@
  * Integration tests test interactions between components through Context providers.
  */
 
-import '@testing-library/react-native/extend-expect';
 import { mockAsyncStorage } from './test-utils';
 
 // Increase timeout for integration tests

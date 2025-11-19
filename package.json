@@ -25,7 +25,9 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/components/__tests__/utils/"
+      "/components/__tests__/utils/",
+      "/__tests__/integration/setup.ts",
+      "/__tests__/integration/test-utils.tsx"
     ]
   },
   "dependencies": {
