@@ -62,33 +62,29 @@ if (!LAMBDA_FUNCTION_URL) {
 
 /**
  * Makes a backend call to generate meditation content based on selected incidents
+ * @param lambdaUrl - Optional override for the Lambda URL (mainly for testing)
  */
 export async function BackendMeditationCall(
   selectedIndexes: number[],
   resolvedIncidents: IncidentData[],
   musicList: string[],
-  userId: string
+  userId: string,
+  lambdaUrl: string = LAMBDA_FUNCTION_URL
 ): Promise<MeditationResponse> {
   // Always filter to only send selected incidents
   const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
-
-  // Validate at least one field has data
-  const hasData = Object.values(dict).some((arr) => arr.length > 0);
-  if (!hasData) {
-    throw new Error('No valid incident data found for the selected indexes.');
-  }
 
   const payload = {
     inference_type: 'meditation',
     audio: 'NotAvailable',
     prompt: 'NotAvailable',
     music_list: musicList,
-    input_data: dict,
+    transformed_dict: dict,
     user_id: userId,
   };
 
   try {
-    const httpResponse = await fetch(LAMBDA_FUNCTION_URL, {
+    const httpResponse = await fetch(lambdaUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -99,7 +95,7 @@ export async function BackendMeditationCall(
     if (!httpResponse.ok) {
       const errorText = await httpResponse.text();
       console.error(`BackendMeditationCall failed: ${httpResponse.status}`, errorText);
-      throw new Error(`Request to Lambda Function URL failed with status ${httpResponse.status}`);
+      throw new Error(`Meditation request failed with status ${httpResponse.status}`);
     }
 
     // Assuming the Lambda's response (httpResponse.json()) is an object
