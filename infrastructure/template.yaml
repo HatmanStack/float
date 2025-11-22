@@ -27,17 +27,17 @@ Parameters:
     Description: ARN of the FFmpeg Lambda layer for audio processing
     AllowedPattern: '^arn:aws:lambda:[a-z0-9-]+:[0-9]+:layer:.*:[0-9]+$'
 
-  GoogleGeminiApiKey:
+  GKey:
     Type: String
     Description: Google Gemini API key for AI services
     NoEcho: true
 
-  OpenAIApiKey:
+  OpenAIKey:
     Type: String
     Description: OpenAI API key for text-to-speech services
     NoEcho: true
 
-  ElevenLabsApiKey:
+  XIKey:
     Type: String
     Description: ElevenLabs API key (optional)
     Default: ''
@@ -68,7 +68,7 @@ Globals:
   Function:
     Timeout: 900
     MemorySize: 4096
-    Runtime: python3.12
+    Runtime: python3.13
     Architectures:
       - x86_64
 
@@ -76,6 +76,8 @@ Resources:
   # Lambda Function - Main application logic
   FloatMeditationFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub 'float-meditation-${Environment}'
       Description: Float meditation app Lambda function for AI-powered meditation generation
@@ -102,9 +104,9 @@ Resources:
           AWS_AUDIO_BUCKET: !Ref AudioBucket
 
           # AI Service API Keys
-          G_KEY: !Ref GoogleGeminiApiKey
-          OPENAI_API_KEY: !Ref OpenAIApiKey
-          XI_KEY: !Ref ElevenLabsApiKey
+          G_KEY: !Ref GKey
+          OPENAI_API_KEY: !Ref OpenAIKey
+          XI_KEY: !Ref XIKey
 
           # FFmpeg Configuration (Lambda layer location)
           FFMPEG_BINARY: /opt/bin/ffmpeg

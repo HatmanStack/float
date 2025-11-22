@@ -17,11 +17,12 @@ STACK_NAME="float-meditation-staging"
 echo "Checking prerequisites..."
 
 # Check if SAM CLI is installed
-if ! command -v sam &> /dev/null; then
-    echo "ERROR: SAM CLI not found"
-    echo "Please install SAM CLI: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html"
+if ! command -v uvx &> /dev/null; then
+    echo "ERROR: uv not found"
+    echo "Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 fi
+SAM_CMD="uvx --from aws-sam-cli sam"
 
 # Check if AWS CLI is installed
 if ! command -v aws &> /dev/null; then
@@ -85,7 +86,7 @@ fi
 # Step 2: Build Lambda package
 echo "Step 2: Building Lambda package..."
 cd "$INFRASTRUCTURE_DIR"
-if sam build --template "$TEMPLATE_FILE"; then
+if $SAM_CMD build --template "$TEMPLATE_FILE"; then
     echo "✓ Build successful"
     echo ""
 else
@@ -103,7 +104,7 @@ echo ""
 if [ ! -f "$INFRASTRUCTURE_DIR/samconfig.toml" ]; then
     echo "First deployment detected - using guided mode"
     echo ""
-    sam deploy \
+    $SAM_CMD deploy \
         --template-file .aws-sam/build/template.yaml \
         --stack-name "$STACK_NAME" \
         --parameter-overrides file://"$PARAMETER_FILE" \
@@ -112,7 +113,7 @@ if [ ! -f "$INFRASTRUCTURE_DIR/samconfig.toml" ]; then
 else
     echo "Using existing configuration from samconfig.toml"
     echo ""
-    sam deploy \
+    $SAM_CMD deploy \
         --template-file .aws-sam/build/template.yaml \
         --stack-name "$STACK_NAME" \
         --parameter-overrides file://"$PARAMETER_FILE" \

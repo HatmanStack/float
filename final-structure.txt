@@ -1,0 +1,137 @@
+.
+├── backend
+│   ├── src
+│   │   ├── config
+│   │   ├── handlers
+│   │   ├── models
+│   │   ├── providers
+│   │   ├── services
+│   │   ├── utils
+│   │   └── __init__.py
+│   ├── tests
+│   │   ├── e2e
+│   │   ├── fixtures
+│   │   ├── integration
+│   │   ├── mocks
+│   │   ├── unit
+│   │   ├── conftest.py
+│   │   └── __init__.py
+│   ├── check_quality.sh
+│   ├── lambda_function.py
+│   ├── Makefile
+│   ├── pyproject.toml
+│   ├── pytest.ini
+│   ├── requirements.txt
+│   └── uv.lock
+├── docs
+│   ├── adr
+│   │   ├── 0006-sam-infrastructure-as-code.md
+│   │   ├── 0007-http-api-gateway.md
+│   │   ├── 0008-environment-variables-secrets.md
+│   │   ├── 0009-comprehensive-testing-strategy.md
+│   │   ├── 0010-e2e-testing-framework.md
+│   │   └── README.md
+│   ├── plans
+│   │   ├── Phase-0.md
+│   │   ├── Phase-1.md
+│   │   └── README.md
+│   ├── API.md
+│   ├── ARCHITECTURE.md
+│   ├── backend-integration-testing.md
+│   ├── backend-readme.md
+│   ├── CI_CD.md
+│   ├── CONTRIBUTING.md
+│   ├── DEVELOPMENT.md
+│   ├── e2e-testing.md
+│   ├── infrastructure-deploy.md
+│   ├── infrastructure-deployment.md
+│   ├── infrastructure-deployment-status.md
+│   ├── infrastructure-readme.md
+│   ├── integration-testing.md
+│   ├── PHASE-4-REVIEW.md
+│   ├── PRODUCTION_READINESS.md
+│   ├── QUICK_REFERENCE.md
+│   └── TESTING.md
+├── frontend
+│   ├── app
+│   │   ├── (tabs)
+│   │   ├── +html.tsx
+│   │   ├── _layout.tsx
+│   │   └── +not-found.tsx
+│   ├── assets
+│   │   ├── audio
+│   │   ├── fonts
+│   │   └── images
+│   ├── components
+│   │   ├── navigation
+│   │   ├── ScreenComponents
+│   │   ├── AudioRecording.tsx
+│   │   ├── AuthScreen.tsx
+│   │   ├── BackendMeditationCall.tsx
+│   │   ├── BackendSummaryCall.tsx
+│   │   ├── Collapsible.tsx
+│   │   ├── history.tsx
+│   │   ├── IncidentColoring.tsx
+│   │   ├── LocalFileLoadAndSave.tsx
+│   │   ├── Notifications.tsx
+│   │   ├── ParallaxScrollView.tsx
+│   │   ├── ThemedText.tsx
+│   │   └── ThemedView.tsx
+│   ├── constants
+│   │   ├── Colors.ts
+│   │   └── StylesConstants.tsx
+│   ├── context
+│   │   ├── AuthContext.tsx
+│   │   └── IncidentContext.tsx
+│   └── hooks
+│       ├── useColorScheme.ts
+│       ├── useColorScheme.web.ts
+│       └── useThemeColor.ts
+├── infrastructure
+│   ├── parameters
+│   │   ├── production-example.json
+│   │   └── staging-example.json
+│   ├── scripts
+│   │   ├── deploy-production.sh
+│   │   ├── deploy.sh
+│   │   ├── deploy-staging.sh
+│   │   ├── logs.sh
+│   │   ├── validate-template.sh
+│   │   └── verify-local.py
+│   ├── test-requests
+│   │   ├── meditation-request.json
+│   │   └── summary-request.json
+│   ├── package.json
+│   ├── samconfig.toml
+│   └── template.yaml
+├── tests
+│   ├── e2e
+│   │   ├── complete-user-journey.e2e.ts
+│   │   ├── error-scenarios.e2e.ts
+│   │   └── jest.config.js
+│   ├── integration
+│   │   ├── auth-flow-test.tsx
+│   │   ├── example-test.tsx
+│   │   ├── meditation-flow-test.tsx
+│   │   ├── recording-flow-test.tsx
+│   │   ├── setup.ts
+│   │   └── test-utils.tsx
+│   └── unit
+│       └── components
+├── app.config.js
+├── babel.config.js
+├── banner.png
+├── cleanup-list.txt
+├── eas.json
+├── expo-env.d.ts
+├── final-structure.txt
+├── jest.setup.js
+├── package.json
+├── package-lock.json
+├── README.md
+├── refactor-monorepo.sh
+├── strip-comments.sh
+├── tsconfig.json
+└── tsconfig.test.json
+
+40 directories, 95 files

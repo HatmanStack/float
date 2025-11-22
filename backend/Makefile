@@ -1,4 +1,4 @@
-.PHONY: help test type-check lint format format-check quality quality-fix
+.PHONY: help test type-check lint format format-check quality quality-fix build-FloatMeditationFunction
 
 help:
 	@echo "Float Backend Quality Assurance Targets"
@@ -46,5 +46,10 @@ quality-fix:
 	ruff check src/ tests/ --fix --unsafe-fixes
 	black src/ tests/
 	@echo "✓ Auto-fixes complete. Run 'make quality' to verify."
+
+build-FloatMeditationFunction:
+	uv pip install -r requirements.txt --target $(ARTIFACTS_DIR) --python python3.13
+	cp -r src $(ARTIFACTS_DIR)/
+	cp lambda_function.py $(ARTIFACTS_DIR)/
 
 .DEFAULT_GOAL := help

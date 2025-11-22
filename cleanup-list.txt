@@ -1,0 +1,46 @@
+# Cleanup List - Deleted Files and Directories
+Generated: Sat Nov 22 12:33:29 PM CST 2025
+
+## Dead Code & Temporary Files
+  - coverage/ (generated test artifacts)
+  - backend/mypy_errors.log
+  - backend/ruff_baseline.log
+  - scripts/reset-project.js (one-time setup script)
+  - ./backend/src/__pycache__
+  - ./backend/src/config/__pycache__
+  - ./backend/src/handlers/__pycache__
+  - ./backend/src/models/__pycache__
+  - ./backend/src/providers/__pycache__
+  - ./backend/src/services/__pycache__
+  - ./backend/src/utils/__pycache__
+  - ./backend/tests/__pycache__
+  - ./backend/tests/fixtures/__pycache__
+  - ./backend/tests/mocks/__pycache__
+  - ./backend/tests/unit/__pycache__
+
+## Consolidated Documentation
+Moved to docs/ and renamed for clarity
+
+  - frontend/constants/util.ts (merged into StylesConstants.tsx)
+
+## Consolidated Utilities
+  - frontend/constants/util.ts (merged into StylesConstants.tsx)
+
+## Final Statistics
+- Original structure: 47 directories, 141 files
+- Final structure: 40 directories, 95 files
+- Deleted: 7 directories, 46+ files (includes __pycache__, coverage artifacts, logs)
+- Consolidated: Multiple README files merged into centralized docs/
+
+## Import Path Updates
+All import paths automatically updated via sed/perl to reflect new structure:
+  - TypeScript path alias @/* now maps to ./frontend/*
+  - Asset paths in app.config.js updated to ./frontend/assets/*
+  - Jest config paths updated to new test locations
+  - All component imports updated to @/frontend/* pattern
+
+## Comment Stripping
+- All inline comments removed from TypeScript/JavaScript files
+- All docstrings removed from Python files
+- Code optimized for performance over readability
+- Architectural notes preserved in docs/ directory

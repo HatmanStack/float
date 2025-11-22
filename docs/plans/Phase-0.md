@@ -1,735 +1,498 @@
-# Phase 0: Foundation
+# Phase 0: Foundation & Architecture
 
 ## Phase Goal
 
-Establish architectural decisions, testing strategies, and coding conventions that will guide all subsequent implementation phases. This phase contains no code implementation - it serves as the reference documentation for design decisions and patterns to follow throughout the project.
+Establish the architectural foundation, design decisions, and deployment patterns for the simplified Float deployment system. This phase defines the "law" that all subsequent implementation must follow, ensuring consistency and maintainability.
 
 **Success Criteria:**
-- Clear architecture decisions documented
-- Testing strategy defined for both backend and frontend
-- Coding conventions and patterns established
-- Common pitfalls identified
+- Clear ADRs documenting all major decisions
+- Deployment script logic fully specified
+- Testing strategy defined with mocking approach
+- Shared patterns and conventions established
 
-**Estimated Tokens:** ~5,000
+**Estimated Tokens**: ~15,000
 
 ## Architecture Decision Records (ADRs)
 
-### ADR-1: SAM Template Structure
+### ADR-001: Single Environment Deployment
 
-**Decision:** Use a single environment-agnostic SAM template with parameter files for environment-specific values.
+**Context**: Current system supports multiple environments (staging, production) with separate deployment scripts and configurations.
 
-**Rationale:**
-- Ensures true environment parity between staging and production
-- Reduces duplication and maintenance burden
-- CloudFormation parameter files provide clean separation of environment config
-- Single source of truth for infrastructure definition
+**Decision**: Simplify to single environment (default/development) deployment.
 
-**Implementation Pattern:**
+**Rationale**:
+- Reduces cognitive overhead and maintenance burden
+- Environment promotion can be handled through separate AWS accounts or stack names
+- Most development workflows need only one active deployment
+- Multi-environment support can be added later if genuinely needed (YAGNI principle)
+
+**Consequences**:
+- ✅ Simpler configuration management
+- ✅ Fewer scripts to maintain
+- ✅ Clearer deployment flow
+- ⚠️ Environment-specific settings must be managed through stack names or AWS accounts
+
+### ADR-002: Secrets in Gitignored samconfig.toml
+
+**Context**: Need to manage sensitive API keys (Google Gemini, OpenAI, ElevenLabs) and configuration.
+
+**Decision**: Store all secrets and configuration in `samconfig.toml`, add to `.gitignore`.
+
+**Rationale**:
+- Follows react-stocks pattern successfully used in production
+- Simpler than AWS Secrets Manager for small projects
+- Local development workflow is straightforward
+- No additional AWS service dependencies or costs
+- Clear separation between code (versioned) and secrets (local)
+
+**Consequences**:
+- ✅ Simple secret management
+- ✅ No additional AWS services required
+- ✅ Fast local iterations
+- ⚠️ Developers must configure their own secrets locally
+- ⚠️ Must ensure `.gitignore` is properly configured
+
+### ADR-003: Colocated Infrastructure
+
+**Context**: Current structure has separate `infrastructure/` directory with template.yaml and deployment scripts.
+
+**Decision**: Move all infrastructure code into `backend/` directory, colocated with application code.
+
+**Rationale**:
+- Infrastructure-as-code is part of the backend application
+- Follows react-stocks successful pattern
+- Reduces directory hopping during development
+- Clearer ownership and context
+- Maintains monorepo structure for frontend separation
+
+**Consequences**:
+- ✅ Better code locality
+- ✅ Simpler mental model
+- ✅ Easier to find infrastructure code
+- ⚠️ Requires migration of existing files
+
+**New Structure**:
 ```
-infrastructure/
-├── template.yaml              # Environment-agnostic SAM template
-├── parameters/
-│   ├── staging.json          # Staging-specific parameters
-│   └── production.json       # Production-specific parameters
-└── scripts/
-    ├── deploy-staging.sh     # Staging deployment wrapper
-    └── deploy-production.sh  # Production deployment wrapper
-```
-
-**Alternatives Considered:**
-- Separate templates per environment: Rejected due to duplication and drift risk
-- Single template with hardcoded values: Rejected due to lack of flexibility
-
----
-
-### ADR-2: API Gateway Choice - HTTP API (v2)
-
-**Decision:** Use AWS API Gateway HTTP API (v2) instead of REST API (v1) or Lambda Function URLs.
-
-**Rationale:**
-- 70% cost reduction compared to REST API ($1.00 vs $3.50 per million requests)
-- Built-in CORS support complements existing middleware
-- Sufficient features for the application's needs (simple POST endpoint routing)
-- Better performance and lower latency than REST API
-- More robust than Lambda Function URLs (better monitoring, throttling, custom domains)
-
-**Trade-offs:**
-- Fewer features than REST API (no API keys, usage plans, request/response transformation)
-- These advanced features are not required for the current use case
-
----
-
-### ADR-3: Secrets Management - Environment Variables in SAM
-
-**Decision:** Store API keys and configuration as environment variables in SAM parameter files, not AWS Secrets Manager or SSM Parameter Store.
-
-**Rationale:**
-- Simplicity: No additional AWS service dependencies
-- Cost: Zero additional cost (Secrets Manager is $0.40/month per secret)
-- Sufficient security: Environment variables are encrypted at rest by Lambda
-- Developer experience: Easy to update and manage during development
-- Git-ignored parameter files prevent accidental commits
-
-**Security Measures:**
-- Parameter files added to .gitignore
-- Example parameter files (with placeholder values) committed for documentation
-- Production parameters managed through secure deployment pipeline
-- Least-privilege IAM roles for Lambda execution
-
-**Future Consideration:** If compliance requirements change or secrets rotation is needed, migrate to AWS Secrets Manager without changing application code (only SAM template updates).
-
----
-
-### ADR-4: FFmpeg Layer Management
-
-**Decision:** Reference FFmpeg Lambda layer by ARN in SAM template; maintain layer separately from SAM deployments.
-
-**Rationale:**
-- FFmpeg binary changes infrequently (stable dependency)
-- Large binary size (~50MB) would slow down every SAM deployment
-- Decouples layer updates from application deployments
-- Allows independent layer version management across environments
-
-**Implementation:**
-- SAM template accepts layer ARN as a parameter
-- Different layer ARNs per environment (staging/production)
-- Layer update process documented separately
-- If layer doesn't exist, provide clear error message with creation instructions
-
----
-
-### ADR-5: Testing Strategy - Layered Test Pyramid
-
-**Decision:** Implement a test pyramid with unit tests at the base, integration tests in the middle, and E2E tests at the top.
-
-**Test Distribution:**
-- **Unit Tests (70%):** Fast, isolated tests for individual functions/components
-- **Integration Tests (20%):** Tests for service interactions and API integrations
-- **E2E Tests (10%):** Critical user flows through the entire system
-
-**Backend Testing Targets:**
-- Lambda handler: 60%+ coverage
-- Services (AI, TTS, Storage, Audio): 80%+ coverage
-- Models and utilities: 90%+ coverage
-- Overall backend coverage: 65%+ (up from current 39%)
-
-**Frontend Testing Targets:**
-- Component unit tests: All components covered
-- Integration tests: Components with Context/hooks
-- E2E tests: Core user flows (auth, recording, meditation generation)
-- Overall frontend coverage: 70%+
-
-**Rationale:**
-- Unit tests provide fast feedback during development
-- Integration tests catch service interaction bugs
-- E2E tests validate critical user journeys
-- Pyramid shape optimizes test suite speed and maintenance
-
----
-
-### ADR-6: Test Isolation and Mocking Strategy
-
-**Decision:** Use comprehensive mocking for external dependencies with clear mock fixture organization.
-
-**Backend Mocking Pattern:**
-- Mock external APIs (Gemini, OpenAI, Google TTS) at the service boundary
-- Use pytest fixtures in conftest.py for reusable mocks
-- Store sample API responses in `tests/fixtures/sample_data.py`
-- Integration tests use actual API calls with test API keys (when possible)
-
-**Frontend Mocking Pattern:**
-- Mock backend API calls using jest mock functions
-- Mock React Native platform-specific APIs (audio, file system)
-- Use @testing-library/react-native for component testing
-- Integration tests render components with actual Context providers
-
-**Rationale:**
-- Fast test execution without external API dependencies
-- Deterministic test results (no flaky tests due to API changes)
-- Cost reduction (no API charges during testing)
-- Enables offline development and testing
-
-**Exception:** Integration tests in Phase 3 and Phase 5 will include some tests with real API calls to validate actual service integration.
-
----
-
-### ADR-7: Deployment Strategy - Manual Review Required
-
-**Decision:** SAM deployments require manual approval before production deployment.
-
-**Implementation:**
-- Staging: Automatic deployment on merge to main branch (future enhancement)
-- Production: Manual `deploy-production.sh` execution after staging validation
-- Use CloudFormation change sets to review infrastructure changes
-- Rollback capability through CloudFormation stack rollback
-
-**Rationale:**
-- Production safety: Prevent accidental production deployments
-- Cost control: Review infrastructure changes before applying
-- Compliance: Human verification step for production changes
-- Aligns with ADR #5 from existing project documentation (no automatic deployment)
-
----
-
-### ADR-8: Conventional Commits Standard
-
-**Decision:** Use Conventional Commits specification for all commit messages.
-
-**Format:**
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
+backend/
+├── src/                    # Python application code
+├── tests/                  # Backend-specific tests
+├── scripts/                # Deployment scripts
+│   ├── deploy.sh          # Main deployment script
+│   ├── validate.sh        # Template validation
+│   └── logs.sh            # CloudWatch logs viewer
+├── template.yaml          # SAM template
+├── samconfig.toml         # SAM configuration (gitignored)
+├── .deploy-config.json    # Local deployment state (gitignored)
+├── requirements.txt       # Python dependencies
+├── pytest.ini             # Pytest configuration
+├── ruff.toml              # Ruff linter configuration
+├── lambda_function.py     # Lambda handler entry point
+└── Makefile               # Development tasks only (not SAM build)
 ```
 
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `test`: Adding or updating tests
-- `refactor`: Code refactoring without behavior change
-- `docs`: Documentation updates
-- `chore`: Build process, tooling, dependencies
-- `ci`: CI/CD pipeline changes
-- `perf`: Performance improvements
+### ADR-004: Interactive Deployment Script
 
-**Scopes:**
-- `infrastructure`: SAM templates, deployment scripts
-- `backend`: Python Lambda code
-- `frontend`: React Native code
-- `tests`: Test files (can be combined with backend/frontend)
+**Context**: Need balance between automation and developer control for deployment.
 
-**Examples:**
+**Decision**: Implement interactive deployment script that prompts for missing configuration and persists locally.
+
+**Rationale**:
+- First-time setup is guided and user-friendly
+- Subsequent deployments are automatic (no prompts)
+- Secrets are saved locally, not committed
+- Follows successful react-stocks pattern
+- No reliance on SAM's `--guided` mode (we control the flow)
+
+**Consequences**:
+- ✅ Great developer experience
+- ✅ No manual file editing required
+- ✅ Secrets persist between deployments
+- ⚠️ Requires shell script maintenance
+
+### ADR-005: Standard SAM Build (No Makefile)
+
+**Context**: Current system uses Makefile with `uv pip install` to work around pip issues.
+
+**Decision**: Remove Makefile build integration, use standard SAM Python builder with requirements.txt only.
+
+**Rationale**:
+- Simpler is better (YAGNI)
+- Remove pyproject.toml entirely (was causing build issues)
+- Standard SAM conventions reduce surprises
+- requirements.txt is sufficient for Lambda deployment
+- Makefile can remain for development tasks (linting, testing) but not SAM builds
+
+**Consequences**:
+- ✅ Standard SAM workflow
+- ✅ Fewer moving parts
+- ✅ Better compatibility
+- ⚠️ Development tools need separate config files
+
+### ADR-006: Separate Tool Configuration Files
+
+**Context**: pyproject.toml previously held both package metadata and tool configs (pytest, ruff, black, mypy).
+
+**Decision**: Remove pyproject.toml, move tool configurations to separate standard files.
+
+**Rationale**:
+- Lambda deployment doesn't need package metadata
+- Standard tool config files are more explicit
+- Reduces confusion between development tools and deployment
+- Each tool uses its canonical config file
+
+**Tool Configuration Mapping**:
+- pytest → `pytest.ini`
+- ruff → `ruff.toml`
+- mypy → `mypy.ini`
+- black → `pyproject.toml` (minimal, black-only)
+- coverage → `.coveragerc`
+
+**Consequences**:
+- ✅ Clear separation of concerns
+- ✅ Standard tool usage
+- ✅ No deployment confusion
+- ⚠️ More config files to maintain
+
+### ADR-007: Default FFmpeg Layer with Override
+
+**Context**: Float backend requires FFmpeg Lambda layer for audio processing.
+
+**Decision**: Provide public FFmpeg layer ARN as default, allow override via configuration.
+
+**Rationale**:
+- Out-of-box deployment experience
+- Users can deploy without finding/building FFmpeg layer
+- Advanced users can override with custom layer
+- Public layer available: `arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4`
+
+**Consequences**:
+- ✅ Immediate deployment capability
+- ✅ Flexibility for custom layers
+- ⚠️ Region-specific ARN (users in other regions must override)
+
+### ADR-008: Programmatic samconfig.toml Generation
+
+**Context**: SAM CLI offers `--guided` mode for interactive configuration.
+
+**Decision**: Build samconfig.toml programmatically in deploy script, avoid `--guided` mode.
+
+**Rationale**:
+- Full control over configuration flow
+- Can prompt in logical order
+- Can validate inputs before saving
+- Can read/merge existing configuration
+- No surprises from SAM's guided mode behavior
+- Consistent experience across SAM versions
+
+**Consequences**:
+- ✅ Predictable deployment flow
+- ✅ Better error handling
+- ✅ Custom validation logic
+- ⚠️ Must maintain config generation code
+
+## Deployment Script Specification
+
+### Script: `backend/scripts/deploy.sh`
+
+**Purpose**: Interactive deployment script that handles configuration, building, deployment, and environment setup.
+
+**Behavior Flow**:
+
+1. **Pre-flight Checks**
+   - Verify in backend/ directory (template.yaml exists)
+   - Check AWS CLI installed and configured (`aws sts get-caller-identity`)
+   - Check SAM CLI installed (`sam --version`)
+   - Display AWS account information
+
+2. **Configuration Discovery**
+   - Check for `.deploy-config.json` (local deployment state)
+   - Check for `samconfig.toml` (SAM configuration)
+   - Identify missing required parameters
+
+3. **Interactive Prompts** (if configuration incomplete)
+   - Stack name (default: `float-meditation-dev`)
+   - AWS Region (default: `us-east-1`)
+   - FFmpeg Layer ARN (default: `arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4`)
+   - Google Gemini API Key (masked input)
+   - OpenAI API Key (masked input)
+   - ElevenLabs API Key (optional, masked input)
+   - Voice configuration (defaults provided)
+
+4. **Configuration Persistence**
+   - Save inputs to `.deploy-config.json` (JSON format)
+   - Generate `samconfig.toml` from template with injected values
+   - Both files are gitignored
+
+5. **Build Phase**
+   - Run `sam build` (no flags, uses template.yaml defaults)
+   - Standard Python 3.13 builder (no Makefile)
+
+6. **Deployment Phase**
+   - Run `sam deploy` (uses samconfig.toml configuration)
+   - Captures CloudFormation outputs
+
+7. **Post-Deployment**
+   - Extract stack outputs (API Gateway URL, Function ARN, S3 Bucket)
+   - Generate/update `../frontend/.env` file with outputs
+   - Display deployment summary
+
+8. **Error Handling**
+   - Clear error messages for common failures
+   - Rollback guidance if deployment fails
+   - Validation failures stop before deployment
+
+**File: `.deploy-config.json`** (gitignored)
+```json
+{
+  "stackName": "float-meditation-dev",
+  "region": "us-east-1",
+  "ffmpegLayerArn": "arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4",
+  "geminiApiKey": "***",
+  "openaiApiKey": "***",
+  "elevenLabsApiKey": "",
+  "voiceId": "jKX50Q2OBT1CsDwwcTkZ",
+  "similarityBoost": "0.7",
+  "stability": "0.3",
+  "voiceStyle": "0.3"
+}
 ```
-feat(infrastructure): add SAM template with Lambda and S3 resources
 
-test(backend): increase Lambda handler test coverage to 65%
+**File: `samconfig.toml`** (generated, gitignored)
+```toml
+version = 0.1
 
-fix(frontend): resolve BackendSummaryCall test timeout issues
+[default.global.parameters]
+stack_name = "float-meditation-dev"
+region = "us-east-1"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+s3_prefix = "float-meditation-dev"
+region = "us-east-1"
+parameter_overrides = "FFmpegLayerArn=\"arn:aws:lambda:...\" GKey=\"***\" OpenAIKey=\"***\" XIKey=\"***\" SimilarityBoost=\"0.7\" Stability=\"0.3\" VoiceStyle=\"0.3\" VoiceId=\"jKX50Q2OBT1CsDwwcTkZ\""
 ```
 
-**Rationale:**
-- Clear, searchable commit history
-- Automated changelog generation (future)
-- Easy to understand change type at a glance
-- Industry standard practice
+### Script: `backend/scripts/validate.sh`
 
----
+**Purpose**: Validate SAM template.yaml before deployment.
 
-### ADR-9: FFmpeg Lambda Layer - External Dependency
+**Behavior**:
+- Run `sam validate --template template.yaml --lint`
+- Display validation results
+- Exit with non-zero code on failure
 
-**Decision:** Use pre-built FFmpeg Lambda layer; document setup process for new environments.
+### Script: `backend/scripts/logs.sh`
 
-**Rationale:**
-- FFmpeg compilation is complex and time-consuming
-- Layer is stable and changes infrequently
-- Separate lifecycle from application code
-- Allows independent layer version management across environments
+**Purpose**: Stream CloudWatch logs for deployed Lambda function.
 
-**Setup Process:**
-
-**Option 1: Use Existing Layer (Recommended)**
-
-If FFmpeg layer already exists in your AWS account:
-1. Find layer ARN: `aws lambda list-layer-versions --layer-name ffmpeg --region us-east-1`
-2. Copy ARN for parameter file: `arn:aws:lambda:us-east-1:ACCOUNT_ID:layer:ffmpeg:VERSION`
-3. Skip to Phase 1
-
-**Option 2: Use Public FFmpeg Layer**
-
-Use community-maintained layer (verify before production use):
-1. Search AWS Serverless Application Repository for "ffmpeg layer"
-2. **WARNING:** Verify compatibility with Python 3.12 and x86_64 architecture
-3. Test layer before using in production
-
-**Option 3: Build FFmpeg Layer (Advanced)**
-
-If you must build from scratch:
-
-1. Clone FFmpeg layer build repository:
-   ```bash
-   git clone https://github.com/serverlesspub/ffmpeg-aws-lambda-layer
-   cd ffmpeg-aws-lambda-layer
-   ```
-
-2. Build layer using Docker:
-   ```bash
-   docker build -t ffmpeg-layer .
-   ./package.sh
-   ```
-
-3. Deploy layer to AWS:
-   ```bash
-   aws lambda publish-layer-version \
-     --layer-name ffmpeg \
-     --description "FFmpeg for audio processing" \
-     --zip-file fileb://layer.zip \
-     --compatible-runtimes python3.12 \
-     --region us-east-1
-   ```
-
-4. Save the returned LayerVersionArn for parameter files
-
-5. Test layer works:
-   ```bash
-   # Create test Lambda
-   # Attach layer
-   # Run: /opt/bin/ffmpeg -version
-   # Should output: ffmpeg version X.X.X
-   ```
-
-**Verification:**
-- FFmpeg binary exists at `/opt/bin/ffmpeg`
-- Version is 4.x or newer
-- Architecture matches Lambda (x86_64)
-- Binary executes without errors
-
-**Troubleshooting:**
-- "Layer not found": Check region matches Lambda function region
-- "Binary not found": Verify layer path is `/opt/bin/ffmpeg` not `/opt/ffmpeg`
-- "Permission denied": Layer must be compatible with Lambda runtime
-- "Exec format error": Architecture mismatch (need x86_64, not ARM64)
-
----
-
-### ADR-10: E2E Testing Framework - Detox
-
-**Decision:** Use Detox for React Native end-to-end testing.
-
-**Rationale:**
-- **Native React Native support:** Built specifically for React Native (no WebViews or bridges needed)
-- **Gray-box testing:** Can access React Native internals for faster, more reliable tests
-- **Automatic synchronization:** Waits for React Native to be idle (no manual waits)
-- **Cross-platform:** Works with both iOS and Android
-- **Active development:** Maintained by Wix, good community support
-- **Integrates with Jest:** Familiar testing patterns
-
-**Trade-offs:**
-- **Requires native builds:** Slower CI builds (need to compile iOS/Android apps)
-- **More complex setup:** Requires Xcode or Android Studio for local development
-- **Learning curve:** More complex than pure JavaScript solutions
-- **CI resource requirements:** Needs macOS runners for iOS tests (expensive)
-
-**Alternatives Considered:**
-
-1. **Maestro**
-   - Pros: Simpler setup, no native builds, easier debugging, YAML-based tests
-   - Cons: Newer tool (less mature), less control over RN internals
-   - Rejected: Less ecosystem support, uncertain long-term maintenance
-
-2. **Appium**
-   - Pros: Cross-platform (mobile + web), industry standard, WebDriver protocol
-   - Cons: Slower (WebDriver overhead), more complex setup, not RN-specific
-   - Rejected: Overkill for RN-only app, slower test execution
-
-3. **Playwright (experimental RN support)**
-   - Cons: RN support still experimental, better suited for web
-   - Rejected: Not mature enough for React Native
-
-**Implementation Plan (Phase 5):**
-- Install Detox and dependencies
-- Configure for iOS simulator (local development)
-- Configure for Android emulator (CI/CD on Linux)
-- Use Detox matchers: `by.id()`, `by.text()`, `by.type()`
-- Run E2E tests in CI on Android only (cost efficiency)
-- Document iOS E2E testing for manual testing
-
-**Testing Strategy:**
-- E2E tests represent 10% of total test suite (per ADR-5)
-- Focus on critical user flows only:
-  - Authentication flow (sign in, sign out)
-  - Recording flow (record audio, submit)
-  - Meditation generation flow (generate, play, save)
-- Integration tests cover component interactions
-- Unit tests cover business logic
-
-**Configuration:**
-- Test on Android API 31+ (Linux CI runners)
-- Test on iOS 15+ (local development only)
-- Use release builds for E2E tests (matches production)
-- Mock backend API for E2E tests (deterministic results)
-
----
+**Behavior**:
+- Read stack name from `.deploy-config.json` or samconfig.toml
+- Determine function name from stack
+- Run `aws logs tail /aws/lambda/{function-name} --follow`
+- Handle cases where stack not deployed
 
 ## Testing Strategy
 
-### Backend Testing Strategy
+### Overview
 
-**Test Organization:**
-```
-backend/tests/
-├── unit/                      # Unit tests (fast, isolated)
-│   ├── test_lambda_handler.py
-│   ├── test_services.py
-│   ├── test_models.py
-│   └── test_utils.py
-├── integration/               # Integration tests (with external deps)
-│   ├── test_ai_integration.py
-│   ├── test_tts_integration.py
-│   └── test_s3_integration.py
-├── e2e/                       # End-to-end tests (full Lambda invocation)
-│   ├── test_summary_flow.py
-│   └── test_meditation_flow.py
-├── fixtures/                  # Test data and fixtures
-│   └── sample_data.py
-├── mocks/                     # Mock implementations
-│   └── external_apis.py
-└── conftest.py               # Shared pytest fixtures
-```
+CI pipeline runs linting, unit tests, and mocked integration tests. **No live AWS resources in CI**.
 
-**Test Naming Convention:**
-- Test files: `test_<module_name>.py`
-- Test classes: `Test<FeatureName><TestType>`
-- Test functions: `test_<functionality>_<expected_behavior>`
+### Test Categories
 
-**Example:**
+**1. Unit Tests** (`backend/tests/unit/`)
+- Test individual functions and classes in isolation
+- Mock all external dependencies (AWS services, API calls)
+- Fast execution (< 1 second per test)
+- 100% mockable, no network calls
+- Pattern: pytest with pytest-mock
+
+**2. Integration Tests** (`backend/tests/integration/`)
+- Test interactions between components
+- Mock external services (AWS SDK, HTTP APIs)
+- Use moto for AWS service mocking
+- Verify service integration logic
+- Pattern: pytest with moto + pytest-mock
+
+**3. E2E Tests** (`tests/e2e/`)
+- Test full user workflows
+- Frontend + Backend integration
+- Mock backend API calls (no live Lambda)
+- Pattern: Detox for mobile, mock API responses
+
+### Mocking Strategy
+
+**AWS Services** (using moto):
 ```python
-class TestLambdaHandlerRouting:
-    def test_summary_request_routes_to_summary_handler(self):
-        # Test implementation
+import boto3
+from moto import mock_s3, mock_lambda
+
+@mock_s3
+def test_s3_storage():
+    # S3 client uses moto-mocked S3
+    s3 = boto3.client('s3', region_name='us-east-1')
+    # Test S3 storage service logic
 ```
 
-**Coverage Measurement:**
-- Command: `pytest tests/ --cov=src --cov-report=term-missing`
-- Minimum thresholds enforced in CI/CD
-- Coverage reports tracked in `backend/coverage_baseline.txt`
-
-**Test Markers:**
+**External APIs** (using pytest-mock):
 ```python
-@pytest.mark.unit        # Fast unit test
-@pytest.mark.integration # Integration test (may be slower)
-@pytest.mark.e2e         # End-to-end test (slowest)
-@pytest.mark.slow        # Known slow test
+def test_gemini_service(mocker):
+    # Mock Google Generative AI SDK
+    mock_model = mocker.patch('google.generativeai.GenerativeModel')
+    mock_model.return_value.generate_content.return_value = Mock(text="meditation")
+    # Test service logic without real API calls
 ```
 
-**Running Tests:**
-```bash
-# All tests
-pytest tests/
-
-# Unit tests only (fast feedback)
-pytest tests/ -m unit
-
-# With coverage
-pytest tests/ --cov=src --cov-report=html
-
-# Specific test file
-pytest tests/unit/test_lambda_handler.py -v
-```
-
----
-
-### Frontend Testing Strategy
-
-**Test Organization:**
-```
-components/__tests__/          # Component tests
-  ├── BackendSummaryCall-test.tsx
-  ├── BackendMeditationCall-test.tsx
-  ├── History-test.tsx         # To be added
-  └── ... (all components)
-
-app/__tests__/                 # Screen/page tests (to be added)
-  ├── index-test.tsx
-  └── meditation-test.tsx
-
-__tests__/                     # Integration & E2E tests
-  ├── integration/
-  │   ├── auth-flow-test.tsx
-  │   └── recording-flow-test.tsx
-  └── e2e/
-      └── critical-user-flows.test.ts
-```
-
-**Test Naming Convention:**
-- Test files: `<ComponentName>-test.tsx` (following existing convention)
-- Test suites: `describe('<ComponentName>', () => {})`
-- Test cases: `it('should <expected behavior>', () => {})`
-
-**Example:**
-```typescript
-describe('AudioRecording', () => {
-  it('should start recording when record button pressed', async () => {
-    // Test implementation
-  });
-});
-```
-
-**Testing Library Patterns:**
-- Use `@testing-library/react-native` queries (getByRole, getByText, getByTestId)
-- Avoid implementation details (don't access state directly)
-- Test user interactions and visual output
-- Use `userEvent` for realistic user interactions
-
-**Running Tests:**
-```bash
-# All tests
-npm test -- --watchAll=false
-
-# With coverage
-npm test -- --coverage --watchAll=false
-
-# Specific test file
-npm test -- BackendSummaryCall-test.tsx
-
-# Update snapshots
-npm test -- -u
-```
-
-**Coverage Reporting:**
-- HTML reports in `coverage/lcov-report/`
-- JSON reports in `coverage/coverage-final.json`
-- LCOV reports for CI/CD integration
-
----
-
-## Coding Conventions
-
-### Backend Conventions (Python)
-
-**Type Hints:**
-- All public functions must have complete type hints
-- Use `Optional[T]` for nullable types
-- Use `Union[T, U]` for multiple types
-- Use `Dict[str, Any]` for flexible dictionaries
-
-**Docstrings:**
-- All public functions, classes, and modules must have docstrings
-- Use Google-style docstrings
-
-**Example:**
+**Environment Variables**:
 ```python
-def analyze_sentiment(prompt: str, audio: Optional[str] = None) -> dict[str, Any]:
-    """
-    Analyze sentiment from user input text or audio.
-
-    Args:
-        prompt: User's text input
-        audio: Optional base64-encoded audio data
-
-    Returns:
-        Dictionary containing sentiment analysis results
-
-    Raises:
-        ValueError: If both prompt and audio are empty
-    """
-    # Implementation
+@pytest.fixture
+def mock_env(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-key')
 ```
 
-**Error Handling:**
-- Use custom exceptions for domain errors (defined in `src/utils/exceptions.py`)
-- Catch specific exceptions, not bare `except`
-- Log errors with context before raising
-- Return error responses in consistent format
+### CI Pipeline Configuration
 
-**Code Quality Tools:**
-- `black` for formatting (100-char line length)
-- `ruff` for linting (Flake8-compatible rules)
-- `mypy` for type checking (strict mode)
-- Run `backend/check_quality.sh` before committing
+**GitHub Actions** (`.github/workflows/test.yml`):
+```yaml
+name: Test Suite
 
----
+on: [push, pull_request]
 
-### Frontend Conventions (TypeScript)
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
 
-**TypeScript:**
-- Use strict mode (enabled in tsconfig.json)
-- Avoid `any` type unless absolutely necessary
-- Define interfaces for component props
-- Use type inference where possible
+      # Linting
+      - name: Lint with ruff
+        run: |
+          pip install ruff
+          ruff check backend/src backend/tests
 
-**Component Structure:**
-```typescript
-interface MyComponentProps {
-  title: string;
-  onPress?: () => void;
-}
+      # Unit Tests
+      - name: Run unit tests
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pytest pytest-mock pytest-cov moto
+          pytest tests/unit -v --cov=src
 
-export function MyComponent({ title, onPress }: MyComponentProps) {
-  // Component implementation
-}
+      # Integration Tests (Mocked)
+      - name: Run integration tests
+        run: |
+          cd backend
+          pytest tests/integration -v
 ```
 
-**Hooks:**
-- Keep hooks at the top of component (before any conditions)
-- Extract complex logic into custom hooks
-- Name custom hooks with `use` prefix
+**Key Principles**:
+- ✅ No AWS credentials in CI
+- ✅ No live resource creation
+- ✅ Fast test execution (< 5 minutes total)
+- ✅ Reproducible results
+- ✅ No external API calls
 
-**Styling:**
-- Use StyleSheet.create for styles
-- Prefer inline styles only for dynamic values
-- Keep styles at bottom of file
+## Shared Patterns and Conventions
 
-**Code Quality Tools:**
-- `eslint` for linting
-- `prettier` for formatting
-- `tsc` for type checking
-- Run `npm run lint && npm run type-check` before committing
+### Commit Message Format
 
----
+**Template**:
+```
+type(scope): brief description
 
-## Common Pitfalls to Avoid
+Detail 1
+Detail 2
 
-### Backend Pitfalls
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
 
-1. **Missing Environment Variables:**
-   - Always check settings.validate() before using config values
-   - Use validate_config=False in tests to skip environment checks
-   - Document all required environment variables
+**Types**: feat, fix, refactor, test, docs, chore, ci
 
-2. **Mock Leakage Between Tests:**
-   - Reset mocks in teardown or use fresh fixtures per test
-   - Avoid global state in tests
-   - Use pytest's built-in fixture scopes appropriately
+**Examples**:
+```
+refactor(deploy): simplify deployment to single script
 
-3. **Hardcoded AWS Resource Names:**
-   - Always use environment variables for bucket names, regions, etc.
-   - Make Lambda handler accept injected dependencies for testing
-   - Avoid direct boto3 client creation in business logic
+- Consolidate deploy-staging.sh and deploy-production.sh
+- Interactive prompts for missing configuration
+- Generate samconfig.toml programmatically
 
-4. **Incomplete Error Handling in Lambda:**
-   - Wrap handler logic in try/except at the top level
-   - Return proper HTTP status codes (200, 400, 500)
-   - Include correlation IDs for debugging
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
 
-5. **FFmpeg Binary Path Issues:**
-   - Use FFMPEG_BINARY and FFMPEG_PATH environment variables
-   - Test audio processing in Lambda environment (not just locally)
-   - Handle missing FFmpeg gracefully with clear error messages
+### File Naming Conventions
 
-### Frontend Pitfalls
+- Scripts: `kebab-case.sh` (e.g., `deploy.sh`, `validate.sh`)
+- Python: `snake_case.py` (e.g., `lambda_function.py`)
+- Config: `lowercase.ext` (e.g., `pytest.ini`, `ruff.toml`)
+- Documentation: `UPPERCASE.md` or `PascalCase.md`
 
-1. **Mocking React Native APIs Incorrectly:**
-   - Use jest.mock() at the top of test files
-   - Mock all platform-specific APIs (Audio, FileSystem, Notifications)
-   - Reset mocks between tests with jest.clearAllMocks()
+### Code Organization
 
-2. **Async Timing Issues:**
-   - Use waitFor() for async operations
-   - Avoid arbitrary setTimeout() in tests
-   - Use act() for state updates that happen outside user events
+**Backend Structure**:
+```
+backend/
+├── src/              # Application code (DRY, testable)
+│   ├── config/       # Configuration and constants
+│   ├── handlers/     # Lambda handlers and middleware
+│   ├── models/       # Data models (Pydantic)
+│   ├── services/     # Business logic (testable, mockable)
+│   ├── providers/    # External service integrations
+│   └── utils/        # Shared utilities
+├── tests/            # Test suite (mirrors src/ structure)
+│   ├── unit/         # Unit tests (fast, isolated)
+│   ├── integration/  # Integration tests (mocked externals)
+│   └── fixtures/     # Test data and mocks
+└── scripts/          # Deployment and utility scripts
+```
 
-3. **Snapshot Test Brittleness:**
-   - Keep snapshots small and focused
-   - Review snapshot changes carefully
-   - Prefer explicit assertions over snapshots when possible
+### Python Code Standards
 
-4. **Testing Implementation Details:**
-   - Don't test component state directly
-   - Test user-visible behavior, not internal methods
-   - Use accessibility queries (getByRole) over getByTestId when possible
+- **Type Hints**: Use for all function signatures
+- **Docstrings**: Only where logic is non-obvious (avoid restating code)
+- **Error Handling**: Raise specific exceptions, catch narrowly
+- **Mocking**: Inject dependencies for testability
+- **Pydantic Models**: Use for all API request/response validation
 
-5. **Ignoring Test Failures:**
-   - Fix failing tests immediately - don't skip them
-   - Investigate intermittent failures - they indicate real issues
-   - Don't commit code with failing tests
+### Shell Script Standards
 
-### SAM/Infrastructure Pitfalls
+- **Set flags**: `set -e` (exit on error)
+- **Functions**: Use for reusable logic
+- **Error messages**: Clear, actionable, with context
+- **User prompts**: Show defaults, allow empty for defaults
+- **Comments**: Only for complex logic, not obvious steps
 
-1. **Missing IAM Permissions:**
-   - Grant least-privilege permissions to Lambda execution role
-   - Include permissions for all AWS services Lambda uses (S3, CloudWatch Logs)
-   - Test IAM permissions in staging before production
+## Phase Verification
 
-2. **Stack Update Failures:**
-   - Review CloudFormation change sets before applying
-   - Understand which resource changes require replacement
-   - Have rollback plan for failed deployments
+### Completion Criteria
 
-3. **Parameter File Security - Committing Secrets to Git:**
-   - **ALWAYS test .gitignore before creating files with real secrets**
-   - Create test file first, verify it's ignored, then create real file
-   - Use `git status` and `git ls-files` to double-check
-   - Never use `git add .` without reviewing what's staged
-   - Never commit parameter files with real API keys
-   - Add `infrastructure/parameters/*.json` to .gitignore (except examples)
-   - Use placeholder values in example parameter files
-   - **If secrets committed: rotate ALL secrets immediately, rewrite history**
+- [ ] All ADRs documented and reviewed
+- [ ] Deployment script specification complete
+- [ ] Testing strategy defined with mock examples
+- [ ] Shared patterns established
+- [ ] Phase-1 tasks can reference this foundation
 
-4. **Environment Name Confusion:**
-   - Use clear parameter names (staging vs production, not env1 vs env2)
-   - Include environment name in stack names for clarity
-   - Document which AWS account hosts which environment
+### Integration Points
 
-5. **Deployment Script Errors:**
-   - Validate SAM template before deployment (sam validate)
-   - Check AWS credentials before running deploy script
-   - Include clear error messages in deployment scripts
+Phase-1 implementation will reference:
+- ADR decisions for architectural choices
+- Deployment script spec for implementation details
+- Testing strategy for test creation
+- Shared patterns for code style and commits
 
----
+### Known Limitations
 
-## Development Workflow
-
-### Daily Development Flow
-
-1. **Start of Day:**
-   - Pull latest changes: `git pull origin <your-feature-branch>`
-   - Check CI/CD status for any failures
-   - Review current phase checklist
-
-2. **During Development:**
-   - Write test first (TDD approach)
-   - Implement feature to make test pass
-   - Run relevant tests frequently
-   - Commit often with conventional commit messages
-
-3. **Before Committing:**
-   - Run quality checks:
-     - Backend: `cd backend && ./check_quality.sh`
-     - Frontend: `npm run lint && npm run type-check && npm test -- --watchAll=false`
-   - Review your changes: `git diff`
-   - Stage changes: `git add <files>`
-   - Commit with conventional message: `git commit -m "type(scope): description"`
-
-4. **End of Day/Task:**
-   - Push changes: `git push -u origin <your-feature-branch>`
-   - Update phase checklist
-   - Document any blockers or questions
-
-### Test-Driven Development (TDD) Flow
-
-1. **Write a failing test** that describes the desired behavior
-2. **Run the test** to verify it fails (red)
-3. **Write minimal code** to make the test pass
-4. **Run the test** to verify it passes (green)
-5. **Refactor** the code while keeping tests passing
-6. **Repeat** for next feature
-
-**Benefits:**
-- Clear specification of desired behavior
-- Higher confidence in correctness
-- Better code design (testable code is often better structured)
-- Living documentation of system behavior
-
----
-
-## Phase Completion
-
-This phase is complete when you can answer YES to all checkpoints:
-
-**Verification Checkpoints:**
-- [ ] I have read all 10 ADRs (ADR-1 through ADR-10)
-- [ ] I have read the Backend Testing Strategy section (lines 357-421)
-- [ ] I have read the Frontend Testing Strategy section (lines 423-487)
-- [ ] I have read the Coding Conventions sections (Backend + Frontend)
-- [ ] I have read the Common Pitfalls sections (Backend, Frontend, SAM/Infrastructure)
-- [ ] I can answer: "What is our SAM template structure?" (Answer: ADR-1, single environment-agnostic template)
-- [ ] I can answer: "What testing pyramid do we follow?" (Answer: ADR-5, 70% unit, 20% integration, 10% E2E)
-- [ ] I can answer: "What API Gateway type are we using?" (Answer: ADR-2, HTTP API v2)
-- [ ] I can answer: "How do we manage FFmpeg?" (Answer: ADR-9, separate Lambda layer)
-- [ ] I can answer: "What E2E framework are we using?" (Answer: ADR-10, Detox)
-- [ ] I understand the TDD workflow (lines 686-699)
-
-**Self-Assessment Questions:**
-1. If a test fails due to mock leakage, where would I look? (Answer: Backend Pitfall #2, line 582)
-2. What commit message format should I use? (Answer: Conventional Commits, ADR-8, line 174)
-3. Where do API keys go in SAM? (Answer: Environment variables, ADR-3, line 63)
-
-If you can answer these questions, proceed to Phase 1. If not, review the relevant sections.
-
-No code changes or tests are created in this phase.
-
----
-
-**Next Phase:** [Phase 1: SAM Infrastructure Setup](Phase-1.md)
+- Single environment only (multi-environment requires separate effort)
+- Region-specific FFmpeg layer default (us-east-1)
+- No automated stack teardown script (manual via CloudFormation console)
+- Secrets in local files (not centralized secret management)

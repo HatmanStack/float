@@ -1,727 +1,1242 @@
-# Phase 1: SAM Infrastructure Setup
+# Phase 1: Implementation & Migration
 
 ## Phase Goal
 
-Create a complete AWS SAM infrastructure-as-code solution that automates deployment of the Float meditation app's serverless backend. This includes a SAM template defining all AWS resources (Lambda, S3, IAM, API Gateway, CloudWatch), environment-specific parameter files, deployment scripts, and validation of successful deployment to the staging environment.
+Migrate the Float meditation app from complex multi-script infrastructure to a simplified, single-environment deployment system. Transform the current infrastructure/ directory setup into a colocated backend/ structure with interactive deployment scripts and clean configuration management.
 
 **Success Criteria:**
-- SAM template validates successfully with `sam validate`
-- Staging environment deploys successfully via deployment script
-- Lambda function executes successfully when invoked through API Gateway
-- All AWS resources (Lambda, S3 buckets, IAM roles, API Gateway) are created correctly
-- Environment variables are properly configured in Lambda
-- FFmpeg layer is correctly attached to Lambda function
+- Backend directory contains all infrastructure code
+- Single `npm run deploy` command works end-to-end
+- Secrets never committed (gitignored properly)
+- All tests pass without live AWS resources
+- Clean migration with no orphaned files
 
-**Estimated Tokens:** ~25,000
+**Estimated Tokens**: ~85,000
 
 ## Prerequisites
 
-- Phase 0 reviewed and understood
-- AWS SAM CLI installed (`sam --version`)
-- AWS CLI configured with credentials (`aws configure list`)
-- **FFmpeg Lambda layer ARN available (see Phase-0 ADR-9 for setup)**
-  - If not available, complete ADR-9 setup before starting Phase 1
-  - Have layer ARN ready for both staging and production
-- API keys ready for staging environment (Google Gemini, OpenAI, ElevenLabs)
-- Docker installed (for local SAM testing)
+- Phase-0 foundation reviewed and understood
+- Development environment setup (AWS CLI, SAM CLI, Python 3.13, Node.js)
+- Access to AWS account for testing deployment
+- API keys available for testing (can use test/dummy keys)
 
 ## Tasks
 
-### Task 1: Create Infrastructure Directory Structure
+### Task 1: Prepare Backend Directory and Update .gitignore
 
-**Goal:** Set up the infrastructure directory structure following ADR-1 conventions.
+**Goal**: Set up the backend directory to receive infrastructure files and ensure secrets will not be committed.
 
-**Files to Create:**
-- `infrastructure/` - Root directory for all infrastructure code
-- `infrastructure/parameters/` - Directory for environment-specific parameters
-- `infrastructure/scripts/` - Directory for deployment automation scripts
-- `infrastructure/.gitignore` - Prevent committing sensitive parameter files
-- `infrastructure/README.md` - Infrastructure documentation
+**Files to Modify/Create:**
+- `backend/.gitignore` - Add deployment config and secrets
+- `.gitignore` - Update root gitignore if needed
 
 **Prerequisites:**
-- None (first task in phase)
+- None (first task)
 
 **Implementation Steps:**
 
-1. Create the infrastructure directory hierarchy at project root
-2. Create a .gitignore file that excludes real parameter files but allows example files
-3. Create a README.md explaining the infrastructure structure and deployment process
-4. Include documentation about required AWS permissions and prerequisites
+1. Navigate to backend/ directory and create .gitignore (file does not currently exist)
+2. Add entries for deployment-related files that should never be committed:
+   - `samconfig.toml` (will contain secrets)
+   - `.deploy-config.json` (local deployment state)
+   - `.env` (may contain sensitive outputs)
+   - `.aws-sam/` (SAM build artifacts)
+3. Ensure existing Python artifacts are already ignored (`__pycache__`, `*.pyc`, etc.)
+4. Verify root .gitignore doesn't override backend-specific rules
+5. Test gitignore rules using `git check-ignore -v` to confirm patterns match
 
 **Verification Checklist:**
-- [x] `infrastructure/` directory exists at project root
-- [x] Subdirectories created: `parameters/`, `scripts/`
-- [x] `.gitignore` file prevents committing `parameters/*.json` (except `*-example.json`)
-- [x] `README.md` documents the infrastructure setup and deployment process
+- [ ] `backend/.gitignore` contains `samconfig.toml`
+- [ ] `backend/.gitignore` contains `.deploy-config.json`
+- [ ] `backend/.gitignore` contains `.aws-sam/`
+- [ ] Git status shows these files as ignored when created
+- [ ] Existing Python patterns still work
 
 **Testing Instructions:**
-- Verify .gitignore works: Create a test file `parameters/test-secret.json` and confirm it's ignored by git
-- Verify example files are not ignored: Create `parameters/staging-example.json` and confirm git tracks it
+- Create dummy `backend/samconfig.toml` file
+- Run `git status` and verify it's not shown
+- Run `git check-ignore -v backend/samconfig.toml` and verify it matches gitignore pattern
+- Delete dummy file after verification
 
 **Commit Message Template:**
 ```
-feat(infrastructure): create infrastructure directory structure
+chore(backend): add gitignore rules for deployment secrets
 
-- Add infrastructure/ root directory
-- Add parameters/ and scripts/ subdirectories
-- Add .gitignore to protect sensitive parameter files
-- Add README.md with setup documentation
+- Add samconfig.toml to prevent secret commits
+- Add .deploy-config.json for local deployment state
+- Add .aws-sam/ for SAM build artifacts
+- Ensure deployment configuration stays local
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
-
-**Estimated Tokens:** ~2,000
 
 ---
 
-### Task 2: Create SAM Template Foundation
+### Task 2: Create Tool Configuration Files
 
-**Goal:** Build the base SAM template with Lambda function resource definition and basic configuration.
+**Goal**: Extract development tool configurations from pyproject.toml into separate standard files before removing pyproject.toml.
 
 **Files to Create:**
-- `infrastructure/template.yaml` - Main SAM template
+- `backend/pytest.ini` - Pytest configuration
+- `backend/ruff.toml` - Ruff linter configuration
+- `backend/mypy.ini` - MyPy type checker configuration
+- `backend/.coveragerc` - Coverage.py configuration
 
 **Prerequisites:**
 - Task 1 complete
-- Understanding of existing Lambda configuration (memory: 4GB, timeout: 900s, runtime: Python 3.12)
-- Review `backend/lambda_function.py` for entry point
 
 **Implementation Steps:**
 
-1. Create template.yaml starting with Transform declaration for AWS SAM
-2. Define template parameters that will vary between environments:
-   - Environment name (staging/production)
-   - FFmpeg layer ARN
-   - S3 bucket names (customer data and audio buckets)
-   - API keys and configuration values
-3. Define Lambda function resource:
-   - Function name with environment suffix
-   - Runtime: python3.12
-   - Handler: lambda_function.lambda_handler
-   - Code location: ../backend/
-   - Memory: 4096 MB
-   - Timeout: 900 seconds (15 minutes)
-   - Architecture: x86_64
-   - Layers: Reference FFmpeg layer from parameters
-4. Define Lambda execution role with CloudWatch Logs permissions
-5. Add description and metadata sections
-
-**Architecture Guidance:**
-- Use Parameters section for all environment-specific values
-- Use `!Ref` to reference parameters throughout the template
-- Use `!Sub` for string interpolation with environment names
-- Follow AWS SAM specification (not plain CloudFormation)
-- Keep resource logical IDs descriptive (e.g., FloatMeditationFunction, not Function1)
+1. Read current `backend/pyproject.toml` to extract tool configurations
+2. Create `pytest.ini` with test paths, markers, coverage settings:
+   - testpaths pointing to tests/
+   - markers for unit, integration, slow tests
+   - coverage source and omit patterns
+   - addopts for coverage reports
+3. Create `ruff.toml` with linting rules:
+   - line-length: 100
+   - target-version: py313
+   - select and ignore rules from current config
+4. Create `mypy.ini` with type checking settings:
+   - python_version = 3.13
+   - strict settings from current config
+   - module ignores if needed
+5. Create `.coveragerc` with coverage settings:
+   - source paths
+   - omit patterns
+   - exclude_lines for pragma, TYPE_CHECKING, etc.
+6. Verify each tool still works with new config files:
+   - Run `pytest --collect-only` to verify pytest.ini
+   - Run `ruff check src/` to verify ruff.toml
+   - Run `mypy src/` to verify mypy.ini
+   - Run `pytest --cov` to verify coverage config
 
 **Verification Checklist:**
-- [x] Template includes Transform: AWS::Serverless-2016-10-31
-- [x] All environment-specific values are parameters (no hardcoded values)
-- [x] Lambda function resource defined with correct runtime and handler
-- [x] Execution role grants CloudWatch Logs permissions
-- [x] FFmpeg layer referenced from parameter
-- [x] Template validates: `sam validate --template infrastructure/template.yaml`
+- [ ] `pytest.ini` exists with correct test paths
+- [ ] `ruff.toml` exists with Python 3.13 target
+- [ ] `mypy.ini` exists with Python 3.13 setting
+- [ ] `.coveragerc` exists with source and omit patterns
+- [ ] `pytest --collect-only` succeeds
+- [ ] `ruff check src/` succeeds
+- [ ] `mypy src/` runs (errors OK, but config loads)
+- [ ] Coverage runs with correct settings
 
 **Testing Instructions:**
-- Run SAM validate command and ensure no errors
-- Verify template structure follows SAM specification
-- Check parameter types and constraints are appropriate
+- Run pytest collection: `cd backend && pytest --collect-only`
+- Run ruff: `ruff check src/`
+- Run mypy: `mypy src/ --show-error-codes`
+- Run coverage: `pytest --cov=src --cov-report=term-missing`
+- Verify all tools use new config files (check output for config file paths)
 
 **Commit Message Template:**
 ```
-feat(infrastructure): create base SAM template with Lambda function
+refactor(backend): extract tool configs from pyproject.toml
 
-- Define template parameters for environment-specific values
-- Add Lambda function resource with Python 3.12 runtime
-- Configure 4GB memory and 15-minute timeout
-- Add Lambda execution role with CloudWatch Logs permissions
-- Reference FFmpeg layer from parameters
+- Create pytest.ini for test configuration
+- Create ruff.toml for linter settings
+- Create mypy.ini for type checking
+- Create .coveragerc for coverage reporting
+- Prepare for pyproject.toml removal
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
-
-**Estimated Tokens:** ~4,000
 
 ---
 
-### Task 3: Add S3 Bucket Resources
+### Task 2.5: Create Development Dependencies File
 
-**Goal:** Define S3 buckets for customer data and audio files in the SAM template with appropriate configurations.
+**Goal**: Extract development dependencies into separate requirements-dev.txt before removing pyproject.toml, ensuring CI and local development can install dev tools.
 
-**Files to Modify:**
-- `infrastructure/template.yaml`
+**Files to Create:**
+- `backend/requirements-dev.txt`
 
 **Prerequisites:**
-- Task 2 complete
-- Understanding of current S3 bucket usage: `float-cust-data` and `audio-er-lambda`
+- Task 2 complete (tool configs migrated)
 
 **Implementation Steps:**
 
-1. Add S3 bucket parameters to Parameters section:
-   - Customer data bucket name parameter
-   - Audio bucket name parameter
-
-2. **IMPORTANT - Bucket Naming Strategy:**
-   S3 bucket names are globally unique across ALL AWS accounts. To avoid collisions:
-
-   **Option A: Include AWS Account ID (Recommended)**
-   ```yaml
-   CustomerDataBucket:
-     Type: AWS::S3::Bucket
-     Properties:
-       BucketName: !Sub '${AWS::StackName}-cust-data-${AWS::AccountId}'
+1. Create `backend/requirements-dev.txt` with all development dependencies:
    ```
-   Result: `float-meditation-staging-cust-data-123456789012`
-
-   **Option B: Use CloudFormation-generated names**
-   ```yaml
-   CustomerDataBucket:
-     Type: AWS::S3::Bucket
-     # No BucketName property - CloudFormation generates unique name
+   pytest>=8.4.2
+   pytest-mock>=3.11.0
+   pytest-cov>=4.1.0
+   moto[all]>=4.0.0
+   ruff>=0.1.0
+   black>=23.9.0
+   mypy>=1.5.0
+   types-requests
+   types-python-dateutil
    ```
-   Result: `float-meditation-staging-customerdatabucket-a1b2c3d4e5f6`
-
-   **Option C: Use parameter with account ID suffix**
-   - Parameter file: `"CustomerDataBucketName": "float-cust-data-staging-123456789012"`
-   - Requires manual account ID entry
-
-   **Recommendation:** Use Option A for predictable, unique names.
-
-3. Add two S3 bucket resources to Resources section:
-   - Customer data bucket (stores user data, summaries, meditation records)
-   - Audio bucket (stores generated meditation audio files)
-
-4. Configure bucket properties:
-   - Encryption: AES256 (server-side encryption enabled by default)
-   - Versioning: Consider enabling for production data recovery
-   - Lifecycle policies: Consider adding expiration rules for cost optimization
-   - Access control: Private access only
-
-5. Add bucket policies if needed for cross-service access
-
-6. Update Lambda execution role to grant S3 permissions:
-   - s3:PutObject for both buckets
-   - s3:GetObject for both buckets
-   - s3:DeleteObject for both buckets
-   - Scope permissions to specific bucket ARNs
-
-**Architecture Guidance:**
-- Use separate resources for each bucket (don't combine)
-- Bucket names should include environment suffix for uniqueness
-- Grant least-privilege IAM permissions (only actions Lambda needs)
-- Consider future requirements: Do users need to delete data? GDPR compliance?
+2. These dependencies were previously in `pyproject.toml` under `[project.optional-dependencies].dev`
+3. Pin versions based on current pyproject.toml specifications
+4. Test installation in clean environment:
+   ```bash
+   python3.13 -m venv test-env
+   source test-env/bin/activate
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
+   ```
+5. Verify all dev tools work:
+   - `pytest --version`
+   - `ruff --version`
+   - `mypy --version`
+   - `black --version`
+6. Run test suite to confirm dependencies sufficient:
+   ```bash
+   pytest tests/unit -v
+   ruff check src/
+   mypy src/
+   ```
 
 **Verification Checklist:**
-- [x] Two S3 bucket resources defined (customer data and audio)
-- [x] Bucket names use CloudFormation intrinsic functions for uniqueness (!Sub with ${AWS::AccountId})
-- [x] OR BucketName property omitted (CloudFormation generates unique name)
-- [x] Server-side encryption enabled
-- [x] Lambda execution role has appropriate S3 permissions
-- [x] Bucket ARNs exported as outputs for reference
-- [x] Template still validates successfully
-- [x] Bucket naming documented in parameter file examples with account ID
+- [ ] `requirements-dev.txt` created with all dev dependencies
+- [ ] All dependencies have version pins (>=)
+- [ ] File includes pytest, pytest-mock, pytest-cov, moto
+- [ ] File includes ruff, black, mypy, types packages
+- [ ] Clean install succeeds: `pip install -r requirements-dev.txt`
+- [ ] All dev tools execute: pytest, ruff, mypy, black
+- [ ] Test suite runs successfully
+- [ ] No missing dependency errors
 
 **Testing Instructions:**
-- Run `sam validate` to ensure template is still valid
-- Review IAM permissions to ensure they follow least-privilege principle
-- Verify bucket naming strategy prevents global name collisions:
+- Create isolated environment:
   ```bash
-  # Check what bucket names will be created
-  aws cloudformation describe-stack-resources \
-    --stack-name float-meditation-staging \
-    --query 'StackResources[?ResourceType==`AWS::S3::Bucket`].PhysicalResourceId'
+  cd backend
+  python3.13 -m venv .venv-test
+  source .venv-test/bin/activate
+  pip install -r requirements.txt
+  pip install -r requirements-dev.txt
   ```
-- If deployment fails with "bucket already exists":
-  - Change bucket naming strategy to Option A or B above
-  - OR change ParameterValue in staging.json to include unique suffix
+- Run full development workflow:
+  ```bash
+  pytest tests/unit -v           # Should pass
+  ruff check src/ tests/         # Should pass
+  mypy src/                      # Should run
+  black --check src/ tests/      # Should run
+  pytest --cov=src tests/        # Should generate coverage
+  ```
+- Deactivate and remove test env:
+  ```bash
+  deactivate
+  rm -rf .venv-test
+  ```
 
 **Commit Message Template:**
 ```
-feat(infrastructure): add S3 bucket resources for data storage
+feat(backend): create requirements-dev.txt for development dependencies
 
-- Add customer data bucket for user data and summaries
-- Add audio bucket for generated meditation files
-- Enable server-side encryption on all buckets
-- Grant Lambda execution role S3 permissions
-- Export bucket names as stack outputs
+- Extract dev dependencies from pyproject.toml
+- Create requirements-dev.txt with pinned versions
+- Include pytest, ruff, mypy, black, moto
+- Prepare for pyproject.toml removal
+- Enable CI to install dev tools separately
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
-
-**Estimated Tokens:** ~3,000
 
 ---
 
-### Task 4: Add API Gateway HTTP API
+### Task 3: Remove pyproject.toml Build Configuration
 
-**Goal:** Define API Gateway HTTP API (v2) resource to provide a public endpoint for Lambda invocation.
+**Goal**: Remove pyproject.toml entirely to eliminate SAM build conflicts and simplify dependency management.
+
+**Files to Modify/Delete:**
+- `backend/pyproject.toml` - DELETE
+- `backend/requirements.txt` - Verify and clean
+
+**Prerequisites:**
+- Task 2 complete (tool configs migrated)
+- Task 2.5 complete (requirements-dev.txt created)
+
+**Implementation Steps:**
+
+1. Verify requirements.txt is clean:
+   - Ensure no `-e .` editable install line exists
+   - All dependencies are pinned versions
+   - No references to pyproject.toml
+2. Delete `backend/pyproject.toml` entirely
+3. Test that SAM can build without pyproject.toml:
+   - Run `sam build --use-container` in a test directory
+   - Verify Python dependencies install correctly
+   - Check for absence of "Invalid distribution name" errors
+4. Verify development tools still work with separate config files:
+   - pytest uses pytest.ini
+   - ruff uses ruff.toml
+   - mypy uses mypy.ini
+5. Update any documentation that references pyproject.toml
+
+**Verification Checklist:**
+- [ ] `pyproject.toml` does not exist
+- [ ] `requirements.txt` has no `-e .` line
+- [ ] All dependencies in requirements.txt have version pins
+- [ ] `requirements-dev.txt` exists with dev dependencies
+- [ ] CI can install deps: `pip install -r requirements.txt -r requirements-dev.txt`
+- [ ] `sam build` completes without errors (test in safe directory)
+- [ ] `pytest` runs using pytest.ini
+- [ ] `ruff check` runs using ruff.toml
+- [ ] `mypy` runs using mypy.ini
+
+**Testing Instructions:**
+- Create test SAM build:
+  ```bash
+  cd backend
+  sam build --template ../infrastructure/template.yaml
+  # Should complete without "Invalid distribution name" error
+  ```
+- Run development tools:
+  ```bash
+  pytest --version  # Should show pytest.ini in use
+  ruff check src/
+  mypy src/
+  ```
+- Verify no import errors related to missing package metadata
+
+**Commit Message Template:**
+```
+refactor(backend): remove pyproject.toml build configuration
+
+- Delete pyproject.toml entirely
+- Rely on requirements.txt for dependencies
+- Remove editable install reference
+- Simplify SAM build process
+- Tool configs now in separate files
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 4: Migrate Infrastructure Files to Backend
+
+**Goal**: Move template.yaml, samconfig.toml, scripts/, and related files from infrastructure/ to backend/.
+
+**Files to Move:**
+- `infrastructure/template.yaml` → `backend/template.yaml`
+- `infrastructure/samconfig.toml` → `backend/samconfig.toml` (will be regenerated)
+- `infrastructure/scripts/` → `backend/scripts/` (will be rewritten)
+- `infrastructure/test-requests/` → `backend/test-requests/`
+- `infrastructure/parameters/` → DELETE (using samconfig.toml instead)
+
+**Prerequisites:**
+- Task 1 complete (gitignore updated)
+- Task 3 complete (pyproject.toml removed)
+
+**Implementation Steps:**
+
+1. Create `backend/scripts/` directory if it doesn't exist
+2. Move template.yaml:
+   - Copy `infrastructure/template.yaml` to `backend/template.yaml`
+   - Update CodeUri to point to current directory (`.` instead of `../backend/`)
+3. Move test-requests for later use:
+   - Copy `infrastructure/test-requests/` to `backend/test-requests/`
+4. DO NOT move existing scripts yet (will be rewritten in later tasks)
+5. DO NOT move samconfig.toml (will be regenerated by deploy script)
+6. Verify template.yaml is valid after move:
+   - Run `sam validate --template backend/template.yaml --lint`
+7. Keep infrastructure/ directory for now (will clean up in final task)
+
+**Verification Checklist:**
+- [ ] `backend/template.yaml` exists
+- [ ] `backend/test-requests/` directory exists with JSON files
+- [ ] `backend/scripts/` directory exists (may be empty)
+- [ ] Template CodeUri updated to `.` (current directory)
+- [ ] `sam validate` succeeds on new template location
+- [ ] Infrastructure directory still exists (not deleted yet)
+
+**Testing Instructions:**
+- Validate template: `sam validate --template backend/template.yaml --lint`
+- Check template syntax: `cat backend/template.yaml | grep CodeUri` (should show `.`)
+- Verify test requests: `ls -la backend/test-requests/`
+
+**Commit Message Template:**
+```
+refactor(infrastructure): migrate template to backend directory
+
+- Move template.yaml to backend/
+- Update CodeUri to current directory
+- Move test-requests to backend/
+- Prepare for infrastructure consolidation
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 5: Update template.yaml for Simplified Deployment
+
+**Goal**: Modify template.yaml to support single-environment deployment with sensible defaults and remove unnecessary complexity.
 
 **Files to Modify:**
-- `infrastructure/template.yaml`
+- `backend/template.yaml`
 
 **Prerequisites:**
-- Task 3 complete
-- Understanding of existing API endpoint usage (POST requests with JSON body)
-- Review existing CORS middleware in `backend/src/handlers/middleware.py`
+- Task 4 complete (template migrated)
 
 **Implementation Steps:**
 
-1. Add HTTP API resource using AWS::Serverless::HttpApi
-2. Configure CORS:
-   - AllowOrigins: Accept from multiple domains (float-app.fun, localhost for dev)
-   - AllowMethods: POST (primary method), OPTIONS (preflight)
-   - AllowHeaders: Content-Type, Authorization, Accept
-   - AllowCredentials: true (if using authentication cookies)
-   - MaxAge: 3600 (cache preflight responses for 1 hour)
-3. Define API route:
-   - Path: /meditation (or / for catch-all)
-   - Method: POST
-   - Integration: Lambda function
-4. Add API Gateway invoke permission to Lambda function
-5. Configure stage name (e.g., "api" or "v1")
-6. Add API endpoint URL as stack output
-
-**Architecture Guidance:**
-- HTTP API is simpler and cheaper than REST API (per ADR-2)
-- CORS should be configured at API Gateway level even though Lambda has CORS middleware (defense in depth)
-- Consider adding throttling settings for production (requests per second limits)
-- Use $default stage or named stage based on preference
+1. Update Parameters section:
+   - Remove `Environment` parameter (single environment only)
+   - Add default value to FFmpegLayerArn: `arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4`
+   - Make FFmpegLayerArn pattern validation less strict (allow overrides)
+   - Keep all API key parameters (GKey, OpenAIKey, XIKey)
+   - Add description notes about defaults
+2. Update Globals section:
+   - Keep timeout, memory, runtime settings
+   - Remove any environment-specific conditional logic
+3. Update FloatMeditationFunction:
+   - Remove `Metadata.BuildMethod: makefile` (use standard Python builder)
+   - Update FunctionName to remove Environment reference: `float-meditation`
+   - Keep all other properties (Layers, Role, Events, Environment variables)
+   - Update Environment variables to remove Environment reference
+4. Update S3 bucket names and resources:
+   - Remove Environment suffix from resource names
+   - Use simple naming: `float-meditation-audio`
+5. Update outputs:
+   - Remove Environment references from output names
+   - Ensure outputs are consumable by frontend .env generation
+6. Add comments explaining simplified deployment model
+7. Validate template after changes
 
 **Verification Checklist:**
-- [x] HTTP API resource defined with CORS configuration
-- [x] Lambda integration configured correctly
-- [x] API Gateway has permission to invoke Lambda
-- [x] API endpoint URL exported as output
-- [x] CORS allows appropriate origins and methods
-- [x] Template validates successfully
+- [ ] No `Environment` parameter exists
+- [ ] FFmpegLayerArn has default value
+- [ ] Function name is `float-meditation` (no variable)
+- [ ] No BuildMethod metadata on function
+- [ ] All parameters have descriptions
+- [ ] Template validates successfully
+- [ ] Outputs section has all needed values (API URL, bucket, function ARN)
 
 **Testing Instructions:**
-- Run `sam validate`
-- Review CORS configuration matches frontend requirements
-- Verify Lambda integration is properly configured
+- Validate template: `sam validate --template backend/template.yaml --lint`
+- Check for Environment references: `grep -i "environment" backend/template.yaml` (should only be ENV vars, not parameter)
+- Verify FFmpeg default: `grep "FFmpegLayerArn" backend/template.yaml -A 3`
+- Review outputs: `grep -A 20 "^Outputs:" backend/template.yaml`
 
 **Commit Message Template:**
 ```
-feat(infrastructure): add API Gateway HTTP API for Lambda access
+refactor(template): simplify for single-environment deployment
 
-- Add HTTP API (v2) resource for cost efficiency
-- Configure CORS for frontend access
-- Define POST route to Lambda function
-- Grant API Gateway permission to invoke Lambda
-- Export API endpoint URL
+- Remove Environment parameter (single env only)
+- Add default FFmpeg layer ARN for us-east-1
+- Remove Makefile build method (use standard Python)
+- Simplify function and resource naming
+- Update outputs for frontend consumption
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
-
-**Estimated Tokens:** ~3,500
 
 ---
 
-### Task 5: Add Environment Variables Configuration
+### Task 6: Create Deployment Script
 
-**Goal:** Configure all required environment variables for the Lambda function using SAM template parameters.
+**Goal**: Implement the interactive deployment script that handles configuration, building, deploying, and environment file generation.
+
+**Files to Create:**
+- `backend/scripts/deploy.sh`
+- `backend/.deploy-config.json.template` (example structure)
+
+**Prerequisites:**
+- Task 4 complete (scripts directory exists)
+- Task 5 complete (template updated)
+- Phase-0 deployment script specification reviewed
+
+**Implementation Steps:**
+
+1. Create `deploy.sh` with proper shell header:
+   - `#!/bin/bash`
+   - `set -e` for error handling
+   - Script should be executable
+2. Implement pre-flight checks:
+   - Verify running in backend/ directory (check for template.yaml)
+   - Check AWS CLI installed and configured
+   - Check SAM CLI installed
+   - Display AWS account information
+3. Implement configuration discovery:
+   - Check for `.deploy-config.json` existence
+   - Check for `samconfig.toml` existence
+   - Parse existing values if files exist
+4. Implement interactive prompts for missing configuration:
+   - Stack name with default `float-meditation-dev`
+   - AWS region with default `us-east-1`
+   - FFmpeg layer ARN with default (from Phase-0)
+   - Google Gemini API key (masked input, show last 4 if exists)
+   - OpenAI API key (masked input, show last 4 if exists)
+   - ElevenLabs API key (optional, masked input)
+   - Voice configuration with defaults (similarity, stability, style, voiceId)
+   - Skip prompts for values that already exist
+5. Implement configuration persistence:
+   - Save all values to `.deploy-config.json` (JSON format)
+   - Generate `samconfig.toml` with proper structure (see Phase-0 spec)
+   - Use proper escaping for parameter_overrides
+6. Implement build phase:
+   - Echo build status
+   - Run `sam build` (no flags)
+   - Check for build errors
+7. Implement deployment phase:
+   - Echo deployment status
+   - Run `sam deploy` (uses samconfig.toml)
+   - Capture deployment outputs
+8. Implement post-deployment:
+   - Extract stack outputs using AWS CLI
+   - Generate `../frontend/.env` file with:
+     - EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<ApiEndpoint>
+     - EXPO_PUBLIC_S3_BUCKET=<AudioBucket>
+   - Display success summary with next steps
+9. Implement error handling:
+   - Trap errors and display helpful messages
+   - Provide rollback guidance
+   - Clean up partial state on failure
+
+**Verification Checklist:**
+- [ ] Script is executable (`chmod +x`)
+- [ ] Pre-flight checks verify AWS and SAM CLI
+- [ ] Interactive prompts work with defaults
+- [ ] `.deploy-config.json` is created with correct structure
+- [ ] `samconfig.toml` is generated with proper format
+- [ ] `sam build` executes successfully
+- [ ] `sam deploy` executes successfully
+- [ ] Frontend `.env` file is generated
+- [ ] Script handles errors gracefully
+
+**Testing Instructions:**
+
+**Unit-level testing** (manual):
+- Run script with no config: `./scripts/deploy.sh`
+  - Verify all prompts appear
+  - Test with dummy values
+  - Check generated files
+- Run script with existing config: `./scripts/deploy.sh`
+  - Verify no prompts appear
+  - Check it uses saved values
+- Test error conditions:
+  - Remove AWS credentials, verify error message
+  - Provide invalid API key format, verify validation
+
+**Integration testing** (requires AWS):
+- Full deployment with test API keys
+- Verify stack creation in CloudFormation
+- Verify frontend .env has correct values
+- Test subsequent deployment (should skip prompts)
+
+**Mock testing** (for CI):
+- Create unit tests in `tests/unit/test_deploy_script.sh`:
+  - Test configuration parsing logic
+  - Test samconfig.toml generation
+  - Test .env generation from mock outputs
+  - Mock AWS CLI and SAM CLI calls
+
+**Commit Message Template:**
+```
+feat(deploy): create interactive deployment script
+
+- Implement pre-flight checks for AWS/SAM CLI
+- Add interactive prompts for missing configuration
+- Generate samconfig.toml programmatically
+- Persist configuration in .deploy-config.json
+- Auto-generate frontend .env from stack outputs
+- Handle errors with clear messaging
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 7: Create Validation Script
+
+**Goal**: Create a simple script to validate the SAM template before deployment.
+
+**Files to Create:**
+- `backend/scripts/validate.sh`
+
+**Prerequisites:**
+- Task 4 complete (scripts directory exists)
+
+**Implementation Steps:**
+
+1. Create `validate.sh` with shell header and error handling
+2. Implement template validation:
+   - Check template.yaml exists in current directory
+   - Run `sam validate --template template.yaml --lint`
+   - Display validation results clearly
+3. Handle validation errors:
+   - Exit with non-zero code on failure
+   - Display error details
+   - Provide guidance for common issues
+4. Add success message
+5. Make script executable
+
+**Verification Checklist:**
+- [ ] Script is executable
+- [ ] Validates template.yaml successfully
+- [ ] Shows clear error messages on validation failure
+- [ ] Exits with appropriate exit codes (0=success, 1=failure)
+- [ ] Can be run from backend/ directory
+
+**Testing Instructions:**
+- Run on valid template: `cd backend && ./scripts/validate.sh`
+  - Should show success message
+  - Should exit with code 0
+- Test with invalid template:
+  - Temporarily break template YAML syntax
+  - Run script, verify error shown
+  - Restore template
+- Verify lint flag works (catches template issues)
+
+**Commit Message Template:**
+```
+feat(deploy): add template validation script
+
+- Create validate.sh for pre-deployment checks
+- Run sam validate with lint flag
+- Provide clear error messaging
+- Exit with appropriate codes
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 8: Create Logs Script
+
+**Goal**: Create a script to easily view CloudWatch logs for the deployed Lambda function.
+
+**Files to Create:**
+- `backend/scripts/logs.sh`
+
+**Prerequisites:**
+- Task 6 complete (deploy script creates config)
+
+**Implementation Steps:**
+
+1. Create `logs.sh` with shell header
+2. Implement configuration reading:
+   - Try to read stack name from `.deploy-config.json`
+   - Fallback to reading from `samconfig.toml`
+   - Fallback to prompting user for stack name
+3. Implement function name determination:
+   - Function name is based on stack: `float-meditation`
+   - Build log group name: `/aws/lambda/float-meditation`
+4. Implement log streaming:
+   - Use AWS CLI to tail logs: `aws logs tail /aws/lambda/{function-name} --follow`
+   - Add optional parameters (--since, --filter-pattern)
+   - Handle case where function doesn't exist yet
+5. Add usage instructions in comments
+6. Make script executable
+
+**Verification Checklist:**
+- [ ] Script is executable
+- [ ] Reads configuration correctly
+- [ ] Determines function name correctly
+- [ ] Streams logs from CloudWatch
+- [ ] Handles missing deployment gracefully
+- [ ] Can accept optional time filter (--since 1h)
+
+**Testing Instructions:**
+- Test with deployed stack:
+  - Deploy stack first (Task 6)
+  - Run `./scripts/logs.sh`
+  - Invoke function to generate logs
+  - Verify logs appear in stream
+- Test with no deployment:
+  - Remove .deploy-config.json
+  - Run script, verify error handling
+- Test with time filter:
+  - `./scripts/logs.sh --since 1h`
+  - Verify only recent logs shown
+
+**Commit Message Template:**
+```
+feat(deploy): add CloudWatch logs viewer script
+
+- Create logs.sh to stream Lambda logs
+- Auto-detect function name from config
+- Support time filtering (--since flag)
+- Handle missing deployment gracefully
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 9: Update Backend Package.json
+
+**Goal**: Add npm scripts for deployment commands to provide consistent developer interface.
+
+**Files to Modify/Create:**
+- `backend/package.json` - Create if doesn't exist
+
+**Prerequisites:**
+- Task 6, 7, 8 complete (scripts created)
+
+**Implementation Steps:**
+
+1. Check if `backend/package.json` exists:
+   - If not, create minimal package.json
+   - If exists, update scripts section
+2. Add deployment scripts:
+   - `"deploy": "./scripts/deploy.sh"`
+   - `"validate": "./scripts/validate.sh"`
+   - `"logs": "./scripts/logs.sh"`
+   - `"build": "sam build"`
+3. Add project metadata (if creating new):
+   - name: "float-backend"
+   - version: "1.0.0"
+   - private: true
+   - description: "Float meditation backend deployment scripts"
+4. Ensure scripts are executable before adding to package.json
+5. Test npm scripts work from backend/ directory
+
+**Verification Checklist:**
+- [ ] `package.json` exists in backend/
+- [ ] "deploy" script points to deploy.sh
+- [ ] "validate" script points to validate.sh
+- [ ] "logs" script points to logs.sh
+- [ ] "build" script runs sam build
+- [ ] All script files are executable
+- [ ] `npm run deploy` works from backend/
+- [ ] `npm run validate` works from backend/
+- [ ] `npm run logs` works from backend/
+
+**Testing Instructions:**
+- From backend/ directory:
+  ```bash
+  npm run validate  # Should validate template
+  npm run deploy    # Should start deployment (can cancel)
+  npm run logs      # Should stream logs (requires deployed stack)
+  npm run build     # Should run sam build
+  ```
+- Verify each command executes the corresponding script
+- Check that errors from scripts are properly shown
+
+**Commit Message Template:**
+```
+feat(deploy): add npm scripts for deployment commands
+
+- Add npm run deploy for deployment
+- Add npm run validate for template validation
+- Add npm run logs for CloudWatch logs
+- Add npm run build for SAM building
+- Provide consistent developer interface
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 10: Update Backend Makefile
+
+**Goal**: Update Makefile to remove SAM build target and keep only development quality checks.
 
 **Files to Modify:**
-- `infrastructure/template.yaml`
+- `backend/Makefile`
 
 **Prerequisites:**
-- Task 4 complete
-- Review `backend/lambda_function.py` and `backend/src/config/settings.py` for required env vars
-- List of required environment variables:
-  - G_KEY (Google Gemini API key)
-  - OPENAI_API_KEY
-  - XI_KEY (ElevenLabs, optional)
-  - AWS_S3_BUCKET (customer data bucket)
-  - AWS_AUDIO_BUCKET
-  - FFMPEG_BINARY (/opt/bin/ffmpeg)
-  - FFMPEG_PATH (/opt/bin/ffmpeg)
-  - SIMILARITY_BOOST (0.7)
-  - STABILITY (0.3)
-  - STYLE (0.3)
-  - VOICE_ID (jKX50Q2OBT1CsDwwcTkZ)
+- Task 3 complete (pyproject.toml removed)
+- Task 9 complete (npm scripts added)
 
 **Implementation Steps:**
 
-1. Add parameters for sensitive values (API keys):
-   - GoogleGeminiApiKey (NoEcho: true)
-   - OpenAIApiKey (NoEcho: true)
-   - ElevenLabsApiKey (NoEcho: true, optional)
-2. Add parameters for configuration values (voice settings, etc.)
-3. Add Environment property to Lambda function:
-   - Variables section with all required environment variables
-   - Use !Ref to reference parameter values
-   - Use !Sub for values that include other references (e.g., bucket ARNs)
-4. Set FFmpeg paths to /opt/bin/ffmpeg (standard Lambda layer location)
-5. Reference S3 bucket names from bucket resources
-
-**Architecture Guidance:**
-- Use NoEcho: true for sensitive parameters (API keys) to hide from console
-- Use Type: String for all parameters (even numbers) for flexibility
-- Provide default values for non-sensitive config (voice settings)
-- Document which parameters are required vs optional
+1. Read current Makefile
+2. Remove the `build-FloatMeditationFunction` target:
+   - This was used for SAM builds with uv pip
+   - No longer needed with standard SAM builder
+3. Keep development targets:
+   - test (pytest)
+   - lint (ruff)
+   - format (black)
+   - type-check (mypy)
+   - quality (all checks)
+4. Update .PHONY declaration to remove build target
+5. Update help text to remove build references
+6. Verify remaining targets still work
 
 **Verification Checklist:**
-- [x] All required environment variables defined in Lambda
-- [x] Sensitive parameters use NoEcho: true
-- [x] S3 bucket names reference actual bucket resources (!Ref)
-- [x] FFmpeg paths point to /opt/bin/ffmpeg
-- [x] Voice configuration values have sensible defaults
-- [x] Template validates successfully
+- [ ] `build-FloatMeditationFunction` target removed
+- [ ] Development targets remain (test, lint, format, type-check)
+- [ ] .PHONY updated correctly
+- [ ] `make test` runs pytest
+- [ ] `make lint` runs ruff
+- [ ] `make type-check` runs mypy
+- [ ] `make quality` runs all checks
+- [ ] Help text updated
 
 **Testing Instructions:**
-- Run `sam validate`
-- Cross-reference environment variables with backend/src/config/settings.py
-- Ensure all required variables are present
+- Run each make target:
+  ```bash
+  cd backend
+  make test
+  make lint
+  make type-check
+  make format-check
+  make quality
+  ```
+- Verify no references to SAM build
+- Verify all development tools still work
 
 **Commit Message Template:**
 ```
-feat(infrastructure): configure Lambda environment variables
+refactor(backend): remove SAM build from Makefile
 
-- Add parameters for API keys (Google Gemini, OpenAI, ElevenLabs)
-- Add parameters for voice configuration settings
-- Configure FFmpeg paths for Lambda layer
-- Reference S3 bucket names from resources
-- Use NoEcho for sensitive parameters
+- Remove build-FloatMeditationFunction target
+- Keep development quality check targets
+- Update help text and PHONY declarations
+- SAM builds now via npm run build
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
-
-**Estimated Tokens:** ~3,000
 
 ---
 
-### Task 6: Create Environment Parameter Files
+### Task 11: Create Deployment Script Tests
 
-**Goal:** Create parameter files for staging and production environments with appropriate values.
+**Goal**: Create unit tests for deployment script logic to ensure CI can verify deployment code without AWS resources.
 
 **Files to Create:**
-- `infrastructure/parameters/staging-example.json` - Example staging parameters (safe to commit)
-- `infrastructure/parameters/production-example.json` - Example production parameters (safe to commit)
-- `infrastructure/parameters/staging.json` - Actual staging parameters (git-ignored)
+- `backend/tests/unit/test_deploy_helpers.py` - Test helper functions
+- `backend/scripts/deploy-helpers.sh` - Extract testable functions from deploy.sh
 
 **Prerequisites:**
-- Task 5 complete
-- Access to staging environment API keys
-- FFmpeg layer ARN for staging environment
-- Staging S3 bucket names decided
+- Task 6 complete (deploy script created)
 
 **Implementation Steps:**
 
-1. Create example parameter files with placeholder values:
-   - Use "YOUR_API_KEY_HERE" for API keys
-   - Use "arn:aws:lambda:REGION:ACCOUNT:layer:ffmpeg:VERSION" for layer ARN
-   - Use "float-cust-data-staging-ACCOUNT_ID" for bucket names
-   - Include all parameters defined in template
-   - Include comments explaining each parameter
-
-2. **SECURITY CHECKPOINT - Verify .gitignore before creating real parameter file:**
-
-   ```bash
-   # Test that .gitignore works BEFORE adding real secrets
-   cd infrastructure/parameters/
-
-   # Create test file with fake secret
-   echo '{"test": "secret"}' > test-secret.json
-
-   # Check git status
-   git status
-
-   # EXPECTED: test-secret.json should NOT appear in output
-   # If it appears in "Untracked files", STOP - .gitignore is broken
-
-   # Also verify example files ARE tracked
-   git status staging-example.json
-   # EXPECTED: Should show as tracked or staged
-
-   # Clean up test file
-   rm test-secret.json
-
-   # If .gitignore test fails, go back to Task 1 and fix .gitignore
-   # DO NOT PROCEED until .gitignore works correctly
-   ```
-
-3. Create actual staging.json with real values **ONLY after .gitignore verified:**
-   - Copy staging-example.json: `cp staging-example.json staging.json`
-   - Replace placeholder values with real API keys
-   - **IMMEDIATELY verify not tracked:** `git status` (should not list staging.json)
-   - Fill in real FFmpeg layer ARN (from Phase-0 ADR-9 setup)
-   - Fill in real bucket names (with -staging suffix and account ID)
-   - Set environment name: "staging"
-
-4. **Double-check security:**
-   ```bash
-   # Verify staging.json is ignored
-   git status
-   git ls-files | grep staging.json
-   # Should return nothing
-
-   # Verify example files are tracked
-   git ls-files | grep example.json
-   # Should show staging-example.json and production-example.json
-   ```
-
-5. Document parameter file format in infrastructure/README.md
-
-**Architecture Guidance:**
-- Parameter file format follows AWS CLI parameter override syntax
-- Example files serve as documentation and templates
-- Keep production parameter file creation for actual production deployment
-- Never commit files with real API keys
-
-**Parameter File Format:**
-```json
-[
-  {
-    "ParameterKey": "Environment",
-    "ParameterValue": "staging"
-  },
-  {
-    "ParameterKey": "GoogleGeminiApiKey",
-    "ParameterValue": "actual-api-key-here"
-  }
-]
-```
+1. Refactor deploy.sh to extract testable functions into `deploy-helpers.sh`:
+   - `generate_samconfig_toml()` - Generate samconfig content from config
+   - `generate_env_file()` - Generate .env content from stack outputs
+   - `parse_deploy_config()` - Parse .deploy-config.json
+   - `validate_api_key_format()` - Basic API key validation
+2. Create test fixtures in `tests/fixtures/`:
+   - `sample-deploy-config.json` - Example configuration
+   - `sample-stack-outputs.json` - Mock CloudFormation outputs
+3. Create Python tests that:
+   - Mock subprocess calls to bash functions
+   - Test samconfig.toml generation with various inputs
+   - Test .env generation from mock outputs
+   - Test config validation logic
+   - Test error handling for missing required values
+4. Add test to verify gitignore prevents committing secrets:
+   - Create temporary samconfig.toml
+   - Run `git check-ignore`
+   - Verify file is ignored
+5. Create bash test harness if needed for shell-specific testing
 
 **Verification Checklist:**
-- [x] Example parameter files exist and are tracked by git
-- [x] .gitignore test passed (test-secret.json was ignored)
-- [ ] staging.json exists with real values
-- [ ] staging.json is git-ignored (`git status` does not list it)
-- [ ] staging.json is NOT in git index (`git ls-files | grep staging.json` returns nothing)
-- [x] All template parameters have corresponding entries in parameter files
-- [x] Example files have clear placeholder values (not real secrets)
-- [x] README.md documents parameter file usage
+- [ ] Helper functions extracted from deploy.sh
+- [ ] Test fixtures created for configuration
+- [ ] Python tests cover configuration parsing
+- [ ] Tests verify samconfig.toml generation
+- [ ] Tests verify .env file generation
+- [ ] Tests verify gitignore rules work
+- [ ] All tests pass without AWS credentials
+- [ ] Tests can run in CI environment
 
 **Testing Instructions:**
-- Run `git status` and verify staging.json is not listed
-- Run `git ls-files | grep staging.json` and verify it returns nothing
-- Run `git status` and verify example files are listed
-- Validate parameter files match template parameter names
-- Ensure parameter file JSON is valid
+- Run tests: `pytest backend/tests/unit/test_deploy_helpers.py -v`
+- Verify no AWS calls made: `AWS_ACCESS_KEY_ID= pytest ...` (should still pass)
+- Check coverage: `pytest --cov=backend/scripts --cov-report=term-missing`
+- Run in CI-like environment:
+  ```bash
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  pytest backend/tests/unit/test_deploy_helpers.py
+  ```
 
 **Commit Message Template:**
 ```
-feat(infrastructure): create environment parameter files
+test(deploy): add unit tests for deployment script logic
 
-- Add staging-example.json with placeholder values
-- Add production-example.json with placeholder values
-- Create staging.json with actual values (git-ignored)
-- Document parameter file format in README
-- Verify .gitignore protects sensitive files
+- Extract testable helper functions
+- Create test fixtures for configuration
+- Test samconfig.toml generation
+- Test .env file generation
+- Test gitignore rules for secrets
+- Enable CI verification without AWS
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
-
-**Estimated Tokens:** ~2,500
 
 ---
 
-### Task 7: Create Deployment Scripts
+### Task 12: Update CI Configuration
 
-**Goal:** Create automated deployment scripts for staging and production environments.
+**Goal**: Update GitHub Actions workflow to work with new backend structure and run tests without AWS credentials.
 
-**Files to Create:**
-- `infrastructure/scripts/deploy-staging.sh`
-- `infrastructure/scripts/deploy-production.sh`
-- `infrastructure/scripts/validate-template.sh`
+**Files to Modify:**
+- `.github/workflows/backend-tests.yml`
 
 **Prerequisites:**
-- Task 6 complete
-- SAM CLI available in environment
-- AWS CLI configured
+- Task 11 complete (deployment tests created)
+- All tool configs migrated (Tasks 2-3)
 
 **Implementation Steps:**
 
-1. Create validate-template.sh:
-   - Run `sam validate` with template path
-   - Exit with error if validation fails
-   - Print success message if validation passes
-2. Create deploy-staging.sh:
-   - Check AWS credentials are configured
-   - Run validate-template.sh first
-   - Run `sam build` to package backend code
-   - Run `sam deploy` with staging parameter file
-   - Use guided mode first time (--guided)
-   - Use stack name: float-meditation-staging
-   - Set capabilities: CAPABILITY_IAM (for role creation)
-   - Print deployment status and API endpoint
-3. Create deploy-production.sh:
-   - Similar to staging script but with production parameters
-   - Add extra confirmation prompt (safety check)
-   - Use stack name: float-meditation-production
-   - Print change set for review before applying
-4. Make all scripts executable (chmod +x)
-5. Add error handling and helpful error messages
-
-**Architecture Guidance:**
-- Scripts should fail fast on errors (set -e)
-- Provide clear output at each step
-- Include AWS region checks (ensure deploying to correct region)
-- Production script should be extra cautious with confirmations
-
-**Script Structure Example:**
-```bash
-#!/bin/bash
-set -e  # Exit on error
-
-echo "Validating SAM template..."
-# validation logic
-
-echo "Building Lambda package..."
-# sam build
-
-echo "Deploying to staging..."
-# sam deploy
-
-echo "Deployment complete!"
-# print outputs
-```
+1. Review existing CI workflow at `.github/workflows/backend-tests.yml`
+2. Update Python version in all setup-python actions:
+   - Change from `python-version: '3.12'` to `python-version: '3.13'`
+   - Update in all job steps (currently lines 24, 60, 94, 136)
+3. Update dependency installation:
+   - Replace all `pip install -e ".[dev]"` with `pip install -r requirements.txt -r requirements-dev.txt`
+   - Remove all `-e` flags (editable install no longer needed)
+   - Update in all job steps (currently lines 33, 69, 102, 145)
+4. Update Python setup paths:
+   - Change to backend/ directory for Python work
+   - Update requirements.txt path
+   - Update pytest paths
+3. Add linting steps:
+   - Install ruff
+   - Run `ruff check backend/src backend/tests`
+4. Update test steps:
+   - Install test dependencies (pytest, pytest-mock, pytest-cov, moto)
+   - Run unit tests: `pytest backend/tests/unit -v --cov=backend/src`
+   - Run integration tests: `pytest backend/tests/integration -v` (mocked AWS)
+   - Ensure no AWS credentials needed
+5. Add deployment script validation:
+   - Run shellcheck on scripts: `shellcheck backend/scripts/*.sh`
+   - Run deployment helper tests
+6. Remove any steps that require live AWS resources
+7. Ensure frontend tests still run (separate job if needed)
+8. Add status badge to README
 
 **Verification Checklist:**
-- [x] All three scripts created and executable
-- [x] Scripts include error handling
-- [x] validate-template.sh successfully validates template
-- [x] Scripts use correct parameter file paths
-- [x] Production script includes safety confirmation
-- [x] Scripts print helpful output messages
+- [ ] File path correct: `.github/workflows/backend-tests.yml`
+- [ ] Python version updated to 3.13 in ALL setup-python actions
+- [ ] All `pip install -e ".[dev]"` replaced with `pip install -r requirements.txt -r requirements-dev.txt`
+- [ ] No `-e` flags remain in workflow
+- [ ] CI runs without AWS credentials
+- [ ] Linting runs on backend code
+- [ ] Unit tests run and pass
+- [ ] Integration tests run with mocked AWS
+- [ ] Deployment script tests run
+- [ ] Frontend tests still run (if applicable)
+- [ ] No live resource creation
+- [ ] CI completes in < 5 minutes
+- [ ] Failed tests show clear error messages
 
 **Testing Instructions:**
-- Run `./infrastructure/scripts/validate-template.sh` successfully
-- Verify scripts are executable (`ls -l infrastructure/scripts/`)
-- Review script error handling by testing with invalid inputs
-- Dry-run scripts if possible (without actual deployment)
+- Create test PR to trigger CI
+- Verify workflow runs without errors
+- Check that all test steps pass
+- Verify no AWS credential errors
+- Test with intentional failures:
+  - Break a unit test, verify CI catches it
+  - Break linting, verify CI catches it
+  - Fix and verify CI passes
 
 **Commit Message Template:**
 ```
-feat(infrastructure): create deployment automation scripts
+ci: update workflow for new backend structure
 
-- Add validate-template.sh for template validation
-- Add deploy-staging.sh for staging deployments
-- Add deploy-production.sh with safety confirmations
-- Include error handling and clear output messages
-- Make all scripts executable
+- Update Python version from 3.12 to 3.13
+- Replace pip install -e with requirements files
+- Use requirements.txt and requirements-dev.txt
+- Update paths for backend/ directory
+- Add ruff linting step
+- Run unit and integration tests without AWS
+- Add deployment script validation
+- Verify secrets gitignored correctly
+- Remove live resource dependencies
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 ```
 
-**Estimated Tokens:** ~3,000
-
 ---
 
-### Task 8: Deploy to Staging Environment (Skipped by User Instruction)
+### Task 13: Clean Up Infrastructure Directory
 
-**Goal:** Execute first deployment to staging environment and validate all resources are created correctly.
+**Goal**: Remove the old infrastructure/ directory now that all files are migrated to backend/.
 
-**Status:** Skipped - Deployment handled by user manually.
-
-**Verification Checklist:**
-- [x] Task skipped by user instruction.
-
----
-
-### Task 9: Verify Lambda Function with Mocks
-
-**Goal:** Verify the Lambda function logic locally using mocks for AWS services and external APIs.
-
-**Files to Create:**
-- `infrastructure/test-requests/summary-request.json` - Test summary request
-- `infrastructure/test-requests/meditation-request.json` - Test meditation request
-- `infrastructure/scripts/verify-local.py` - Local verification script
+**Files to Delete:**
+- `infrastructure/` (entire directory)
 
 **Prerequisites:**
-- Task 7 complete
-- Understanding of Lambda request/response format
+- Tasks 1-12 complete (all migration done)
+- Deployment tested and working from backend/
 
 **Implementation Steps:**
 
-1. Create test request files:
-   - summary-request.json: Valid summary request payload
-   - meditation-request.json: Valid meditation request payload
-2. Create local verification script (`infrastructure/scripts/verify-local.py`):
-   - Mock environment variables
-   - Mock `boto3` client (S3)
-   - Mock AI services (`GeminiAIService`)
-   - Patch `lambda_handler` dependencies
-   - Invoke `lambda_handler` with test event
-   - Verify response structure and status code
-3. Run verification script:
-   - `python3 infrastructure/scripts/verify-local.py`
+1. Verify all necessary files have been migrated:
+   - template.yaml in backend/ ✓
+   - Scripts rewritten in backend/scripts/ ✓
+   - samconfig.toml will be generated (don't need old one) ✓
+   - test-requests in backend/ ✓
+2. Create backup of infrastructure/ directory (just in case):
+   - `cp -r infrastructure/ infrastructure-backup/`
+   - Add to .gitignore temporarily
+3. Remove infrastructure/ directory:
+   - `git rm -r infrastructure/`
+4. Update any documentation that references infrastructure/:
+   - Update README.md
+   - Update docs/ files that reference old paths
+5. Test deployment still works after deletion:
+   - Run `npm run deploy` from backend/
+   - Verify success
+6. Remove backup after successful deployment
 
 **Verification Checklist:**
-- [x] Test request files created
-- [x] Local verification script created and passes
-- [x] Lambda handler successfully processes request with mocks
-- [x] Response structure matches expected API contract
+- [ ] Backup created (infrastructure-backup/)
+- [ ] infrastructure/ directory deleted
+- [ ] Git shows directory removal
+- [ ] No broken references in documentation
+- [ ] Deployment works from backend/
+- [ ] All tests still pass
+- [ ] No orphaned files remain
 
 **Testing Instructions:**
-- Run `python3 infrastructure/scripts/verify-local.py`
+- Before deletion:
+  - Create backup: `cp -r infrastructure/ infrastructure-backup/`
+  - Document current state: `ls -R infrastructure/ > infrastructure-manifest.txt`
+- After deletion:
+  - Full deployment test: `cd backend && npm run deploy`
+  - Run test suite: `pytest backend/tests/`
+  - Check documentation links
+- If successful, remove backup:
+  - `rm -rf infrastructure-backup/`
 
-**Estimated Tokens:** ~4,000
+**Commit Message Template:**
+```
+refactor: remove infrastructure directory
+
+- Delete infrastructure/ directory
+- All files migrated to backend/
+- Update documentation references
+- Simplify repository structure
+- Complete deployment consolidation
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
+
+---
+
+### Task 14: Update Documentation
+
+**Goal**: Update project documentation to reflect new deployment structure and commands.
+
+**Files to Modify/Delete:**
+- `README.md` - Update
+- `docs/DEVELOPMENT.md` - Update
+- `docs/infrastructure-deploy.md` - DELETE
+- `docs/infrastructure-deployment.md` - DELETE
+- `docs/infrastructure-deployment-status.md` - DELETE
+- `docs/infrastructure-readme.md` - DELETE
+- `docs/QUICK_REFERENCE.md` - Update
+- `backend/README.md` - Create
+- `docs/DEPLOYMENT.md` - Create
+
+**Prerequisites:**
+- Task 13 complete (infrastructure cleaned up)
+
+**Implementation Steps:**
+
+1. Update root README.md:
+   - Update deployment instructions to use `cd backend && npm run deploy`
+   - Remove references to infrastructure/ directory
+   - Add quick start section with new commands
+   - Update architecture diagram if present
+2. Update docs/DEVELOPMENT.md:
+   - Document new backend structure
+   - Update setup instructions
+   - Document npm scripts (deploy, validate, logs)
+   - Add troubleshooting for common issues
+3. Delete ALL infrastructure-related docs (all outdated):
+   - Delete `docs/infrastructure-deploy.md`
+   - Delete `docs/infrastructure-deployment.md`
+   - Delete `docs/infrastructure-deployment-status.md`
+   - Delete `docs/infrastructure-readme.md`
+   - Create new `docs/DEPLOYMENT.md` with simplified deployment guide
+4. Update docs/QUICK_REFERENCE.md:
+   - Add deployment commands
+   - Document environment variables
+   - Document secrets management
+5. Create backend/README.md:
+   - Overview of backend structure
+   - Development setup
+   - Available npm scripts
+   - Testing instructions
+   - Deployment process
+6. Verify all internal links still work
+
+**Verification Checklist:**
+- [ ] README.md updated with new deployment commands
+- [ ] ALL infrastructure docs deleted (4 files):
+  - [ ] infrastructure-deploy.md
+  - [ ] infrastructure-deployment.md
+  - [ ] infrastructure-deployment-status.md
+  - [ ] infrastructure-readme.md
+- [ ] New DEPLOYMENT.md created
+- [ ] QUICK_REFERENCE.md updated
+- [ ] backend/README.md created
+- [ ] All documentation links verified
+- [ ] No references to old infrastructure/ directory
+- [ ] Examples use current structure
+
+**Testing Instructions:**
+- Read through each updated doc
+- Follow quick start instructions from scratch
+- Verify commands work as documented
+- Check all links (relative and absolute)
+- Have another developer review for clarity
+
+**Commit Message Template:**
+```
+docs: update for simplified deployment structure
+
+- Update README with new deployment commands
+- Delete all 4 infrastructure-related docs
+- Create comprehensive DEPLOYMENT.md
+- Add backend/README.md with structure overview
+- Update QUICK_REFERENCE with current commands
+- Fix all documentation links
+
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+```
 
 ---
 
 ## Phase Verification
 
-### Complete Phase Verification Checklist
+### Complete Phase Test
 
-- [x] Tasks 1-7 completed successfully
-- [x] Task 8 skipped (deployment handled by user)
-- [x] Task 9 (Local Verification) completed successfully
-- [x] SAM template validates without errors
-- [x] Deployment scripts created and validated
-- [x] Environment variables configured in template
-- [x] Local Lambda execution verified with mocks
+After all tasks are complete, perform this end-to-end verification:
 
-### Integration Points to Test
+1. **Clean Slate Test**:
+   ```bash
+   # Start from fresh clone
+   git clone <repo> float-test
+   cd float-test/backend
 
-1. **Lambda ↔ API Gateway:**
-   - POST request to API endpoint successfully invokes Lambda
-   - Response returns with correct status code and headers
-   - CORS headers allow frontend access
+   # Should prompt for all config
+   npm run deploy
 
-2. **Lambda ↔ S3:**
-   - Lambda can write files to both S3 buckets
-   - Files created with correct paths and naming
-   - Bucket permissions allow Lambda access
+   # Verify deployment
+   aws cloudformation describe-stacks --stack-name <stack>
 
-3. **Lambda ↔ External APIs:**
-   - Google Gemini API calls succeed (or fail gracefully with clear errors)
-   - OpenAI TTS API calls succeed (or fail gracefully)
-   - API keys configured correctly
+   # Verify frontend .env created
+   cat ../frontend/.env
 
-4. **Lambda ↔ FFmpeg Layer:**
-   - FFmpeg binary accessible at /opt/bin/ffmpeg
-   - Audio processing works without errors
-   - Layer version compatible with Lambda runtime
+   # Test subsequent deployment (no prompts)
+   npm run deploy
 
-### Known Limitations or Technical Debt
+   # Clean up
+   aws cloudformation delete-stack --stack-name <stack>
+   ```
 
-1. **Production Deployment:**
-   - Production environment not yet deployed (will be done in Phase 6)
-   - Production parameter file needs to be created with real values
+2. **Test Suite Verification**:
+   ```bash
+   # All tests pass without AWS credentials
+   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+   pytest backend/tests/ -v
 
-2. **Monitoring and Alerting:**
-   - No CloudWatch alarms configured yet
-   - No dashboard for monitoring Lambda metrics
-   - Consider adding in future enhancement
+   # Linting passes
+   ruff check backend/src backend/tests
 
-3. **Cost Optimization:**
-   - No S3 lifecycle policies configured yet
-   - Consider adding expiration rules for old meditation files
-   - Monitor Lambda costs with current 4GB memory allocation
+   # Type checking runs
+   mypy backend/src
+   ```
 
-4. **Security Enhancements:**
-   - API Gateway is public (no authentication required)
-   - Consider adding API keys or AWS WAF in future
-   - Production should use AWS Secrets Manager for API keys (future enhancement)
+3. **CI Verification**:
+   - Create PR with all changes
+   - Verify CI runs without AWS credentials
+   - All checks pass
+   - No secret leakage warnings
 
-5. **CI/CD Integration:**
-   - Deployments currently manual via scripts
-   - GitHub Actions integration will be added in Phase 6
+4. **Documentation Verification**:
+   - New developer can follow README to deploy
+   - All commands work as documented
+   - No broken links in docs
 
----
+### Success Criteria
 
-## Phase Complete
+- [ ] `npm run deploy` works end-to-end from backend/
+- [ ] Secrets never committed (verified with `git log --all --full-history --source`)
+- [ ] All tests pass without AWS credentials
+- [ ] CI pipeline green without AWS credentials
+- [ ] Frontend .env auto-generated correctly
+- [ ] infrastructure/ directory removed
+- [ ] Documentation updated and accurate
+- [ ] Clean git history with conventional commits
+- [ ] No Makefile used for SAM builds
+- [ ] pyproject.toml removed entirely
 
-Once all tasks are complete and verification checks pass, this phase is finished. Commit all changes and push to the feature branch.
+### Integration Points
 
-**Final Commit:**
-```
-feat(infrastructure): complete SAM infrastructure setup
+This phase integrates with:
+- **Frontend**: Receives .env file from deployment
+- **CI/CD**: Runs tests without live AWS
+- **AWS**: Deploys via SAM to CloudFormation
+- **Developer Workflow**: Single command deployment
 
-- Full SAM template with Lambda, S3, API Gateway, IAM resources
-- Environment parameter files for staging and production
-- Automated deployment scripts with validation
-- Successful staging deployment verified
-- End-to-end testing confirms functionality
-- Infrastructure documentation complete
+### Known Limitations
 
-This completes Phase 1 of the SAM deployment automation project.
-```
+- **Single Region**: Default FFmpeg layer is us-east-1 only
+- **Single Environment**: No staging/production separation (use stack names or accounts)
+- **Local Secrets**: Secrets stored locally, not in AWS Secrets Manager
+- **Manual Teardown**: Stack deletion via AWS Console or CLI (no automated script)
+- **API Key Rotation**: Requires manual update in `.deploy-config.json`
 
-**Next Phase:** [Phase 2: Backend Test Improvements - Core Coverage](Phase-2.md)
+### Post-Phase Cleanup
+
+After successful verification:
+
+1. Remove infrastructure-backup/ if created
+2. Tag release: `git tag v2.0.0-deployment-simplified`
+3. Update project board/issues
+4. Announce changes to team
+5. Archive old deployment documentation
+6. Consider blog post on migration process
+
+## Troubleshooting Guide
+
+### Common Issues
+
+**Issue**: "sam: command not found"
+- **Solution**: Install SAM CLI globally: `brew install aws-sam-cli`
+
+**Issue**: "Invalid distribution name: __init__-0.0.0"
+- **Solution**: Verify pyproject.toml deleted and requirements.txt has no `-e .`
+
+**Issue**: Deployment succeeds but frontend .env not created
+- **Solution**: Check stack outputs exist, verify deploy.sh post-deployment logic
+
+**Issue**: "No module named pip" during sam build
+- **Solution**: Verify BuildMethod metadata removed from template.yaml
+
+**Issue**: samconfig.toml committed to git
+- **Solution**: Add to .gitignore, remove from git: `git rm --cached backend/samconfig.toml`
+
+**Issue**: Tests fail in CI with "AWS credentials required"
+- **Solution**: Ensure tests use moto/mocks, no live AWS SDK calls
+
+**Issue**: Old infrastructure/ scripts being used
+- **Solution**: Clear shell hash: `hash -r`, verify PATH, remove infrastructure-backup/
+
+### Rollback Plan
+
+If deployment fails catastrophically:
+
+1. Restore infrastructure/ from backup
+2. Revert to main branch
+3. Use old deployment method
+4. Debug issue in separate branch
+5. Re-attempt migration with fixes
+
+### Getting Help
+
+- Check Phase-0 ADRs for design rationale
+- Review deployment script specification
+- Examine react-stocks reference implementation
+- Check SAM CLI documentation for errors
+- Review AWS CloudFormation console for stack issues
