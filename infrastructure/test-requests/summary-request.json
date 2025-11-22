@@ -1,6 +1,29 @@
 {
-  "type": "summary",
-  "user_id": "test-user-staging",
-  "prompt": "I had a peaceful day today. I spent time in nature and felt very calm.",
-  "audio": "NotAvailable"
+  "routeKey": "POST /meditation",
+  "rawPath": "/meditation",
+  "rawQueryString": "",
+  "headers": {
+    "content-type": "application/json",
+    "user-agent": "PostmanRuntime/7.26.8",
+    "accept": "*/*",
+    "host": "api-id.execute-api.us-east-1.amazonaws.com"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "api-id",
+    "http": {
+      "method": "POST",
+      "path": "/meditation",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "1.2.3.4",
+      "userAgent": "PostmanRuntime/7.26.8"
+    },
+    "requestId": "id",
+    "routeKey": "POST /meditation",
+    "stage": "api",
+    "time": "12/Mar/2020:19:03:58 +0000",
+    "timeEpoch": 1583348638390
+  },
+  "body": "{\"inference_type\": \"summary\", \"user_id\": \"test-user-staging\", \"prompt\": \"I had a peaceful day.\", \"audio\": \"NotAvailable\"}",
+  "isBase64Encoded": false
 }
