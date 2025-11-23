@@ -153,12 +153,12 @@ const AuthScreen: React.FC = (): React.ReactNode => {
 };
 function useClientId(): string {
   if (Platform.OS === 'web') {
-    return process.env.EXPO_PUBLIC_WEB_CLIENT_ID || '";
+    return process.env.EXPO_PUBLIC_WEB_CLIENT_ID || '';
   }
   if (Platform.OS === 'android') {
-    return process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || '";
+    return process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || '';
   }
-  return '";
+  return '';
 }
 const CustomAuth: React.FC = (): React.ReactNode => {
   const clientId = useClientId();

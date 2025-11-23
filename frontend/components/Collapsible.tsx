@@ -13,7 +13,7 @@ interface CollapsibleProps extends PropsWithChildren {
 }
 function useCollapsibleIconColor(textType: string | undefined, theme: 'light' | 'dark'): string {
   return useMemo(() => {
-    if (textType) return '#fffff2";
+    if (textType) return '#fffff2';
     return theme === 'light' ? Colors.light.icon : Colors.dark.icon;
   }, [textType, theme]);
 }
@@ -25,7 +25,7 @@ export function Collapsible({
   isOpen,
   onToggle,
 }: CollapsibleProps): React.ReactNode {
-  const theme = useColorScheme() ?? 'light";
+  const theme = useColorScheme() ?? 'light';
   const iconColor = useCollapsibleIconColor(textType, theme);
   return (
     <ThemedView style={{ backgroundColor: incidentColor }}>

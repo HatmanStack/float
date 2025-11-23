@@ -95,7 +95,7 @@ function useSummarySubmission(
             response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
           }
           console.log('Response from summary lambda:', response);
-          setIncidentList((prevList) => [response, ...prevList]);
+          setIncidentList((prevList: any[]) => [response, ...prevList]);
           onSubmitSuccess();
         } catch (error) {
           console.error('Failed to call summary lambda:', error);

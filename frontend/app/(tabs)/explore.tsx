@@ -21,7 +21,7 @@ function useIncidentSelection() {
       console.log('handlePress', index);
       setSelectedIndexes((prevIndexes) => {
         if (prevIndexes.includes(index)) {
-          return prevIndexes.filter((i) => i !== index);
+          return prevIndexes.filter((i: number) => i !== index);
         }
         if (prevIndexes.length < 4) {
           return [...prevIndexes, index];
@@ -94,7 +94,9 @@ function useIncidentDeletion() {
   }, []);
   useEffect(() => {
     if (asyncDeleteIncident !== null) {
-      setIncidentList((prevIncidents) => prevIncidents.filter((_, i) => i !== asyncDeleteIncident));
+      setIncidentList((prevIncidents: any[]) =>
+        prevIncidents.filter((_: any, i: number) => i !== asyncDeleteIncident)
+      );
       if (Platform.OS !== 'web' && incidentList[asyncDeleteIncident]?.notificationId) {
         cancelScheduledNotification(
           (incidentList[asyncDeleteIncident].notificationId ?? '') as string
@@ -153,7 +155,7 @@ export default function TabTwoScreen(): React.ReactNode {
           <ThemedText type="title">Discovery</ThemedText>
         </ThemedView>
         <Guidance />
-        {incidentList.map((incident, index) => {
+        {incidentList.map((incident: any, index: number) => {
           if (!incident) {
             handleDeleteIncident(index);
             return null;
