@@ -46,11 +46,11 @@ Migrate the Float meditation app from complex multi-script infrastructure to a s
 5. Test gitignore rules using `git check-ignore -v` to confirm patterns match
 
 **Verification Checklist:**
-- [ ] `backend/.gitignore` contains `samconfig.toml`
-- [ ] `backend/.gitignore` contains `.deploy-config.json`
-- [ ] `backend/.gitignore` contains `.aws-sam/`
-- [ ] Git status shows these files as ignored when created
-- [ ] Existing Python patterns still work
+- [x] `backend/.gitignore` contains `samconfig.toml`
+- [x] `backend/.gitignore` contains `.deploy-config.json`
+- [x] `backend/.gitignore` contains `.aws-sam/`
+- [x] Git status shows these files as ignored when created
+- [x] Existing Python patterns still work
 
 **Testing Instructions:**
 - Create dummy `backend/samconfig.toml` file
@@ -113,14 +113,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    - Run `pytest --cov` to verify coverage config
 
 **Verification Checklist:**
-- [ ] `pytest.ini` exists with correct test paths
-- [ ] `ruff.toml` exists with Python 3.13 target
-- [ ] `mypy.ini` exists with Python 3.13 setting
-- [ ] `.coveragerc` exists with source and omit patterns
-- [ ] `pytest --collect-only` succeeds
-- [ ] `ruff check src/` succeeds
-- [ ] `mypy src/` runs (errors OK, but config loads)
-- [ ] Coverage runs with correct settings
+- [x] `pytest.ini` exists with correct test paths
+- [x] `ruff.toml` exists with Python 3.13 target
+- [x] `mypy.ini` exists with Python 3.13 setting
+- [x] `.coveragerc` exists with source and omit patterns
+- [x] `pytest --collect-only` succeeds
+- [x] `ruff check src/` succeeds
+- [x] `mypy src/` runs (errors OK, but config loads)
+- [x] Coverage runs with correct settings
 
 **Testing Instructions:**
 - Run pytest collection: `cd backend && pytest --collect-only`
@@ -191,14 +191,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    ```
 
 **Verification Checklist:**
-- [ ] `requirements-dev.txt` created with all dev dependencies
-- [ ] All dependencies have version pins (>=)
-- [ ] File includes pytest, pytest-mock, pytest-cov, moto
-- [ ] File includes ruff, black, mypy, types packages
-- [ ] Clean install succeeds: `pip install -r requirements-dev.txt`
-- [ ] All dev tools execute: pytest, ruff, mypy, black
-- [ ] Test suite runs successfully
-- [ ] No missing dependency errors
+- [x] `requirements-dev.txt` created with all dev dependencies
+- [x] All dependencies have version pins (>=)
+- [x] File includes pytest, pytest-mock, pytest-cov, moto
+- [x] File includes ruff, black, mypy, types packages
+- [x] Clean install succeeds: `pip install -r requirements-dev.txt`
+- [x] All dev tools execute: pytest, ruff, mypy, black
+- [x] Test suite runs successfully
+- [x] No missing dependency errors
 
 **Testing Instructions:**
 - Create isolated environment:
@@ -269,15 +269,15 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Update any documentation that references pyproject.toml
 
 **Verification Checklist:**
-- [ ] `pyproject.toml` does not exist
-- [ ] `requirements.txt` has no `-e .` line
-- [ ] All dependencies in requirements.txt have version pins
-- [ ] `requirements-dev.txt` exists with dev dependencies
-- [ ] CI can install deps: `pip install -r requirements.txt -r requirements-dev.txt`
-- [ ] `sam build` completes without errors (test in safe directory)
-- [ ] `pytest` runs using pytest.ini
-- [ ] `ruff check` runs using ruff.toml
-- [ ] `mypy` runs using mypy.ini
+- [x] `pyproject.toml` does not exist
+- [x] `requirements.txt` has no `-e .` line
+- [x] All dependencies in requirements.txt have version pins
+- [x] `requirements-dev.txt` exists with dev dependencies
+- [x] CI can install deps: `pip install -r requirements.txt -r requirements-dev.txt`
+- [x] `sam build` completes without errors (test in safe directory)
+- [x] `pytest` runs using pytest.ini
+- [x] `ruff check` runs using ruff.toml
+- [x] `mypy` runs using mypy.ini
 
 **Testing Instructions:**
 - Create test SAM build:
@@ -340,12 +340,12 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 7. Keep infrastructure/ directory for now (will clean up in final task)
 
 **Verification Checklist:**
-- [ ] `backend/template.yaml` exists
-- [ ] `backend/test-requests/` directory exists with JSON files
-- [ ] `backend/scripts/` directory exists (may be empty)
-- [ ] Template CodeUri updated to `.` (current directory)
-- [ ] `sam validate` succeeds on new template location
-- [ ] Infrastructure directory still exists (not deleted yet)
+- [x] `backend/template.yaml` exists
+- [x] `backend/test-requests/` directory exists with JSON files
+- [x] `backend/scripts/` directory exists (may be empty)
+- [x] Template CodeUri updated to `.` (current directory)
+- [x] `sam validate` succeeds on new template location
+- [x] Infrastructure directory still exists (not deleted yet)
 
 **Testing Instructions:**
 - Validate template: `sam validate --template backend/template.yaml --lint`
@@ -403,13 +403,13 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 7. Validate template after changes
 
 **Verification Checklist:**
-- [ ] No `Environment` parameter exists
-- [ ] FFmpegLayerArn has default value
-- [ ] Function name is `float-meditation` (no variable)
-- [ ] No BuildMethod metadata on function
-- [ ] All parameters have descriptions
-- [ ] Template validates successfully
-- [ ] Outputs section has all needed values (API URL, bucket, function ARN)
+- [x] No `Environment` parameter exists
+- [x] FFmpegLayerArn has default value
+- [x] Function name is `float-meditation` (no variable)
+- [x] No BuildMethod metadata on function
+- [x] All parameters have descriptions
+- [x] Template validates successfully
+- [x] Outputs section has all needed values (API URL, bucket, function ARN)
 
 **Testing Instructions:**
 - Validate template: `sam validate --template backend/template.yaml --lint`
@@ -494,15 +494,15 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    - Clean up partial state on failure
 
 **Verification Checklist:**
-- [ ] Script is executable (`chmod +x`)
-- [ ] Pre-flight checks verify AWS and SAM CLI
-- [ ] Interactive prompts work with defaults
-- [ ] `.deploy-config.json` is created with correct structure
-- [ ] `samconfig.toml` is generated with proper format
-- [ ] `sam build` executes successfully
-- [ ] `sam deploy` executes successfully
-- [ ] Frontend `.env` file is generated
-- [ ] Script handles errors gracefully
+- [x] Script is executable (`chmod +x`)
+- [x] Pre-flight checks verify AWS and SAM CLI
+- [x] Interactive prompts work with defaults
+- [x] `.deploy-config.json` is created with correct structure
+- [x] `samconfig.toml` is generated with proper format
+- [x] `sam build` executes successfully
+- [x] `sam deploy` executes successfully
+- [x] Frontend `.env` file is generated
+- [x] Script handles errors gracefully
 
 **Testing Instructions:**
 
@@ -573,11 +573,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Make script executable
 
 **Verification Checklist:**
-- [ ] Script is executable
-- [ ] Validates template.yaml successfully
-- [ ] Shows clear error messages on validation failure
-- [ ] Exits with appropriate exit codes (0=success, 1=failure)
-- [ ] Can be run from backend/ directory
+- [x] Script is executable
+- [x] Validates template.yaml successfully
+- [x] Shows clear error messages on validation failure
+- [x] Exits with appropriate exit codes (0=success, 1=failure)
+- [x] Can be run from backend/ directory
 
 **Testing Instructions:**
 - Run on valid template: `cd backend && ./scripts/validate.sh`
@@ -632,12 +632,12 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Make script executable
 
 **Verification Checklist:**
-- [ ] Script is executable
-- [ ] Reads configuration correctly
-- [ ] Determines function name correctly
-- [ ] Streams logs from CloudWatch
-- [ ] Handles missing deployment gracefully
-- [ ] Can accept optional time filter (--since 1h)
+- [x] Script is executable
+- [x] Reads configuration correctly
+- [x] Determines function name correctly
+- [x] Streams logs from CloudWatch
+- [x] Handles missing deployment gracefully
+- [x] Can accept optional time filter (--since 1h)
 
 **Testing Instructions:**
 - Test with deployed stack:
@@ -696,15 +696,15 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Test npm scripts work from backend/ directory
 
 **Verification Checklist:**
-- [ ] `package.json` exists in backend/
-- [ ] "deploy" script points to deploy.sh
-- [ ] "validate" script points to validate.sh
-- [ ] "logs" script points to logs.sh
-- [ ] "build" script runs sam build
-- [ ] All script files are executable
-- [ ] `npm run deploy` works from backend/
-- [ ] `npm run validate` works from backend/
-- [ ] `npm run logs` works from backend/
+- [x] `package.json` exists in backend/
+- [x] "deploy" script points to deploy.sh
+- [x] "validate" script points to validate.sh
+- [x] "logs" script points to logs.sh
+- [x] "build" script runs sam build
+- [x] All script files are executable
+- [x] `npm run deploy` works from backend/
+- [x] `npm run validate` works from backend/
+- [x] `npm run logs` works from backend/
 
 **Testing Instructions:**
 - From backend/ directory:
@@ -761,14 +761,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Verify remaining targets still work
 
 **Verification Checklist:**
-- [ ] `build-FloatMeditationFunction` target removed
-- [ ] Development targets remain (test, lint, format, type-check)
-- [ ] .PHONY updated correctly
-- [ ] `make test` runs pytest
-- [ ] `make lint` runs ruff
-- [ ] `make type-check` runs mypy
-- [ ] `make quality` runs all checks
-- [ ] Help text updated
+- [x] `build-FloatMeditationFunction` target removed
+- [x] Development targets remain (test, lint, format, type-check)
+- [x] .PHONY updated correctly
+- [x] `make test` runs pytest
+- [x] `make lint` runs ruff
+- [x] `make type-check` runs mypy
+- [x] `make quality` runs all checks
+- [x] Help text updated
 
 **Testing Instructions:**
 - Run each make target:
@@ -832,14 +832,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Create bash test harness if needed for shell-specific testing
 
 **Verification Checklist:**
-- [ ] Helper functions extracted from deploy.sh
-- [ ] Test fixtures created for configuration
-- [ ] Python tests cover configuration parsing
-- [ ] Tests verify samconfig.toml generation
-- [ ] Tests verify .env file generation
-- [ ] Tests verify gitignore rules work
-- [ ] All tests pass without AWS credentials
-- [ ] Tests can run in CI environment
+- [x] Helper functions extracted from deploy.sh
+- [x] Test fixtures created for configuration
+- [x] Python tests cover configuration parsing
+- [x] Tests verify samconfig.toml generation
+- [x] Tests verify .env file generation
+- [x] Tests verify gitignore rules work
+- [x] All tests pass without AWS credentials
+- [x] Tests can run in CI environment
 
 **Testing Instructions:**
 - Run tests: `pytest backend/tests/unit/test_deploy_helpers.py -v`
@@ -909,19 +909,19 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 8. Add status badge to README
 
 **Verification Checklist:**
-- [ ] File path correct: `.github/workflows/backend-tests.yml`
-- [ ] Python version updated to 3.13 in ALL setup-python actions
-- [ ] All `pip install -e ".[dev]"` replaced with `pip install -r requirements.txt -r requirements-dev.txt`
-- [ ] No `-e` flags remain in workflow
-- [ ] CI runs without AWS credentials
-- [ ] Linting runs on backend code
-- [ ] Unit tests run and pass
-- [ ] Integration tests run with mocked AWS
-- [ ] Deployment script tests run
-- [ ] Frontend tests still run (if applicable)
-- [ ] No live resource creation
-- [ ] CI completes in < 5 minutes
-- [ ] Failed tests show clear error messages
+- [x] File path correct: `.github/workflows/backend-tests.yml`
+- [x] Python version updated to 3.13 in ALL setup-python actions
+- [x] All `pip install -e ".[dev]"` replaced with `pip install -r requirements.txt -r requirements-dev.txt`
+- [x] No `-e` flags remain in workflow
+- [x] CI runs without AWS credentials
+- [x] Linting runs on backend code
+- [x] Unit tests run and pass
+- [x] Integration tests run with mocked AWS
+- [x] Deployment script tests run
+- [x] Frontend tests still run (if applicable)
+- [x] No live resource creation
+- [x] CI completes in < 5 minutes
+- [x] Failed tests show clear error messages
 
 **Testing Instructions:**
 - Create test PR to trigger CI
@@ -985,13 +985,13 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Remove backup after successful deployment
 
 **Verification Checklist:**
-- [ ] Backup created (infrastructure-backup/)
-- [ ] infrastructure/ directory deleted
-- [ ] Git shows directory removal
-- [ ] No broken references in documentation
-- [ ] Deployment works from backend/
-- [ ] All tests still pass
-- [ ] No orphaned files remain
+- [x] Backup created (infrastructure-backup/)
+- [x] infrastructure/ directory deleted
+- [x] Git shows directory removal
+- [x] No broken references in documentation
+- [x] Deployment works from backend/
+- [x] All tests still pass
+- [x] No orphaned files remain
 
 **Testing Instructions:**
 - Before deletion:
@@ -1069,18 +1069,18 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Verify all internal links still work
 
 **Verification Checklist:**
-- [ ] README.md updated with new deployment commands
-- [ ] ALL infrastructure docs deleted (4 files):
-  - [ ] infrastructure-deploy.md
-  - [ ] infrastructure-deployment.md
-  - [ ] infrastructure-deployment-status.md
-  - [ ] infrastructure-readme.md
-- [ ] New DEPLOYMENT.md created
-- [ ] QUICK_REFERENCE.md updated
-- [ ] backend/README.md created
-- [ ] All documentation links verified
-- [ ] No references to old infrastructure/ directory
-- [ ] Examples use current structure
+- [x] README.md updated with new deployment commands
+- [x] ALL infrastructure docs deleted (4 files):
+  - [x] infrastructure-deploy.md
+  - [x] infrastructure-deployment.md
+  - [x] infrastructure-deployment-status.md
+  - [x] infrastructure-readme.md
+- [x] New DEPLOYMENT.md created
+- [x] QUICK_REFERENCE.md updated
+- [x] backend/README.md created
+- [x] All documentation links verified
+- [x] No references to old infrastructure/ directory
+- [x] Examples use current structure
 
 **Testing Instructions:**
 - Read through each updated doc

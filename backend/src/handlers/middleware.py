@@ -1,6 +1,7 @@
 import functools
 import json
 from typing import Any, Callable, Dict, Optional
+
 from ..config.constants import (
     CORS_HEADERS,
     HTTP_BAD_REQUEST,
@@ -9,6 +10,8 @@ from ..config.constants import (
     HTTP_OK,
 )
 from ..models.responses import ErrorResponse
+
+
 def cors_middleware(handler: Callable[..., Dict[str, Any]]) -> Callable[..., Dict[str, Any]]:
     pass
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

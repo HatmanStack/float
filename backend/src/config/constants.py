@@ -1,5 +1,6 @@
-pass
 from enum import Enum
+
+
 class InferenceType(Enum):
     pass
     SUMMARY = "summary"

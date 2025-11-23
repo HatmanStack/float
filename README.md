@@ -18,7 +18,7 @@
   </a>
   <img src="https://img.shields.io/youtube/views/8hmrio2A5Og">
   <a href="https://www.python.org/">
-  <img src="https://img.shields.io/badge/python->=3.12.1-blue">
+  <img src="https://img.shields.io/badge/python->=3.13-blue">
   </a>
 </h4>
 <p align="center">
@@ -40,7 +40,7 @@ Float is a cross-platform meditation app that generates personalized meditation 
 
 ## Code Quality Standards
 
-Float maintains strict code quality across frontend and backend using automated tools and tests. Detailed standards are documented in configuration files (.eslintrc.json, pyproject.toml, etc.).
+Float maintains strict code quality across frontend and backend using automated tools and tests. Detailed standards are documented in configuration files.
 
 ### Backend (Python)
 
@@ -48,7 +48,7 @@ Float maintains strict code quality across frontend and backend using automated 
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -r requirements.txt -r requirements-dev.txt
 
 # Run all checks
 make quality
@@ -56,7 +56,7 @@ make quality
 
 **Tools**: mypy (type checking), ruff (linting), black (formatting), pytest (testing)
 
-See [backend/QUALITY.md](backend/QUALITY.md) for detailed standards.
+See [backend/README.md](backend/README.md) for details.
 
 ### Frontend (TypeScript/React Native)
 
@@ -98,33 +98,26 @@ See [TESTING.md](TESTING.md) for comprehensive testing guide.
 
 ## Deployment
 
-Float uses AWS SAM (Serverless Application Model) for infrastructure-as-code deployment:
-
-**Environments:**
-- **Staging**: Auto-deploys on merge to main branch
-- **Production**: Manual deployment with approval workflow
+Float uses AWS SAM (Serverless Application Model) for infrastructure-as-code deployment with a simplified, single-environment workflow.
 
 ```bash
-# Deploy to staging (or use GitHub Actions)
-cd infrastructure
-./scripts/deploy-staging.sh
-
-# Deploy to production (requires approval)
-# Use GitHub Actions workflow: "Deploy Backend Production"
+cd backend
+npm run deploy
 ```
 
-See [infrastructure/README.md](infrastructure/README.md) and [infrastructure/DEPLOYMENT.md](infrastructure/DEPLOYMENT.md) for detailed deployment instructions.
+This interactive script handles configuration, building, and deploying to AWS.
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment instructions.
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Node.js** 24+ ([via nvm](https://github.com/nvm-sh/nvm))
-- **Python** 3.12+
+- **Node.js** 24+
+- **Python** 3.13+
 - **Git**
-- **AWS SAM CLI** (for infrastructure deployment)
-- **Docker** (for SAM local testing)
-- API keys: Google Gemini, OpenAI (TTS), AWS credentials
+- **AWS SAM CLI**
+- API keys: Google Gemini, OpenAI (TTS)
 
 ### Setup
 
@@ -138,12 +131,7 @@ npm install
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
-cd ..
-
-# Create .env from .env.example
-cp .env.example .env
-# Edit .env with your API keys
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 ### Development
@@ -183,19 +171,11 @@ cd backend && make quality
 npm run lint && npm run format
 ```
 
-### Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, code standards, and pull request process.
-
 ### Continuous Integration & Deployment
 
 **GitHub Actions Workflows:**
 - **Backend Tests**: Runs unit, integration, and E2E tests with coverage reporting
 - **Frontend Tests**: Runs component, integration tests with coverage reporting
-- **Deploy Backend Staging**: Auto-deploys to AWS on merge to main
-- **Deploy Backend Production**: Manual deployment workflow with approval
-
-All tests must pass before merging. Coverage thresholds enforced: Backend 68%+, Frontend 75%+.
 
 See [docs/CI_CD.md](docs/CI_CD.md) for complete CI/CD documentation.
 

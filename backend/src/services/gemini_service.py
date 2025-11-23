@@ -1,12 +1,15 @@
 import logging
 import pathlib
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 import google.generativeai as genai  # type: ignore
 from google.generativeai.types.safety_types import (  # type: ignore
     HarmCategory,
 )
+
 from ..config.settings import settings
 from .ai_service import AIService
+
 logger = logging.getLogger(__name__)
 class GeminiAIService(AIService):
     pass
@@ -46,7 +49,8 @@ Use all available data to make an informed determination.
 Base your response solely on the provided text.
 Ensure the sentiment label is one of the 7 provided labels.
 The intensity scale should be from 1 to 5.
-Here's the text:passYou are an AI assistant specialized in determining the sentiment and its intensity from provided data.
+Here's the text:"""
+        self.prompt_audio = """You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
 Your task is to analyze the given data, which may include an audio file.
 Use this data to return a sentiment label from the provided labels and a scale from 1 to 5, where 5 indicates the strongest intensity of the emotion indicated by the data.
 Instructions:
@@ -71,7 +75,8 @@ user_short_summary: [A few words to describe the incident]
 Remember:
 Base your response solely on the provided audio file.
 Ensure the sentiment label is one of the 7 provided labels.
-The intensity scale should be from 1 to 5.passYou are an AI assistant specialized in synthesizing sentiment analysis results from both text and audio data.
+The intensity scale should be from 1 to 5."""
+        self.prompt_synthesis = """You are an AI assistant specialized in synthesizing sentiment analysis results from both text and audio data.
 Your task is to combine the sentiment analysis results from two separate data sources: an audio file analysis (which includes a transcribed text and sentiment analysis) and a separate text prompt analysis. Use these results to return a single, unified sentiment label and intensity score.
 Instructions:
 1. Review the two provided sentiment analysis results:
@@ -97,7 +102,8 @@ Remember:
 - Ensure the final sentiment label is one of the 7 provided labels.
 - The intensity scale should be from 1 to 5.
 - The format of your return should be only the json. There should be no additional formatting
-Here are the results from the audio and text prompts for synthesis:passYou are a meditation guide tasked with creating a personalized meditation transcript.
+Here are the results from the audio and text prompts for synthesis:"""
+        self.prompt_meditation = """You are a meditation guide tasked with creating a personalized meditation transcript.
 You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity,
 speech-to-text, added_text, and summary.  Each index of the lists will refer to a different instance that was evaluated.
 Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps
@@ -125,7 +131,12 @@ the user through releasing each identified instance. Ensure the tone is calming 
     - Use tags to create the SSML of the meditation script
         A. Include pauses at relevant intervals using the format: <break time="XXXXms"/>.
 Remember to return only the meditation script.
-Data for meditation transcript:pass
+Data for meditation transcript:"""
+
+    def analyze_sentiment(
+        self, audio_file: str | None = None, user_text: str | None = None
+    ) -> str:
+        """
         Analyze sentiment from audio and/or text input using Gemini.
         Args:
             audio_file: Path to audio file or None if not available

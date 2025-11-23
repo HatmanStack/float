@@ -1,25 +1,24 @@
 """Unit tests for middleware functions."""
 
 import json
+
 import pytest
-from unittest.mock import MagicMock
 
 from src.config.constants import (
     CORS_HEADERS,
-    HTTP_OK,
     HTTP_BAD_REQUEST,
     HTTP_INTERNAL_SERVER_ERROR,
     HTTP_METHOD_NOT_ALLOWED,
+    HTTP_OK,
 )
 from src.handlers.middleware import (
     cors_middleware,
+    create_error_response,
+    create_success_response,
+    error_handling_middleware,
     json_middleware,
     method_validation_middleware,
     request_validation_middleware,
-    error_handling_middleware,
-    create_error_response,
-    create_success_response,
-    apply_middleware,
 )
 
 
@@ -102,7 +101,7 @@ class TestJSONMiddleware:
             "requestContext": {"http": {"method": "POST"}}
         }
 
-        result = wrapped(event, {})
+        wrapped(event, {})
 
         assert "parsed_body" in event
         assert event["parsed_body"]["user_id"] == "test-123"
@@ -136,7 +135,7 @@ class TestJSONMiddleware:
             "requestContext": {"http": {"method": "POST"}}
         }
 
-        result = wrapped(event, {})
+        wrapped(event, {})
 
         assert "parsed_body" in event
         assert event["parsed_body"] == {}
@@ -154,7 +153,7 @@ class TestJSONMiddleware:
             "requestContext": {"http": {"method": "POST"}}
         }
 
-        result = wrapped(event, {})
+        wrapped(event, {})
 
         assert "parsed_body" in event
 
@@ -172,7 +171,7 @@ class TestJSONMiddleware:
             "prompt": "Test"
         }
 
-        result = wrapped(event, {})
+        wrapped(event, {})
 
         assert "parsed_body" in event
         assert event["parsed_body"]["user_id"] == "test-123"
@@ -189,7 +188,7 @@ class TestJSONMiddleware:
             "requestContext": {"http": {"method": "OPTIONS"}}
         }
 
-        result = wrapped(event, {})
+        wrapped(event, {})
 
         assert "parsed_body" in event
         assert event["parsed_body"] == {}
@@ -413,7 +412,7 @@ class TestMiddlewareChainExecution:
         wrapped = tracking_middleware("second")(wrapped)
         wrapped = tracking_middleware("third")(wrapped)
 
-        result = wrapped({}, {})
+        wrapped({}, {})
 
         # Middlewares should execute: third -> second -> first -> handler -> first -> second -> third
         assert execution_order[0] == "third_before"

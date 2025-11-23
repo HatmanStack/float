@@ -1,6 +1,5 @@
 """End-to-end tests for complete summary request flow."""
 
-import json
 import time
 
 import pytest
@@ -37,6 +36,7 @@ class TestSummaryFlowHappyPath:
         # Track S3 objects for cleanup
         if test_config.has_aws_credentials():
             import boto3
+
             from src.config.settings import settings
 
             s3_client = boto3.client(
@@ -137,7 +137,7 @@ class TestSummaryFlowHappyPath:
             "Angry",
         ], f"Expected anxious sentiment, got {response['sentiment_label']}"
 
-        print(f"\n✓ Complete summary flow (anxious) completed")
+        print("\n✓ Complete summary flow (anxious) completed")
 
     def test_response_format_complete(
         self,
@@ -176,7 +176,7 @@ class TestSummaryFlowHappyPath:
         assert isinstance(response["intensity"], int), "intensity should be integer"
         assert isinstance(response["summary"], str), "summary should be string"
 
-        print(f"\n✓ Response format complete with all required fields")
+        print("\n✓ Response format complete with all required fields")
 
 
 @pytest.mark.e2e
@@ -240,7 +240,7 @@ class TestSummaryFlowEdgeCases:
         assert response, "Should handle special characters"
         assert "sentiment_label" in response, "Should return sentiment"
 
-        print(f"\n✓ Special characters handled successfully")
+        print("\n✓ Special characters handled successfully")
 
     def test_minimal_input_text(
         self,
@@ -265,7 +265,7 @@ class TestSummaryFlowEdgeCases:
         assert response, "Should handle minimal text"
         assert "sentiment_label" in response, "Should return sentiment"
 
-        print(f"\n✓ Minimal text handled successfully")
+        print("\n✓ Minimal text handled successfully")
 
     def test_multiple_requests_in_sequence(
         self,
@@ -321,7 +321,7 @@ class TestSummaryFlowErrorHandling:
             )
             lambda_handler_real.handle_summary_request(request)
 
-        print(f"\n✓ Missing prompt handled with validation error")
+        print("\n✓ Missing prompt handled with validation error")
 
     def test_invalid_request_missing_user_id(self):
         """Test summary flow with missing user_id."""
@@ -330,14 +330,14 @@ class TestSummaryFlowErrorHandling:
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            request = SummaryRequest(
+            SummaryRequest(
                 type="summary",
                 user_id=None,  # Invalid - user_id required
                 prompt="Test prompt",
                 audio="NotAvailable",
             )
 
-        print(f"\n✓ Missing user_id handled with validation error")
+        print("\n✓ Missing user_id handled with validation error")
 
 
 @pytest.mark.e2e

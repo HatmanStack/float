@@ -2,6 +2,8 @@ import base64
 import os
 import tempfile
 from typing import Optional
+
+
 def decode_audio_base64(audio_base64: str, suffix: str = ".mp3") -> str:
     pass
     audio_bytes = base64.b64decode(audio_base64)

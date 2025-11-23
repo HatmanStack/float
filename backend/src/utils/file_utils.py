@@ -2,6 +2,8 @@ import os
 import random
 from datetime import datetime
 from typing import Optional
+
+
 def generate_timestamp() -> str:
     pass
     return datetime.now().strftime("%Y%m%d_%H%M%S")

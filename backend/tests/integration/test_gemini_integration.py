@@ -119,7 +119,7 @@ class TestGeminiSentimentAnalysis:
         # Verify sentiment is neutral or low intensity
         assert 1 <= data["intensity"] <= 5, "Intensity should be between 1 and 5"
 
-        print(f"\n✓ Neutral sentiment analysis completed")
+        print("\n✓ Neutral sentiment analysis completed")
         print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
 
     def test_analyze_anxious_sentiment(
@@ -154,7 +154,7 @@ class TestGeminiSentimentAnalysis:
             "Angry",
         ], f"Expected anxious sentiment, got {data['sentiment_label']}"
 
-        print(f"\n✓ Anxious sentiment analysis completed")
+        print("\n✓ Anxious sentiment analysis completed")
         print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
 
     def test_analyze_sad_sentiment(
@@ -188,7 +188,7 @@ class TestGeminiSentimentAnalysis:
             "Disgusted",
         ], f"Expected sad sentiment, got {data['sentiment_label']}"
 
-        print(f"\n✓ Sad sentiment analysis completed")
+        print("\n✓ Sad sentiment analysis completed")
         print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
 
     def test_response_format_fields(
@@ -223,7 +223,7 @@ class TestGeminiSentimentAnalysis:
         assert isinstance(data["summary"], str), "summary should be string"
         assert len(data["user_summary"]) > 0, "user_summary should not be empty"
 
-        print(f"\n✓ All required fields present and valid")
+        print("\n✓ All required fields present and valid")
 
     def test_text_only_analysis_has_correct_fields(
         self, real_gemini_service, test_sentiment_texts
@@ -245,7 +245,7 @@ class TestGeminiSentimentAnalysis:
         assert data["added_text"] == text or text in data["added_text"], \
             "added_text should contain the input text"
 
-        print(f"\n✓ Text-only analysis has correct field values")
+        print("\n✓ Text-only analysis has correct field values")
 
 
 @pytest.mark.integration
@@ -302,7 +302,7 @@ class TestGeminiMeditationGeneration:
         assert result, "Meditation result should not be empty"
         assert len(result) > 50, "Meditation should have content"
 
-        print(f"\n✓ Meditation for happy emotion generated")
+        print("\n✓ Meditation for happy emotion generated")
 
     def test_generate_meditation_for_anxious_emotion(
         self, real_gemini_service, retry_on_rate_limit
@@ -327,7 +327,7 @@ class TestGeminiMeditationGeneration:
         # Assert
         assert result, "Meditation result should not be empty"
 
-        print(f"\n✓ Meditation for anxious emotion generated")
+        print("\n✓ Meditation for anxious emotion generated")
 
     def test_generate_meditation_with_various_intensities(
         self, real_gemini_service, retry_on_rate_limit
@@ -402,7 +402,7 @@ class TestGeminiMeditationGeneration:
         # Should address both instances
         assert len(result) > 200, "Meditation for multiple instances should be longer"
 
-        print(f"\n✓ Meditation for multiple instances generated")
+        print("\n✓ Meditation for multiple instances generated")
 
 
 @pytest.mark.integration
@@ -422,9 +422,9 @@ class TestGeminiErrorHandling:
 
         # Assert
         assert result, "Should handle long text"
-        data = validate_json_response(result, ["sentiment_label", "intensity"])
+        validate_json_response(result, ["sentiment_label", "intensity"])
 
-        print(f"\n✓ Long text handled successfully")
+        print("\n✓ Long text handled successfully")
 
     def test_text_with_special_characters(
         self, real_gemini_service, validate_json_response
@@ -440,9 +440,9 @@ class TestGeminiErrorHandling:
 
         # Assert
         assert result, "Should handle special characters"
-        data = validate_json_response(result, ["sentiment_label", "intensity"])
+        validate_json_response(result, ["sentiment_label", "intensity"])
 
-        print(f"\n✓ Special characters handled successfully")
+        print("\n✓ Special characters handled successfully")
 
     def test_minimal_input_text(self, real_gemini_service, validate_json_response):
         """Test sentiment analysis with minimal input text."""
@@ -456,9 +456,9 @@ class TestGeminiErrorHandling:
 
         # Assert
         assert result, "Should handle minimal text"
-        data = validate_json_response(result, ["sentiment_label", "intensity"])
+        validate_json_response(result, ["sentiment_label", "intensity"])
 
-        print(f"\n✓ Minimal text handled successfully")
+        print("\n✓ Minimal text handled successfully")
 
 
 @pytest.mark.integration

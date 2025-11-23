@@ -1,7 +1,11 @@
 import traceback
+
 import openai
+
 from ..config.settings import settings
 from ..services.tts_service import TTSService
+
+
 class OpenAITTSProvider(TTSService):
     pass
     def __init__(self):

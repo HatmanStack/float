@@ -1,0 +1,16 @@
+{
+    "Stacks": [
+        {
+            "Outputs": [
+                {
+                    "OutputKey": "ApiEndpoint",
+                    "OutputValue": "https://test-api.execute-api.us-east-1.amazonaws.com/api/meditation"
+                },
+                {
+                    "OutputKey": "AudioBucketName",
+                    "OutputValue": "float-meditation-test-audio-123456789012"
+                }
+            ]
+        }
+    ]
+}

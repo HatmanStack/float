@@ -1,0 +1,12 @@
+{
+  "name": "float-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Float meditation backend deployment scripts",
+  "scripts": {
+    "deploy": "./scripts/deploy.sh",
+    "validate": "./scripts/validate.sh",
+    "logs": "./scripts/logs.sh",
+    "build": "sam build"
+  }
+}

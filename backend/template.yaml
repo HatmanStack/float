@@ -5,6 +5,7 @@ Description: >
 
   Infrastructure for the Float meditation app including Lambda function,
   S3 buckets for data storage, and API Gateway for public access.
+  Simplified deployment model: Single environment, standard SAM build.
 
 Metadata:
   AWS::ServerlessRepo::Application:
@@ -14,18 +15,13 @@ Metadata:
 
 # Parameters allow the same template to be used for different environments
 Parameters:
-  Environment:
-    Type: String
-    Description: Environment name (staging or production)
-    AllowedValues:
-      - staging
-      - production
-    Default: staging
+  # Environment parameter removed - using single environment per stack
 
   FFmpegLayerArn:
     Type: String
-    Description: ARN of the FFmpeg Lambda layer for audio processing
-    AllowedPattern: '^arn:aws:lambda:[a-z0-9-]+:[0-9]+:layer:.*:[0-9]+$'
+    Description: ARN of the FFmpeg Lambda layer for audio processing (default: us-east-1 public layer)
+    # Validation pattern relaxed to allow other regions/accounts
+    Default: 'arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4'
 
   GKey:
     Type: String
@@ -76,12 +72,11 @@ Resources:
   # Lambda Function - Main application logic
   FloatMeditationFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: makefile
+    # Removed Metadata: BuildMethod: makefile - using standard Python builder
     Properties:
-      FunctionName: !Sub 'float-meditation-${Environment}'
+      FunctionName: float-meditation
       Description: Float meditation app Lambda function for AI-powered meditation generation
-      CodeUri: ../backend/
+      CodeUri: .
       Handler: lambda_function.lambda_handler
       Layers:
         - !Ref FFmpegLayerArn
@@ -96,8 +91,8 @@ Resources:
             Method: POST
       Environment:
         Variables:
-          # Environment identifier
-          ENVIRONMENT: !Ref Environment
+          # Environment identifier - defaults to 'dev' if not set, but effectively unused in single-env setup
+          ENVIRONMENT: dev
 
           # AWS S3 Configuration
           AWS_S3_BUCKET: !Ref CustomerDataBucket
@@ -122,7 +117,7 @@ Resources:
   FloatMeditationExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'FloatMeditationLambdaRole-${Environment}'
+      RoleName: !Sub 'FloatMeditationLambdaRole-${AWS::StackName}'
       Description: Execution role for Float meditation Lambda function
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -145,7 +140,7 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/float-meditation-${Environment}:*'
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/float-meditation:*'
               # S3 permissions for data storage
               - Effect: Allow
                 Action:
@@ -184,7 +179,6 @@ Resources:
         AllowCredentials: true
         MaxAge: 3600
       Tags:
-        Environment: !Ref Environment
         Application: FloatMeditation
 
   # Lambda Function with API Gateway integration
@@ -218,8 +212,6 @@ Resources:
             Status: Enabled
             NoncurrentVersionExpirationInDays: 30
       Tags:
-        - Key: Environment
-          Value: !Ref Environment
         - Key: Application
           Value: FloatMeditation
 
@@ -227,7 +219,7 @@ Resources:
   AudioBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${AWS::StackName}-audio-${AWS::AccountId}'
+      BucketName: !Sub 'float-meditation-audio-${AWS::AccountId}'
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -248,8 +240,6 @@ Resources:
             Status: Enabled
             NoncurrentVersionExpirationInDays: 7
       Tags:
-        - Key: Environment
-          Value: !Ref Environment
         - Key: Application
           Value: FloatMeditation
 

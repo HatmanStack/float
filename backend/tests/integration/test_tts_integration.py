@@ -3,7 +3,6 @@
 import os
 import tempfile
 import time
-from pathlib import Path
 
 import pytest
 
@@ -66,7 +65,7 @@ class TestOpenAITTSIntegration:
             assert os.path.exists(output_path), "Audio file should be created"
             assert os.path.getsize(output_path) > 0, "Audio file should not be empty"
 
-            print(f"\n✓ SSML text synthesis completed")
+            print("\n✓ SSML text synthesis completed")
 
         finally:
             # Cleanup
@@ -136,7 +135,7 @@ class TestOpenAITTSIntegration:
                     is_valid_mp3
                 ), f"File should be valid MP3 format, got header: {header.hex()}"
 
-            print(f"\n✓ Audio format validation passed (valid MP3)")
+            print("\n✓ Audio format validation passed (valid MP3)")
 
         finally:
             # Cleanup
@@ -169,7 +168,7 @@ class TestOpenAITTSIntegration:
             assert os.path.exists(output_path), "Audio file should be created"
             assert os.path.getsize(output_path) > 0, "Even short audio should have content"
 
-            print(f"\n✓ Very short text synthesis completed")
+            print("\n✓ Very short text synthesis completed")
 
         finally:
             # Cleanup
@@ -191,7 +190,7 @@ class TestOpenAITTSIntegration:
             assert result is True, "Special characters should be handled"
             assert os.path.exists(output_path), "Audio file should be created"
 
-            print(f"\n✓ Special characters handled successfully")
+            print("\n✓ Special characters handled successfully")
 
         finally:
             # Cleanup
@@ -220,7 +219,7 @@ class TestOpenAITTSIntegration:
                 assert result is True, f"Synthesis {i+1} should succeed"
                 assert os.path.exists(output_path), f"Audio file {i+1} should be created"
 
-            print(f"\n✓ Multiple synthesis calls completed successfully")
+            print("\n✓ Multiple synthesis calls completed successfully")
 
         finally:
             # Cleanup all files
@@ -246,7 +245,7 @@ class TestTTSErrorHandling:
         # Assert - should handle gracefully
         assert result is False, "Should return False for invalid path"
 
-        print(f"\n✓ Invalid path handled gracefully")
+        print("\n✓ Invalid path handled gracefully")
 
     def test_empty_text(self, real_openai_tts_provider):
         """Test TTS synthesis with empty text."""
@@ -294,7 +293,7 @@ class TestTTSErrorHandling:
                     f"\n✓ Very long text handled successfully in {elapsed_time:.2f}s ({file_size:,} bytes)"
                 )
             else:
-                print(f"\n✓ Very long text rejected (may exceed API limits)")
+                print("\n✓ Very long text rejected (may exceed API limits)")
 
         finally:
             # Cleanup

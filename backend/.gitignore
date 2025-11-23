@@ -1,0 +1,9 @@
+# Deployment configuration and secrets
+samconfig.toml
+.deploy-config.json
+
+# Environment variables
+.env
+
+# SAM build artifacts
+.aws-sam/

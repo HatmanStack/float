@@ -1,8 +1,12 @@
 import json
 from typing import Any, Dict, List, Optional
+
 import boto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
 from .storage_service import StorageService
+
+
 class S3StorageService(StorageService):
     pass
     def __init__(self):

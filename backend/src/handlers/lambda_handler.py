@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
+
 from ..config.constants import HTTP_BAD_REQUEST
 from ..config.settings import settings
 from ..models.requests import MeditationRequest, SummaryRequest, parse_request_body
@@ -24,6 +25,8 @@ from .middleware import (
     method_validation_middleware,
     request_validation_middleware,
 )
+
+
 class LambdaHandler:
     pass
     def __init__(self, ai_service: Optional[AIService] = None, validate_config: bool = True):

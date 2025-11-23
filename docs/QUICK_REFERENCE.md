@@ -22,14 +22,22 @@ npm run type-check        # Check TypeScript types
 cd backend
 source .venv/bin/activate # Activate virtual environment
 
+# Testing
 pytest tests/             # Run all tests
 pytest tests/ --cov=src/  # Run tests with coverage
 pytest tests/ -v          # Verbose output
+
+# Quality Checks
 ruff check src/           # Check for lint errors
 ruff check src/ --fix     # Fix lint errors
 black src/                # Format code
 mypy src/                 # Check types
 make quality              # Run all checks
+
+# Deployment
+npm run deploy            # Interactive deployment
+npm run validate          # Validate template
+npm run logs              # View logs
 ```
 
 ## File Locations
@@ -38,19 +46,26 @@ make quality              # Run all checks
 | ----------------------- | ---------------------------------------- |
 | Frontend app code       | `app/`                                   |
 | React Native components | `components/`                            |
-| Component tests         | `components/__tests__/`                  |
-| State management        | `context/`                               |
-| Frontend constants      | `constants/`                             |
 | Backend source          | `backend/src/`                           |
 | Lambda handler          | `backend/src/handlers/lambda_handler.py` |
 | Services                | `backend/src/services/`                  |
-| Data models             | `backend/src/models/`                    |
+| Deployment scripts      | `backend/scripts/`                       |
+| SAM Template            | `backend/template.yaml`                  |
+| Deployment Config       | `backend/.deploy-config.json`            |
+| Secrets (Local)         | `backend/samconfig.toml`                 |
 | Backend tests           | `backend/tests/`                         |
-| ESLint config           | `.eslintrc.json`                         |
-| Prettier config         | `.prettierrc.json`                       |
-| TypeScript config       | `tsconfig.json`                          |
-| Python config           | `backend/pyproject.toml`                 |
-| Environment template    | `.env.example`                           |
+| Python requirements     | `backend/requirements.txt`               |
+
+## Deployment Process
+
+The backend uses a single-environment deployment model with AWS SAM.
+
+1. **Deploy**: `cd backend && npm run deploy`
+2. **Configure**: Enter API keys when prompted (first time only)
+3. **Frontend Config**: `frontend/.env` is auto-generated
+4. **Logs**: `npm run logs` to monitor
+
+See [docs/DEPLOYMENT.md](./DEPLOYMENT.md) for full details.
 
 ## Code Quality Tools
 
@@ -85,7 +100,7 @@ make quality              # Run all checks
                      │
 ┌────────────────────▼────────────────────┐
 │  Backend (AWS Lambda)                   │
-│  - Python 3.12                          │
+│  - Python 3.13                          │
 │  - Google Gemini AI                     │
 │  - OpenAI TTS                           │
 │  - AWS S3 Storage                       │
@@ -95,13 +110,13 @@ make quality              # Run all checks
 ## Development Setup Checklist
 
 - [ ] Node.js 22+ installed
-- [ ] Python 3.12+ installed
-- [ ] Git configured
+- [ ] Python 3.13+ installed
+- [ ] AWS CLI & SAM CLI installed
 - [ ] Repository cloned
 - [ ] Frontend: `npm install`
-- [ ] Backend: `python3 -m venv backend/.venv && source backend/.venv/bin/activate && pip install -e ".[dev]"`
-- [ ] `.env` file created from `.env.example`
-- [ ] API keys configured
+- [ ] Backend: `python3 -m venv backend/.venv && source backend/.venv/bin/activate`
+- [ ] Backend Deps: `pip install -r backend/requirements.txt -r backend/requirements-dev.txt`
+- [ ] API keys configured (via deploy script)
 
 ## Before Committing
 
@@ -128,13 +143,10 @@ git commit -m "type: description"  # Use conventional commits
 
 | Issue                       | Solution                                             |
 | --------------------------- | ---------------------------------------------------- |
-| "Module not found" (npm)    | Run `npm install`                                    |
+| "sam: command not found"    | `brew install aws-sam-cli`                           |
 | "Module not found" (Python) | Activate venv: `source backend/.venv/bin/activate`   |
-| Port 8081 in use            | Kill process or use `expo start -c --port 8082`      |
-| Type errors                 | Run `npm run type-check` or `mypy src/`              |
-| Lint errors                 | Run `npm run lint:fix` or `ruff check src/ --fix`    |
-| Format conflicts            | Run `npm run format` first, then `npm run lint:fix`  |
 | Tests failing               | Check `.env`, run `npm install`, or check git branch |
+| Deployment fails            | Run `npm run validate` to check template             |
 
 ## Important Files
 
@@ -142,10 +154,8 @@ git commit -m "type: description"  # Use conventional commits
 
 - `.env.example` - Environment variable template
 - `.editorconfig` - Editor settings (tabs, line endings)
-- `.eslintrc.json` - ESLint rules
-- `.prettierrc.json` - Prettier formatting rules
-- `tsconfig.json` - TypeScript configuration
-- `backend/pyproject.toml` - Python project config
+- `backend/template.yaml` - AWS SAM configuration
+- `backend/samconfig.toml` - SAM deployment config (gitignored)
 - `.gitignore` - Git ignore rules
 
 ### Workflows & Docs
@@ -153,41 +163,14 @@ git commit -m "type: description"  # Use conventional commits
 - `README.md` - Project overview
 - `CONTRIBUTING.md` - Contributing guidelines
 - `docs/DEVELOPMENT.md` - Daily development guide
+- `docs/DEPLOYMENT.md` - Deployment guide
 - `docs/ARCHITECTURE.md` - System architecture
 - `docs/API.md` - API documentation
 - `docs/CI_CD.md` - CI/CD information
 
 ## API Endpoints
 
-**Base URL**: `https://<your-lambda-function-url>/`
-
-### Summary Request
-
-```bash
-POST /
-{
-  "user_id": "user123",
-  "inference_type": "summary",
-  "audio": "base64_or_NotAvailable",
-  "prompt": "text_or_NotAvailable"
-}
-```
-
-Returns: sentiment analysis
-
-### Meditation Request
-
-```bash
-POST /
-{
-  "user_id": "user123",
-  "inference_type": "meditation",
-  "input_data": {...},
-  "music_list": [...]
-}
-```
-
-Returns: base64 encoded meditation audio
+**Base URL**: `https://<your-lambda-function-url>/api/meditation`
 
 See [docs/API.md](./API.md) for full details.
 
@@ -204,73 +187,9 @@ npm test -- --coverage               # With coverage
 ### Backend
 
 ```bash
+cd backend
 pytest tests/                         # All tests
 pytest tests/ -k test_name           # Specific test
 pytest tests/ -v -s                  # Verbose with output
 pytest tests/ --cov=src/             # With coverage
 ```
-
-## Debugging
-
-**Frontend**: Use React DevTools Profiler
-**Backend**: Use `pytest -s` to see print statements
-
-See [docs/DEVELOPMENT.md](./DEVELOPMENT.md) for detailed debugging guide.
-
-## Learning Resources
-
-- [React Native Docs](https://reactnative.dev/)
-- [Expo Docs](https://docs.expo.dev/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [Python Docs](https://docs.python.org/3.12/)
-- [Pydantic Docs](https://docs.pydantic.dev/)
-- [AWS Lambda Docs](https://docs.aws.amazon.com/lambda/)
-
-## Useful Links
-
-- [GitHub Repository](https://github.com/circlemind-ai/float)
-- [Project Documentation](../README.md)
-- [Architecture Guide](./ARCHITECTURE.md)
-- [API Reference](./API.md)
-- [Development Workflow](./DEVELOPMENT.md)
-
-## Keyboard Shortcuts (Expo)
-
-When running `npm start -c`:
-
-| Key | Action                  |
-| --- | ----------------------- |
-| `i` | Launch iOS simulator    |
-| `a` | Launch Android emulator |
-| `w` | Open web client         |
-| `r` | Reload app              |
-| `m` | Toggle menu             |
-| `q` | Quit                    |
-
-## Git Workflow
-
-```bash
-# Create feature branch
-git checkout -b feat/your-feature
-
-# Make changes and commit
-git add .
-git commit -m "feat: your feature"
-
-# Push to remote
-git push origin feat/your-feature
-
-# Create pull request on GitHub
-# Address review feedback
-# Merge when approved
-```
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
-
----
-
-**For more information**, see:
-
-- [README.md](../README.md) - Project overview
-- [docs/DEVELOPMENT.md](./DEVELOPMENT.md) - Full development guide
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines

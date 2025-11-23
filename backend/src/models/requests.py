@@ -1,7 +1,10 @@
 import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
+
 from ..config.constants import InferenceType
+
+
 @dataclass
 class BaseRequest:
     pass

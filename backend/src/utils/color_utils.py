@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+
 try:
     import numpy as np  # type: ignore[import-not-found]
     from scipy.stats import norm  # type: ignore[import-untyped]
