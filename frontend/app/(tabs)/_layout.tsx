@@ -1,13 +1,13 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { IncidentColoring } from "@/frontend/components/IncidentColoring';
-import { IncidentProvider } from "@/frontend/context/IncidentContext';
-import { IncidentSave } from "@/frontend/components/LocalFileLoadAndSave';
-import { TabBarIcon } from "@/frontend/components/navigation/TabBarIcon';
-import { Colors } from "@/frontend/constants/Colors';
-import { useColorScheme } from "@/frontend/hooks/useColorScheme';
-import { useAuth } from "@/frontend/context/AuthContext';
-import AuthScreen from "@/frontend/components/AuthScreen';
+import { Tabs } from "expo-router";
+import React from "react";
+import { IncidentColoring } from "@/frontend/components/IncidentColoring";
+import { IncidentProvider } from "@/frontend/context/IncidentContext";
+import { IncidentSave } from "@/frontend/components/LocalFileLoadAndSave";
+import { TabBarIcon } from "@/frontend/components/navigation/TabBarIcon";
+import { Colors } from "@/frontend/constants/Colors";
+import { useColorScheme } from "@/frontend/hooks/useColorScheme";
+import { useAuth } from "@/frontend/context/AuthContext";
+import AuthScreen from "@/frontend/components/AuthScreen";
 export default function TabLayout(): React.ReactNode {
   const colorScheme = useColorScheme();
   const { user } = useAuth();

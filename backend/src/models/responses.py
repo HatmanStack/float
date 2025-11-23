@@ -11,14 +11,18 @@ class BaseResponse:
     request_id: int
     user_id: str
     inference_type: InferenceType
+
     def to_dict(self) -> Dict[str, Any]:
         pass
         data = asdict(self)
         data["inference_type"] = self.inference_type.value
         return data
+
     def to_json(self) -> str:
         pass
         return json.dumps(self.to_dict())
+
+
 @dataclass
 class SummaryResponse(BaseResponse):
     pass
@@ -29,27 +33,39 @@ class SummaryResponse(BaseResponse):
     summary: str
     user_summary: str
     user_short_summary: str
+
     def __post_init__(self):
         self.inference_type = InferenceType.SUMMARY
+
+
 @dataclass
 class MeditationResponse(BaseResponse):
     pass
     music_list: List[str]
     base64: str  # Base64 encoded combined audio
+
     def __post_init__(self):
         self.inference_type = InferenceType.MEDITATION
+
+
 @dataclass
 class ErrorResponse:
     pass
     error: str
     details: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         pass
         return asdict(self)
+
     def to_json(self) -> str:
         pass
         return json.dumps(self.to_dict())
-def create_summary_response(request_id: int, user_id: str, summary_result: str) -> SummaryResponse:
+
+
+def create_summary_response(
+    request_id: int, user_id: str, summary_result: str
+) -> SummaryResponse:
     pass
     try:
         json_start = summary_result.find("{")
@@ -72,6 +88,8 @@ def create_summary_response(request_id: int, user_id: str, summary_result: str) 
         )
     except (json.JSONDecodeError, KeyError, IndexError) as e:
         raise ValueError(f"Failed to parse summary result: {e}")
+
+
 def create_meditation_response(
     request_id: int, user_id: str, music_list: List[str], base64_audio: str
 ) -> MeditationResponse:

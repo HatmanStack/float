@@ -1,7 +1,7 @@
-import React from 'react';
-import { render } from '@testing-library/react-native';
-import { Text, View } from 'react-native';
-import ParallaxScrollView from "@/frontend/components/ParallaxScrollView';
+import React from "react";
+import { render } from "@testing-library/react-native";
+import { Text, View } from "react-native";
+import ParallaxScrollView from "@/frontend/components/ParallaxScrollView";
 
 // Mock ThemedView
 jest.mock('@/components/ThemedView', () => ({

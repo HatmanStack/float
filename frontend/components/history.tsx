@@ -1,11 +1,11 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { FlatList } from 'react-native';
-import React, { useEffect, useCallback } from 'react';
-import ParallaxScrollView from "@/frontend/components/ParallaxScrollView';
-import { ThemedText } from "@/frontend/components/ThemedText';
-import { ThemedView } from "@/frontend/components/ThemedView';
-import { useIncident } from "@/frontend/context/IncidentContext';
-import useStyles from "@/frontend/constants/StylesConstants';
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { FlatList } from "react-native";
+import React, { useEffect, useCallback } from "react";
+import ParallaxScrollView from "@/frontend/components/ParallaxScrollView";
+import { ThemedText } from "@/frontend/components/ThemedText";
+import { ThemedView } from "@/frontend/components/ThemedView";
+import { useIncident } from "@/frontend/context/IncidentContext";
+import useStyles from "@/frontend/constants/StylesConstants";
 export default function ArchivedItemsScreen() {
   const { incidentList: archivedItems, setIncidentList: setArchivedItems } = useIncident();
   const styles = useStyles();

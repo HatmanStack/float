@@ -28,6 +28,7 @@ class TestCORSMiddleware:
 
     def test_cors_headers_added_to_successful_responses(self):
         """Test CORS headers are added to successful responses."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
@@ -39,6 +40,7 @@ class TestCORSMiddleware:
 
     def test_cors_headers_added_to_error_responses(self):
         """Test CORS headers are added to error responses."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_BAD_REQUEST, "body": "Error"}
 
@@ -50,16 +52,13 @@ class TestCORSMiddleware:
 
     def test_preflight_options_requests_handled_correctly(self):
         """Test preflight OPTIONS requests handled correctly."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Should not reach here"}
 
         wrapped = cors_middleware(mock_handler)
 
-        event = {
-            "requestContext": {
-                "http": {"method": "OPTIONS"}
-            }
-        }
+        event = {"requestContext": {"http": {"method": "OPTIONS"}}}
 
         result = wrapped(event, {})
 
@@ -69,11 +68,12 @@ class TestCORSMiddleware:
 
     def test_cors_headers_merge_with_existing_headers(self):
         """Test CORS headers merge with existing headers."""
+
         def mock_handler(event, context):
             return {
                 "statusCode": HTTP_OK,
                 "headers": {"Custom-Header": "value"},
-                "body": "Success"
+                "body": "Success",
             }
 
         wrapped = cors_middleware(mock_handler)
@@ -91,6 +91,7 @@ class TestJSONMiddleware:
 
     def test_valid_json_body_parsed_correctly(self):
         """Test valid JSON body parsed correctly."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": json.dumps(event["parsed_body"])}
 
@@ -98,7 +99,7 @@ class TestJSONMiddleware:
 
         event = {
             "body": json.dumps({"user_id": "test-123", "inference_type": "summary"}),
-            "requestContext": {"http": {"method": "POST"}}
+            "requestContext": {"http": {"method": "POST"}},
         }
 
         wrapped(event, {})
@@ -108,6 +109,7 @@ class TestJSONMiddleware:
 
     def test_invalid_json_returns_400_error(self):
         """Test invalid JSON returns 400 error."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
@@ -115,7 +117,7 @@ class TestJSONMiddleware:
 
         event = {
             "body": "invalid json {{{",
-            "requestContext": {"http": {"method": "POST"}}
+            "requestContext": {"http": {"method": "POST"}},
         }
 
         result = wrapped(event, {})
@@ -125,15 +127,14 @@ class TestJSONMiddleware:
 
     def test_missing_body_handled_appropriately(self):
         """Test missing body handled appropriately."""
+
         def mock_handler(event, context):
             assert "parsed_body" in event
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         wrapped = json_middleware(mock_handler)
 
-        event = {
-            "requestContext": {"http": {"method": "POST"}}
-        }
+        event = {"requestContext": {"http": {"method": "POST"}}}
 
         wrapped(event, {})
 
@@ -142,16 +143,14 @@ class TestJSONMiddleware:
 
     def test_empty_body_handled_appropriately(self):
         """Test empty body handled appropriately."""
+
         def mock_handler(event, context):
             assert "parsed_body" in event
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         wrapped = json_middleware(mock_handler)
 
-        event = {
-            "body": "",
-            "requestContext": {"http": {"method": "POST"}}
-        }
+        event = {"body": "", "requestContext": {"http": {"method": "POST"}}}
 
         wrapped(event, {})
 
@@ -159,17 +158,14 @@ class TestJSONMiddleware:
 
     def test_direct_lambda_invocation_data_extracted(self):
         """Test direct Lambda invocation (data at root level) extracted correctly."""
+
         def mock_handler(event, context):
             assert "parsed_body" in event
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         wrapped = json_middleware(mock_handler)
 
-        event = {
-            "user_id": "test-123",
-            "inference_type": "summary",
-            "prompt": "Test"
-        }
+        event = {"user_id": "test-123", "inference_type": "summary", "prompt": "Test"}
 
         wrapped(event, {})
 
@@ -179,14 +175,13 @@ class TestJSONMiddleware:
 
     def test_options_request_skips_json_parsing(self):
         """Test OPTIONS request skips JSON parsing."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": ""}
 
         wrapped = json_middleware(mock_handler)
 
-        event = {
-            "requestContext": {"http": {"method": "OPTIONS"}}
-        }
+        event = {"requestContext": {"http": {"method": "OPTIONS"}}}
 
         wrapped(event, {})
 
@@ -200,30 +195,28 @@ class TestMethodValidationMiddleware:
 
     def test_post_method_allowed(self):
         """Test POST method allowed."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         middleware = method_validation_middleware(["POST"])
         wrapped = middleware(mock_handler)
 
-        event = {
-            "requestContext": {"http": {"method": "POST"}}
-        }
+        event = {"requestContext": {"http": {"method": "POST"}}}
 
         result = wrapped(event, {})
         assert result["statusCode"] == HTTP_OK
 
     def test_get_method_returns_405_error(self):
         """Test GET method returns 405 error."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         middleware = method_validation_middleware(["POST"])
         wrapped = middleware(mock_handler)
 
-        event = {
-            "requestContext": {"http": {"method": "GET"}}
-        }
+        event = {"requestContext": {"http": {"method": "GET"}}}
 
         result = wrapped(event, {})
         assert result["statusCode"] == HTTP_METHOD_NOT_ALLOWED
@@ -231,6 +224,7 @@ class TestMethodValidationMiddleware:
 
     def test_put_delete_methods_return_405_error(self):
         """Test PUT/DELETE methods return 405 error."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
@@ -238,29 +232,27 @@ class TestMethodValidationMiddleware:
         wrapped = middleware(mock_handler)
 
         for method in ["PUT", "DELETE", "PATCH"]:
-            event = {
-                "requestContext": {"http": {"method": method}}
-            }
+            event = {"requestContext": {"http": {"method": method}}}
             result = wrapped(event, {})
             assert result["statusCode"] == HTTP_METHOD_NOT_ALLOWED
 
     def test_options_method_bypasses_validation(self):
         """Test OPTIONS method bypasses validation (for CORS)."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": ""}
 
         middleware = method_validation_middleware(["POST"])
         wrapped = middleware(mock_handler)
 
-        event = {
-            "requestContext": {"http": {"method": "OPTIONS"}}
-        }
+        event = {"requestContext": {"http": {"method": "OPTIONS"}}}
 
         result = wrapped(event, {})
         assert result["statusCode"] == HTTP_OK
 
     def test_direct_lambda_invocation_skips_method_validation(self):
         """Test direct Lambda invocation skips method validation."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
@@ -279,17 +271,15 @@ class TestRequestValidationMiddleware:
 
     def test_valid_request_data_passes_through(self):
         """Test valid request data passes through."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         wrapped = request_validation_middleware(mock_handler)
 
         event = {
-            "parsed_body": {
-                "user_id": "test-123",
-                "inference_type": "summary"
-            },
-            "requestContext": {"http": {"method": "POST"}}
+            "parsed_body": {"user_id": "test-123", "inference_type": "summary"},
+            "requestContext": {"http": {"method": "POST"}},
         }
 
         result = wrapped(event, {})
@@ -297,16 +287,15 @@ class TestRequestValidationMiddleware:
 
     def test_missing_user_id_returns_400(self):
         """Test missing user_id returns 400 error."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         wrapped = request_validation_middleware(mock_handler)
 
         event = {
-            "parsed_body": {
-                "inference_type": "summary"
-            },
-            "requestContext": {"http": {"method": "POST"}}
+            "parsed_body": {"inference_type": "summary"},
+            "requestContext": {"http": {"method": "POST"}},
         }
 
         result = wrapped(event, {})
@@ -315,16 +304,15 @@ class TestRequestValidationMiddleware:
 
     def test_missing_inference_type_returns_400(self):
         """Test missing inference_type returns 400 error."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
         wrapped = request_validation_middleware(mock_handler)
 
         event = {
-            "parsed_body": {
-                "user_id": "test-123"
-            },
-            "requestContext": {"http": {"method": "POST"}}
+            "parsed_body": {"user_id": "test-123"},
+            "requestContext": {"http": {"method": "POST"}},
         }
 
         result = wrapped(event, {})
@@ -333,15 +321,13 @@ class TestRequestValidationMiddleware:
 
     def test_options_request_skips_validation(self):
         """Test OPTIONS request skips validation."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": ""}
 
         wrapped = request_validation_middleware(mock_handler)
 
-        event = {
-            "parsed_body": {},
-            "requestContext": {"http": {"method": "OPTIONS"}}
-        }
+        event = {"parsed_body": {}, "requestContext": {"http": {"method": "OPTIONS"}}}
 
         result = wrapped(event, {})
         assert result["statusCode"] == HTTP_OK
@@ -353,6 +339,7 @@ class TestErrorHandlingMiddleware:
 
     def test_exceptions_caught_and_formatted_properly(self):
         """Test exceptions caught and formatted properly."""
+
         def mock_handler(event, context):
             raise Exception("Unexpected error")
 
@@ -364,6 +351,7 @@ class TestErrorHandlingMiddleware:
 
     def test_value_error_returns_400_status(self):
         """Test ValueError returns 400 status code."""
+
         def mock_handler(event, context):
             raise ValueError("Invalid input")
 
@@ -375,6 +363,7 @@ class TestErrorHandlingMiddleware:
 
     def test_successful_response_passes_through(self):
         """Test successful response passes through unchanged."""
+
         def mock_handler(event, context):
             return {"statusCode": HTTP_OK, "body": "Success"}
 
@@ -400,7 +389,9 @@ class TestMiddlewareChainExecution:
                     result = handler(event, context)
                     execution_order.append(f"{name}_after")
                     return result
+
                 return wrapper
+
             return middleware
 
         def mock_handler(event, context):
@@ -425,10 +416,12 @@ class TestMiddlewareChainExecution:
 
     def test_early_middleware_can_short_circuit_chain(self):
         """Test early middleware can short-circuit chain."""
+
         def blocking_middleware(handler):
             def wrapper(event, context):
                 # Short-circuit - don't call handler
                 return {"statusCode": HTTP_BAD_REQUEST, "body": "Blocked"}
+
             return wrapper
 
         def mock_handler(event, context):
@@ -484,13 +477,7 @@ class TestHelperFunctions:
 
     def test_create_success_response_with_complex_data(self):
         """Test create_success_response with complex data."""
-        data = {
-            "request_id": "123",
-            "data": {
-                "nested": "value",
-                "list": [1, 2, 3]
-            }
-        }
+        data = {"request_id": "123", "data": {"nested": "value", "list": [1, 2, 3]}}
         result = create_success_response(data)
 
         body = json.loads(result["body"])

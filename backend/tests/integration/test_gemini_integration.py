@@ -49,7 +49,9 @@ class TestGeminiSentimentAnalysis:
         assert elapsed_time < test_config.GEMINI_TIMEOUT, "Request took too long"
 
         print(f"\n✓ Positive sentiment analysis completed in {elapsed_time:.2f}s")
-        print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
+        print(
+            f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})"
+        )
 
     def test_analyze_negative_sentiment(
         self, real_gemini_service, test_sentiment_texts, validate_json_response
@@ -85,11 +87,15 @@ class TestGeminiSentimentAnalysis:
             "Angry",
             "Disgusted",
         ], f"Expected negative sentiment, got {data['sentiment_label']}"
-        assert data["intensity"] >= 2, "Intensity should be at least 2 for stressed text"
+        assert (
+            data["intensity"] >= 2
+        ), "Intensity should be at least 2 for stressed text"
         assert elapsed_time < test_config.GEMINI_TIMEOUT, "Request took too long"
 
         print(f"\n✓ Negative sentiment analysis completed in {elapsed_time:.2f}s")
-        print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
+        print(
+            f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})"
+        )
 
     def test_analyze_neutral_sentiment(
         self, real_gemini_service, test_sentiment_texts, validate_json_response
@@ -120,7 +126,9 @@ class TestGeminiSentimentAnalysis:
         assert 1 <= data["intensity"] <= 5, "Intensity should be between 1 and 5"
 
         print("\n✓ Neutral sentiment analysis completed")
-        print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
+        print(
+            f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})"
+        )
 
     def test_analyze_anxious_sentiment(
         self, real_gemini_service, test_sentiment_texts, validate_json_response
@@ -155,7 +163,9 @@ class TestGeminiSentimentAnalysis:
         ], f"Expected anxious sentiment, got {data['sentiment_label']}"
 
         print("\n✓ Anxious sentiment analysis completed")
-        print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
+        print(
+            f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})"
+        )
 
     def test_analyze_sad_sentiment(
         self, real_gemini_service, test_sentiment_texts, validate_json_response
@@ -189,7 +199,9 @@ class TestGeminiSentimentAnalysis:
         ], f"Expected sad sentiment, got {data['sentiment_label']}"
 
         print("\n✓ Sad sentiment analysis completed")
-        print(f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})")
+        print(
+            f"  Sentiment: {data['sentiment_label']} (intensity: {data['intensity']})"
+        )
 
     def test_response_format_fields(
         self, real_gemini_service, test_sentiment_texts, validate_json_response
@@ -218,7 +230,9 @@ class TestGeminiSentimentAnalysis:
         )
 
         # Verify field types
-        assert isinstance(data["sentiment_label"], str), "sentiment_label should be string"
+        assert isinstance(
+            data["sentiment_label"], str
+        ), "sentiment_label should be string"
         assert isinstance(data["intensity"], int), "intensity should be integer"
         assert isinstance(data["summary"], str), "summary should be string"
         assert len(data["user_summary"]) > 0, "user_summary should not be empty"
@@ -242,8 +256,9 @@ class TestGeminiSentimentAnalysis:
         assert (
             data["speech_to_text"] == "NotAvailable"
         ), "speech_to_text should be NotAvailable for text-only"
-        assert data["added_text"] == text or text in data["added_text"], \
-            "added_text should contain the input text"
+        assert (
+            data["added_text"] == text or text in data["added_text"]
+        ), "added_text should contain the input text"
 
         print("\n✓ Text-only analysis has correct field values")
 
@@ -254,7 +269,11 @@ class TestGeminiMeditationGeneration:
     """Integration tests for Gemini meditation generation with real API."""
 
     def test_generate_meditation_for_sad_emotion(
-        self, real_gemini_service, test_meditation_input, validate_ssml_response, retry_on_rate_limit
+        self,
+        real_gemini_service,
+        test_meditation_input,
+        validate_ssml_response,
+        retry_on_rate_limit,
     ):
         """Test meditation generation for sad emotion."""
         # Arrange
@@ -352,7 +371,9 @@ class TestGeminiMeditationGeneration:
 
             # Assert
             assert result, f"Meditation should be generated for intensity {intensity}"
-            assert len(result) > 50, f"Meditation should have content for intensity {intensity}"
+            assert (
+                len(result) > 50
+            ), f"Meditation should have content for intensity {intensity}"
 
             print(f"  ✓ Meditation generated for intensity {intensity}")
 
@@ -366,8 +387,9 @@ class TestGeminiMeditationGeneration:
         )
 
         # Assert
-        assert 100 <= len(result) <= 5000, \
-            f"Meditation length should be reasonable, got {len(result)} characters"
+        assert (
+            100 <= len(result) <= 5000
+        ), f"Meditation length should be reasonable, got {len(result)} characters"
 
         print(f"\n✓ Meditation length appropriate: {len(result)} characters")
 
@@ -431,7 +453,9 @@ class TestGeminiErrorHandling:
     ):
         """Test sentiment analysis with special characters and emojis."""
         # Arrange
-        special_text = "I'm feeling 😢 sad & stressed! Can't believe it's $#@% happening..."
+        special_text = (
+            "I'm feeling 😢 sad & stressed! Can't believe it's $#@% happening..."
+        )
 
         # Act
         result = real_gemini_service.analyze_sentiment(
@@ -486,9 +510,7 @@ class TestGeminiPerformance:
             elapsed_time < 15
         ), f"Sentiment analysis should complete within 15s, took {elapsed_time:.2f}s"
 
-        print(
-            f"\n✓ Sentiment analysis performance: {elapsed_time:.2f}s (target: <15s)"
-        )
+        print(f"\n✓ Sentiment analysis performance: {elapsed_time:.2f}s (target: <15s)")
 
     def test_meditation_generation_performance(
         self, real_gemini_service, test_meditation_input, retry_on_rate_limit

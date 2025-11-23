@@ -11,8 +11,11 @@ from ..config.settings import settings
 from .ai_service import AIService
 
 logger = logging.getLogger(__name__)
+
+
 class GeminiAIService(AIService):
     pass
+
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
         self.safety_settings = {
@@ -22,6 +25,7 @@ class GeminiAIService(AIService):
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: settings.GEMINI_SAFETY_LEVEL,
         }
         self._setup_prompts()
+
     def _setup_prompts(self):
         pass
         self.prompt_text = """You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
@@ -160,7 +164,7 @@ Data for meditation transcript:"""
                 prompt = self.prompt_text + user_text
                 logger.debug("Generating sentiment analysis for text input")
                 text_response = model.generate_content([prompt])
-            except Exception as e:  # type: ignore[misc]
+            except Exception as e:
                 logger.error("Error generating text sentiment: %s", str(e))
                 raise ValueError(f"Failed to analyze text sentiment: {str(e)}") from e
         if audio_file and "NotAvailable" not in audio_file:
@@ -170,7 +174,7 @@ Data for meditation transcript:"""
                 call = [self.prompt_audio, audio_load]
                 logger.debug("Generating sentiment analysis for audio input")
                 audio_response = model.generate_content(call)
-            except Exception as e:  # type: ignore[misc]
+            except Exception as e:
                 logger.error("Error generating audio sentiment: %s", str(e))
                 raise ValueError(f"Failed to analyze audio sentiment: {str(e)}") from e
         try:
@@ -187,12 +191,12 @@ Data for meditation transcript:"""
                 response = text_response
             else:
                 response = audio_response
-        except Exception as e:  # type: ignore[misc]
+        except Exception as e:
             logger.error("Error synthesizing sentiment results: %s", str(e))
             raise ValueError(f"Failed to synthesize sentiment results: {str(e)}") from e
         return response.text  # type: ignore[no-any-return]
+
     def generate_meditation(self, input_data: Dict[str, Any]) -> str:
-        pass
         logger.info("Starting meditation generation")
         logger.debug("Input data keys: %s", list(input_data.keys()))
         model = genai.GenerativeModel(
@@ -203,6 +207,6 @@ Data for meditation transcript:"""
             prompt = self.prompt_meditation + str(input_data)
             response = model.generate_content([prompt])
             return response.text  # type: ignore[no-any-return]
-        except Exception as e:  # type: ignore[misc]
+        except Exception as e:
             logger.error("Error generating meditation: %s", str(e))
             raise ValueError(f"Failed to generate meditation: {str(e)}") from e

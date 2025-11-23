@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import Guidance from "@/frontend/components/ScreenComponents/Guidance'; // Adjust the path if needed
-import { ThemedText } from "@/frontend/components/ThemedText'; // Adjust the path if needed
-import { Collapsible } from "@/frontend/components/Collapsible'; // Adjust the path if needed
+import React from "react";
+import { View, TouchableOpacity, Text } from "react-native";
+import { render, screen, fireEvent } from "@testing-library/react-native";
+import Guidance from "@/frontend/components/ScreenComponents/Guidance"; // Adjust the path if needed
+import { ThemedText } from "@/frontend/components/ThemedText"; // Adjust the path if needed
+import { Collapsible } from "@/frontend/components/Collapsible"; // Adjust the path if needed
 
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 jest.mock('@/components/Collapsible', () => {

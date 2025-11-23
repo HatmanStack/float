@@ -15,8 +15,12 @@ class IntegrationTestConfig:
     # AWS Configuration for testing
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_S3_BUCKET: str = os.getenv("AWS_S3_TEST_BUCKET", os.getenv("AWS_S3_BUCKET", "float-cust-data"))
-    AWS_AUDIO_BUCKET: str = os.getenv("AWS_AUDIO_TEST_BUCKET", os.getenv("AWS_AUDIO_BUCKET", "audio-er-lambda"))
+    AWS_S3_BUCKET: str = os.getenv(
+        "AWS_S3_TEST_BUCKET", os.getenv("AWS_S3_BUCKET", "float-cust-data")
+    )
+    AWS_AUDIO_BUCKET: str = os.getenv(
+        "AWS_AUDIO_TEST_BUCKET", os.getenv("AWS_AUDIO_BUCKET", "audio-er-lambda")
+    )
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
 
     # Test data prefix in S3 (to isolate test data)
@@ -29,7 +33,9 @@ class IntegrationTestConfig:
     E2E_TIMEOUT: int = 120
 
     # Test execution control
-    SKIP_INTEGRATION_TESTS: bool = os.getenv("SKIP_INTEGRATION_TESTS", "false").lower() == "true"
+    SKIP_INTEGRATION_TESTS: bool = (
+        os.getenv("SKIP_INTEGRATION_TESTS", "false").lower() == "true"
+    )
     SKIP_E2E_TESTS: bool = os.getenv("SKIP_E2E_TESTS", "false").lower() == "true"
 
     @classmethod
@@ -59,7 +65,9 @@ class IntegrationTestConfig:
         """Check if E2E tests can run (has all required credentials)."""
         if cls.SKIP_E2E_TESTS:
             return False
-        return cls.has_gemini_key() and cls.has_openai_key() and cls.has_aws_credentials()
+        return (
+            cls.has_gemini_key() and cls.has_openai_key() and cls.has_aws_credentials()
+        )
 
     @classmethod
     def get_test_user_id(cls) -> str:

@@ -1,19 +1,19 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { PropsWithChildren, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import { ThemedText } from "@/frontend/components/ThemedText';
-import { ThemedView } from "@/frontend/components/ThemedView';
-import { Colors } from "@/frontend/constants/Colors';
+import Ionicons from "@expo/vector-icons/Ionicons";
+import React, { PropsWithChildren, useMemo } from "react";
+import { StyleSheet, TouchableOpacity, useColorScheme } from "react-native";
+import { ThemedText } from "@/frontend/components/ThemedText";
+import { ThemedView } from "@/frontend/components/ThemedView";
+import { Colors } from "@/frontend/constants/Colors";
 interface CollapsibleProps extends PropsWithChildren {
   title: string;
   incidentColor?: string;
-  textType?: 'subtitle' | 'incidentSubtitle';
+  textType?: 'subtitle' | 'incidentSubtitle";
   isOpen: boolean;
   onToggle: () => void;
 }
 function useCollapsibleIconColor(textType: string | undefined, theme: 'light' | 'dark'): string {
   return useMemo(() => {
-    if (textType) return '#fffff2';
+    if (textType) return '#fffff2";
     return theme === 'light' ? Colors.light.icon : Colors.dark.icon;
   }, [textType, theme]);
 }
@@ -25,7 +25,7 @@ export function Collapsible({
   isOpen,
   onToggle,
 }: CollapsibleProps): React.ReactNode {
-  const theme = useColorScheme() ?? 'light';
+  const theme = useColorScheme() ?? 'light";
   const iconColor = useCollapsibleIconColor(textType, theme);
   return (
     <ThemedView style={{ backgroundColor: incidentColor }}>

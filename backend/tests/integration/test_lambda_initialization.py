@@ -25,7 +25,9 @@ class TestLambdaHandlerInitialization:
         # Assert
         assert handler is not None, "Handler should initialize"
         assert handler.ai_service is not None, "AI service should be initialized"
-        assert handler.storage_service is not None, "Storage service should be initialized"
+        assert (
+            handler.storage_service is not None
+        ), "Storage service should be initialized"
         assert handler.audio_service is not None, "Audio service should be initialized"
         assert handler.tts_provider is not None, "TTS provider should be initialized"
 
@@ -48,7 +50,9 @@ class TestLambdaHandlerInitialization:
 
         # Assert
         assert handler.ai_service is mock_ai_service, "Should use injected AI service"
-        assert handler.storage_service is not None, "Other services should still initialize"
+        assert (
+            handler.storage_service is not None
+        ), "Other services should still initialize"
 
         print("\n✓ Dependency injection works correctly")
 
@@ -60,19 +64,24 @@ class TestLambdaHandlerInitialization:
         handler = LambdaHandler(validate_config=False)
 
         # Act & Assert - verify service methods are callable
-        assert hasattr(handler.ai_service, "analyze_sentiment"), \
-            "AI service should have analyze_sentiment method"
-        assert hasattr(handler.ai_service, "generate_meditation"), \
-            "AI service should have generate_meditation method"
+        assert hasattr(
+            handler.ai_service, "analyze_sentiment"
+        ), "AI service should have analyze_sentiment method"
+        assert hasattr(
+            handler.ai_service, "generate_meditation"
+        ), "AI service should have generate_meditation method"
 
-        assert hasattr(handler.storage_service, "upload_json"), \
-            "Storage service should have upload_json method"
+        assert hasattr(
+            handler.storage_service, "upload_json"
+        ), "Storage service should have upload_json method"
 
-        assert hasattr(handler.audio_service, "combine_voice_and_music"), \
-            "Audio service should have combine_voice_and_music method"
+        assert hasattr(
+            handler.audio_service, "combine_voice_and_music"
+        ), "Audio service should have combine_voice_and_music method"
 
-        assert hasattr(handler.tts_provider, "synthesize_speech"), \
-            "TTS provider should have synthesize_speech method"
+        assert hasattr(
+            handler.tts_provider, "synthesize_speech"
+        ), "TTS provider should have synthesize_speech method"
 
         print("\n✓ All services ready and have expected methods")
 
@@ -86,8 +95,9 @@ class TestLambdaHandlerInitialization:
 
         # Assert - should be independent instances
         assert handler1 is not handler2, "Should create independent instances"
-        assert handler1.ai_service is not handler2.ai_service, \
-            "Each handler should have its own AI service"
+        assert (
+            handler1.ai_service is not handler2.ai_service
+        ), "Each handler should have its own AI service"
 
         print("\n✓ Multiple handler instances created independently")
 
@@ -112,8 +122,9 @@ class TestConfigurationValidation:
 
             # Verify error message mentions missing keys
             error_message = str(exc_info.value)
-            assert "Missing required environment variables" in error_message, \
-                "Error should mention missing variables"
+            assert (
+                "Missing required environment variables" in error_message
+            ), "Error should mention missing variables"
 
             print("\n✓ Missing API keys detected correctly")
 
@@ -169,8 +180,12 @@ class TestServiceInitialization:
 
         # Assert
         assert service is not None, "Service should initialize"
-        assert hasattr(service, "analyze_sentiment"), "Should have analyze_sentiment method"
-        assert hasattr(service, "generate_meditation"), "Should have generate_meditation method"
+        assert hasattr(
+            service, "analyze_sentiment"
+        ), "Should have analyze_sentiment method"
+        assert hasattr(
+            service, "generate_meditation"
+        ), "Should have generate_meditation method"
         assert elapsed_time < 2, f"Initialization should be fast: {elapsed_time:.2f}s"
 
         print(f"\n✓ Gemini service initialized in {elapsed_time:.2f}s")
@@ -186,8 +201,12 @@ class TestServiceInitialization:
 
         # Assert
         assert provider is not None, "Provider should initialize"
-        assert hasattr(provider, "synthesize_speech"), "Should have synthesize_speech method"
-        assert provider.get_provider_name() == "openai", "Should return correct provider name"
+        assert hasattr(
+            provider, "synthesize_speech"
+        ), "Should have synthesize_speech method"
+        assert (
+            provider.get_provider_name() == "openai"
+        ), "Should return correct provider name"
         assert elapsed_time < 2, f"Initialization should be fast: {elapsed_time:.2f}s"
 
         print(f"\n✓ OpenAI TTS provider initialized in {elapsed_time:.2f}s")
@@ -225,8 +244,9 @@ class TestServiceInitialization:
 
         # Assert
         assert service is not None, "Service should initialize"
-        assert hasattr(service, "combine_voice_and_music"), \
-            "Should have combine_voice_and_music method"
+        assert hasattr(
+            service, "combine_voice_and_music"
+        ), "Should have combine_voice_and_music method"
         assert elapsed_time < 2, f"Initialization should be fast: {elapsed_time:.2f}s"
 
         print(f"\n✓ FFmpeg audio service initialized in {elapsed_time:.2f}s")

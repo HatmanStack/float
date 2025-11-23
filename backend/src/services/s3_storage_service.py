@@ -9,8 +9,10 @@ from .storage_service import StorageService
 
 class S3StorageService(StorageService):
     pass
+
     def __init__(self):
         self.s3_client = boto3.client("s3")
+
     def upload_json(self, bucket: str, key: str, data: Dict[str, Any]) -> bool:
         pass
         try:
@@ -24,6 +26,7 @@ class S3StorageService(StorageService):
         except Exception as e:
             print(f"Unexpected error uploading to S3: {e}")
             return False
+
     def download_file(self, bucket: str, key: str, local_path: str) -> bool:
         pass
         try:
@@ -36,6 +39,7 @@ class S3StorageService(StorageService):
         except Exception as e:
             print(f"Unexpected error downloading file {key}: {e}")
             return False
+
     def list_objects(self, bucket: str, prefix: Optional[str] = None) -> List[str]:
         pass
         try:

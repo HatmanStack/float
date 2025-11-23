@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.config.constants import InferenceType
-from src.handlers.lambda_handler import LambdaHandler
 from src.models.requests import MeditationRequest, SummaryRequest
 
 
@@ -15,6 +14,8 @@ class TestLambdaHandlerInitialization:
 
     def test_handler_accepts_injected_ai_service(self, mock_ai_service):
         """Test handler accepts dependency injected AI service."""
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         assert handler.ai_service == mock_ai_service
         assert handler.storage_service is not None
@@ -23,6 +24,8 @@ class TestLambdaHandlerInitialization:
 
     def test_handler_get_tts_provider(self, mock_ai_service):
         """Test get_tts_provider returns TTS provider."""
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         provider = handler.get_tts_provider()
         assert provider is not None
@@ -87,6 +90,8 @@ class TestHandlerConfigValidation:
     def test_validate_config_false_skips_validation(self, mock_ai_service):
         """Test that validate_config=False skips environment validation."""
         # This should not raise even without env vars
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         assert handler is not None
 
@@ -109,6 +114,8 @@ class TestSummaryRequestRouting:
         """Test summary request routes to handle_summary_request."""
         from unittest.mock import patch
 
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
 
         # Mock services
@@ -116,7 +123,7 @@ class TestSummaryRequestRouting:
         handler.tts_provider = mock_tts_provider
 
         # Mock handle_summary_request method
-        with patch.object(handler, 'handle_summary_request') as mock_handle_summary:
+        with patch.object(handler, "handle_summary_request") as mock_handle_summary:
             mock_handle_summary.return_value = {"request_id": "test-123"}
 
             event = {
@@ -124,7 +131,7 @@ class TestSummaryRequestRouting:
                     "user_id": "user-123",
                     "inference_type": "summary",
                     "prompt": "I had a bad day",
-                    "audio": "NotAvailable"
+                    "audio": "NotAvailable",
                 }
             }
 
@@ -138,6 +145,8 @@ class TestSummaryRequestRouting:
         self, mock_ai_service, mock_storage_service, mock_tts_provider
     ):
         """Test summary request with audio data processes correctly."""
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.tts_provider = mock_tts_provider
@@ -146,7 +155,7 @@ class TestSummaryRequestRouting:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="NotAvailable",
-            audio="dGVzdCBhdWRpbyBkYXRh"  # base64 encoded test data
+            audio="dGVzdCBhdWRpbyBkYXRh",  # base64 encoded test data
         )
 
         result = handler.handle_summary_request(request)
@@ -159,6 +168,8 @@ class TestSummaryRequestRouting:
         self, mock_ai_service, mock_storage_service
     ):
         """Test summary request without audio data processes correctly."""
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
 
@@ -166,7 +177,7 @@ class TestSummaryRequestRouting:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="I had a difficult day",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
 
         result = handler.handle_summary_request(request)
@@ -176,7 +187,7 @@ class TestSummaryRequestRouting:
         assert mock_ai_service.analyze_sentiment.called
         # Verify it was called with None for audio_file
         call_args = mock_ai_service.analyze_sentiment.call_args
-        assert call_args.kwargs['audio_file'] is None
+        assert call_args.kwargs["audio_file"] is None
 
     def test_invalid_summary_request_raises_error(self):
         """Test invalid summary request raises appropriate error."""
@@ -186,7 +197,7 @@ class TestSummaryRequestRouting:
             "user_id": "user-123",
             "inference_type": "summary",
             "prompt": "NotAvailable",
-            "audio": "NotAvailable"  # Both are NotAvailable - invalid
+            "audio": "NotAvailable",  # Both are NotAvailable - invalid
         }
 
         with pytest.raises(ValueError, match="Invalid request data"):
@@ -198,17 +209,25 @@ class TestMeditationRequestRouting:
     """Test Lambda handler routing for meditation requests."""
 
     def test_meditation_request_routes_to_handle_meditation_request(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
+        self,
+        mock_ai_service,
+        mock_storage_service,
+        mock_audio_service,
+        mock_tts_provider,
     ):
         """Test meditation request routes to handle_meditation_request."""
         from unittest.mock import patch
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.audio_service = mock_audio_service
         handler.tts_provider = mock_tts_provider
 
-        with patch.object(handler, 'handle_meditation_request') as mock_handle_meditation:
+        with patch.object(
+            handler, "handle_meditation_request"
+        ) as mock_handle_meditation:
             mock_handle_meditation.return_value = {"request_id": "test-456"}
 
             event = {
@@ -216,7 +235,7 @@ class TestMeditationRequestRouting:
                     "user_id": "user-123",
                     "inference_type": "meditation",
                     "input_data": {"sentiment_label": ["Happy"]},
-                    "music_list": []
+                    "music_list": [],
                 }
             }
 
@@ -225,10 +244,16 @@ class TestMeditationRequestRouting:
             assert mock_handle_meditation.called
 
     def test_meditation_request_with_all_required_fields(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
+        self,
+        mock_ai_service,
+        mock_storage_service,
+        mock_audio_service,
+        mock_tts_provider,
     ):
         """Test meditation request with all required input_data fields."""
         from unittest.mock import MagicMock
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
@@ -248,14 +273,15 @@ class TestMeditationRequestRouting:
                 "added_text": ["Difficult day"],
                 "summary": ["Work stress"],
                 "user_summary": ["Had a bad day"],
-                "user_short_summary": ["Bad day"]
+                "user_short_summary": ["Bad day"],
             },
-            music_list=[]
+            music_list=[],
         )
 
         # Mock file operations to avoid actual file I/O
         from unittest.mock import patch
-        with patch('src.handlers.lambda_handler.encode_audio_to_base64') as mock_encode:
+
+        with patch("src.handlers.lambda_handler.encode_audio_to_base64") as mock_encode:
             mock_encode.return_value = "base64_encoded_audio"
             result = handler.handle_meditation_request(request)
 
@@ -264,10 +290,16 @@ class TestMeditationRequestRouting:
         assert mock_ai_service.generate_meditation.called
 
     def test_meditation_request_with_music_list_processes_correctly(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
+        self,
+        mock_ai_service,
+        mock_storage_service,
+        mock_audio_service,
+        mock_tts_provider,
     ):
         """Test meditation request with music list processes correctly."""
         from unittest.mock import MagicMock, patch
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
@@ -280,17 +312,17 @@ class TestMeditationRequestRouting:
             user_id="user-123",
             inference_type=InferenceType.MEDITATION,
             input_data={"sentiment_label": ["Happy"]},
-            music_list=["Ambient-Peaceful_300.wav", "Nature-Birds_180.wav"]
+            music_list=["Ambient-Peaceful_300.wav", "Nature-Birds_180.wav"],
         )
 
-        with patch('src.handlers.lambda_handler.encode_audio_to_base64') as mock_encode:
+        with patch("src.handlers.lambda_handler.encode_audio_to_base64") as mock_encode:
             mock_encode.return_value = "base64_encoded_audio"
             result = handler.handle_meditation_request(request)
 
         assert result is not None
         assert mock_audio_service.combine_voice_and_music.called
         call_args = mock_audio_service.combine_voice_and_music.call_args
-        assert len(call_args.kwargs['music_list']) == 2
+        assert len(call_args.kwargs["music_list"]) == 2
 
     def test_invalid_meditation_request_raises_error(self):
         """Test invalid meditation request raises appropriate error."""
@@ -300,7 +332,7 @@ class TestMeditationRequestRouting:
             "user_id": "user-123",
             "inference_type": "meditation",
             "input_data": {},  # Empty input_data - invalid
-            "music_list": []
+            "music_list": [],
         }
 
         with pytest.raises(ValueError, match="Invalid request data"):
@@ -315,10 +347,7 @@ class TestRequestTypeDetection:
         """Test request with missing inference_type field."""
         from src.models.requests import parse_request_body
 
-        body = {
-            "user_id": "user-123",
-            "prompt": "Test prompt"
-        }
+        body = {"user_id": "user-123", "prompt": "Test prompt"}
 
         with pytest.raises(ValueError, match="inference_type is required"):
             parse_request_body(body)
@@ -330,7 +359,7 @@ class TestRequestTypeDetection:
         body = {
             "user_id": "user-123",
             "inference_type": "invalid_type",
-            "prompt": "Test prompt"
+            "prompt": "Test prompt",
         }
 
         with pytest.raises(ValueError, match="Invalid inference_type"):
@@ -340,10 +369,7 @@ class TestRequestTypeDetection:
         """Test request with missing user_id field."""
         from src.models.requests import parse_request_body
 
-        body = {
-            "inference_type": "summary",
-            "prompt": "Test prompt"
-        }
+        body = {"inference_type": "summary", "prompt": "Test prompt"}
 
         with pytest.raises(ValueError, match="user_id is required"):
             parse_request_body(body)
@@ -357,6 +383,7 @@ class TestErrorHandling:
         self, mock_ai_service, mock_storage_service
     ):
         """Test handler catches and formats exceptions properly."""
+        from src.handlers.lambda_handler import LambdaHandler
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
@@ -368,7 +395,7 @@ class TestErrorHandling:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="Test",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
 
         with pytest.raises(Exception, match="AI service error"):
@@ -383,7 +410,7 @@ class TestErrorHandling:
             "user_id": "user-123",
             "inference_type": "summary",
             "prompt": "NotAvailable",
-            "audio": "NotAvailable"
+            "audio": "NotAvailable",
         }
 
         with pytest.raises(ValueError):
@@ -392,6 +419,7 @@ class TestErrorHandling:
     def test_unsupported_request_type_returns_error(self, mock_ai_service):
         """Test unsupported request type returns appropriate error."""
         from src.config.constants import HTTP_BAD_REQUEST
+        from src.handlers.lambda_handler import LambdaHandler
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
 
@@ -400,14 +428,21 @@ class TestErrorHandling:
             pass
 
         from unittest.mock import patch
-        with patch('src.handlers.lambda_handler.parse_request_body') as mock_parse:
+
+        # We need to patch where it's imported/used. If lambda_handler.py imports it, we patch it there.
+        with patch("src.handlers.lambda_handler.parse_request_body") as mock_parse:
             mock_parse.return_value = UnsupportedRequest()
 
-            event = {"parsed_body": {"user_id": "test", "inference_type": "unsupported"}}
+            event = {
+                "parsed_body": {"user_id": "test", "inference_type": "unsupported"}
+            }
             result = handler.handle_request.__wrapped__(handler, event, {})
 
-            assert result['statusCode'] == HTTP_BAD_REQUEST
-            assert 'error' in result['body'] or 'Unsupported request type' in result['body']
+            assert result["statusCode"] == HTTP_BAD_REQUEST
+            assert (
+                "error" in result["body"]
+                or "Unsupported request type" in result["body"]
+            )
 
 
 @pytest.mark.unit
@@ -416,6 +451,8 @@ class TestDependencyInjection:
 
     def test_handler_accepts_injected_services(self, mock_ai_service):
         """Test handler accepts all injected services."""
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
 
         assert handler.ai_service == mock_ai_service
@@ -427,6 +464,8 @@ class TestDependencyInjection:
         self, mock_ai_service, mock_storage_service
     ):
         """Test handler uses injected AI service in request processing."""
+        from src.handlers.lambda_handler import LambdaHandler
+
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
 
@@ -434,7 +473,7 @@ class TestDependencyInjection:
             user_id="user-123",
             inference_type=InferenceType.SUMMARY,
             prompt="Test prompt",
-            audio="NotAvailable"
+            audio="NotAvailable",
         )
 
         handler.handle_summary_request(request)
@@ -446,7 +485,9 @@ class TestDependencyInjection:
         """Test handler creates default AI service when not injected."""
         from unittest.mock import patch
 
-        with patch('src.services.gemini_service.GeminiAIService') as mock_gemini_class:
+        from src.handlers.lambda_handler import LambdaHandler
+
+        with patch("src.services.gemini_service.GeminiAIService") as mock_gemini_class:
             mock_gemini_instance = MagicMock()
             mock_gemini_class.return_value = mock_gemini_instance
 

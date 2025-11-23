@@ -5,8 +5,8 @@
  * and verifies that the integration test infrastructure works correctly.
  */
 
-import React from 'react';
-import { View, Text, Button } from 'react-native';
+import React from "react";
+import { View, Text, Button } from "react-native";
 import {
   renderWithAuthContext,
   renderWithIncidentContext,
@@ -16,9 +16,9 @@ import {
   waitForIntegration,
   fireEvent,
   within,
-} from './test-utils';
-import { useAuth } from "@/frontend/context/AuthContext';
-import { useIncident } from "@/frontend/context/IncidentContext';
+} from "./test-utils";
+import { useAuth } from "@/frontend/context/AuthContext";
+import { useIncident } from "@/frontend/context/IncidentContext";
 
 /**
  * Test component that uses AuthContext

@@ -26,7 +26,10 @@ SAMPLE_MEDITATION_REQUEST = {
         "speech_to_text": ["NotAvailable", "I'm worried about upcoming events"],
         "added_text": ["Difficult day at work", "NotAvailable"],
         "summary": ["Work stress", "Future anxiety"],
-        "user_summary": ["Had a bad day dealing with deadlines", "Worried about what's coming"],
+        "user_summary": [
+            "Had a bad day dealing with deadlines",
+            "Worried about what's coming",
+        ],
         "user_short_summary": ["Stressful work", "Anxious about future"],
     },
     "music_list": [

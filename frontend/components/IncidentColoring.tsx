@@ -1,7 +1,7 @@
-import { Colors } from "@/frontend/constants/Colors';
-import { useEffect } from 'react';
-import { useIncident, Incident } from "@/frontend/context/IncidentContext';
-import { getCurrentTime } from "@/frontend/constants/StylesConstants';
+import { Colors } from "@/frontend/constants/Colors";
+import { useEffect } from "react";
+import { useIncident, Incident } from "@/frontend/context/IncidentContext";
+import { getCurrentTime } from "@/frontend/constants/StylesConstants";
 export function IncidentColoring() {
   const { incidentList, setColorChangeArrayOfArrays } = useIncident();
   const numberOfColorsToTransitionThrough = 10;
@@ -26,7 +26,7 @@ export function IncidentColoring() {
       typeof incident.intensity === 'string'
         ? parseInt(incident.intensity, 10)
         : incident.intensity;
-    const colorSetKey = intensityMapping[intensityNum] || 'one';
+    const colorSetKey = intensityMapping[intensityNum] || 'one";
     const result = colorSet[colorSetKey as keyof typeof colorSet];
     return Array.isArray(result) ? result : [];
   };

@@ -27,7 +27,9 @@ def skip_if_no_gemini():
 def skip_if_no_openai():
     """Skip test if OpenAI API key is not available."""
     if not test_config.has_openai_key():
-        pytest.skip("OpenAI API key not available (set OPENAI_API_KEY environment variable)")
+        pytest.skip(
+            "OpenAI API key not available (set OPENAI_API_KEY environment variable)"
+        )
 
 
 @pytest.fixture(scope="session")
@@ -169,6 +171,7 @@ def retry_on_rate_limit():
     Usage:
         retry_on_rate_limit(lambda: api_call(), max_retries=3)
     """
+
     def retry_func(func, max_retries=3, initial_delay=2):
         """Retry function with exponential backoff."""
         for attempt in range(max_retries):
@@ -176,10 +179,16 @@ def retry_on_rate_limit():
                 return func()
             except Exception as e:
                 error_msg = str(e).lower()
-                if "rate limit" in error_msg or "quota" in error_msg or "429" in error_msg:
+                if (
+                    "rate limit" in error_msg
+                    or "quota" in error_msg
+                    or "429" in error_msg
+                ):
                     if attempt < max_retries - 1:
-                        delay = initial_delay * (2 ** attempt)
-                        print(f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                        delay = initial_delay * (2**attempt)
+                        print(
+                            f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                        )
                         time.sleep(delay)
                         continue
                 raise
@@ -218,6 +227,7 @@ def test_meditation_input():
 @pytest.fixture
 def validate_json_response():
     """Utility to validate JSON response structure."""
+
     def validator(response_str: str, required_fields: List[str]) -> dict:
         """
         Validate that response is valid JSON with required fields.
@@ -251,6 +261,7 @@ def validate_json_response():
 @pytest.fixture
 def validate_ssml_response():
     """Utility to validate SSML response structure."""
+
     def validator(ssml_str: str) -> bool:
         """
         Validate that response contains valid SSML tags.

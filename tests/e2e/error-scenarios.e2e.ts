@@ -8,7 +8,7 @@
  * @requires Network mocking capability
  */
 
-import { by, device, element, expect as detoxExpect, waitFor } from 'detox';
+import { by, device, element, expect as detoxExpect, waitFor } from "detox";
 
 describe('Error Scenarios', () => {
   beforeAll(async () => {

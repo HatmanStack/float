@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, type ViewProps } from 'react-native';
-import { useThemeColor } from "@/frontend/hooks/useThemeColor';
+import React from "react";
+import { View, type ViewProps } from "react-native";
+import { useThemeColor } from "@/frontend/hooks/useThemeColor";
 interface ThemedViewProps extends ViewProps {
   lightColor?: string;
   darkColor?: string;

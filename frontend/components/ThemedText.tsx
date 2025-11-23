@@ -1,6 +1,6 @@
-import React from 'react';
-import { Text, type TextProps, StyleSheet, Platform, useWindowDimensions } from 'react-native';
-import { useThemeColor } from "@/frontend/hooks/useThemeColor';
+import React from "react";
+import { Text, type TextProps, StyleSheet, Platform, useWindowDimensions } from "react-native";
+import { useThemeColor } from "@/frontend/hooks/useThemeColor";
 export interface ThemedTextProps extends TextProps {
   lightColor?: string;
   darkColor?: string;
@@ -13,7 +13,7 @@ export interface ThemedTextProps extends TextProps {
     | 'link'
     | 'header'
     | 'details'
-    | 'incidentDetails';
+    | 'incidentDetails";
 }
 export function ThemedText({
   style,

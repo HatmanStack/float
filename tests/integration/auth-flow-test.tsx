@@ -10,8 +10,8 @@
  * - Error scenarios
  */
 
-import React from 'react';
-import { View, Text, Button } from 'react-native';
+import React from "react";
+import { View, Text, Button } from "react-native";
 import {
   renderWithAuthContext,
   renderWithAllContexts,
@@ -22,9 +22,9 @@ import {
   fireEvent,
   act,
   INTEGRATION_TIMEOUTS,
-} from './test-utils';
-import { useAuth } from "@/frontend/context/AuthContext';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+} from "./test-utils";
+import { useAuth } from "@/frontend/context/AuthContext";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 // Use mocked AsyncStorage from test-utils
 const AsyncStorage = mockAsyncStorage;

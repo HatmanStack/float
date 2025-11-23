@@ -1,8 +1,8 @@
-import { render, waitFor } from '@testing-library/react-native';
-import { IncidentColoring } from "@/frontend/components/IncidentColoring';
-import { getCurrentTime } from "@/frontend/constants/StylesConstants';
-import { IncidentContext, IncidentProvider } from "@/frontend/context/IncidentContext';
-import React from 'react';
+import { render, waitFor } from "@testing-library/react-native";
+import { IncidentColoring } from "@/frontend/components/IncidentColoring";
+import { getCurrentTime } from "@/frontend/constants/StylesConstants";
+import { IncidentContext, IncidentProvider } from "@/frontend/context/IncidentContext";
+import React from "react";
 
 jest.useFakeTimers();
 const mockDateNow = new Date('2023-10-26T12:00:00.000Z');

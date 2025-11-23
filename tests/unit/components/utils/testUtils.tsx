@@ -1,7 +1,7 @@
-import React, { ReactElement } from 'react';
-import { render, RenderOptions } from '@testing-library/react-native';
-import { AuthProvider } from "@/frontend/context/AuthContext';
-import { IncidentProvider } from "@/frontend/context/IncidentContext';
+import React, { ReactElement } from "react";
+import { render, RenderOptions } from "@testing-library/react-native";
+import { AuthProvider } from "@/frontend/context/AuthContext";
+import { IncidentProvider } from "@/frontend/context/IncidentContext";
 
 /**
  * Mock user data for testing
@@ -196,4 +196,4 @@ export function waitFor(ms: number = 100) {
 }
 
 // Re-export everything from React Testing Library
-export * from '@testing-library/react-native';
+export * from "@testing-library/react-native";

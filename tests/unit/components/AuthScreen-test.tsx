@@ -1,7 +1,7 @@
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import CustomAuth from "@/frontend/components/AuthScreen';
-import { Platform } from 'react-native';
+import React from "react";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import CustomAuth from "@/frontend/components/AuthScreen";
+import { Platform } from "react-native";
 
 // Mock AuthContext
 const mockSetUser = jest.fn();
@@ -23,7 +23,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Mock Google OAuth
 const mockGoogleLogin = jest.fn();
@@ -186,7 +186,7 @@ describe('AuthScreen', () => {
 
   it('should handle Google web login on web platform', async () => {
     // @ts-ignore
-    Platform.OS = 'web';
+    Platform.OS = 'web";
 
     const mockUserInfo = {
       data: {

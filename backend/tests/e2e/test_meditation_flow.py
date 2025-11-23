@@ -148,9 +148,12 @@ class TestMeditationFlowHappyPath:
 
             # Assert
             assert response, f"Should return response for intensity {intensity}"
-            assert "base64_audio" in response, f"Should have audio for intensity {intensity}"
-            assert len(response["base64_audio"]) > 500, \
-                f"Should have audio content for intensity {intensity}"
+            assert (
+                "base64_audio" in response
+            ), f"Should have audio for intensity {intensity}"
+            assert (
+                len(response["base64_audio"]) > 500
+            ), f"Should have audio content for intensity {intensity}"
 
             print(f"  ✓ Meditation generated for intensity {intensity}")
 
@@ -181,7 +184,9 @@ class TestMeditationFlowHappyPath:
             assert field in response, f"Response missing required field: {field}"
 
         # Verify field types
-        assert isinstance(response["base64_audio"], str), "base64_audio should be string"
+        assert isinstance(
+            response["base64_audio"], str
+        ), "base64_audio should be string"
         assert isinstance(response["music_list"], list), "music_list should be list"
 
         print("\n✓ Meditation response format complete with all required fields")
@@ -305,8 +310,9 @@ class TestMeditationFlowEdgeCases:
         assert response, "Should handle multiple instances"
         assert "base64_audio" in response, "Should return audio"
         # Meditation for multiple instances should be longer
-        assert len(response["base64_audio"]) > 2000, \
-            "Multiple instances should produce longer meditation"
+        assert (
+            len(response["base64_audio"]) > 2000
+        ), "Multiple instances should produce longer meditation"
 
         print(f"\n✓ Multiple instances handled in {elapsed_time:.2f}s")
 
@@ -333,7 +339,9 @@ class TestMeditationFlowEdgeCases:
 
             # Assert
             assert response, f"Should handle intensity {intensity}"
-            assert "base64_audio" in response, f"Should return audio for intensity {intensity}"
+            assert (
+                "base64_audio" in response
+            ), f"Should return audio for intensity {intensity}"
 
             print(f"  ✓ Edge case intensity {intensity} handled")
 
@@ -438,8 +446,9 @@ class TestMeditationFlowPerformance:
 
         # Assert
         audio_size = len(response["base64_audio"])
-        assert 1000 < audio_size < 10000000, \
-            f"Audio size should be reasonable, got {audio_size} characters"
+        assert (
+            1000 < audio_size < 10000000
+        ), f"Audio size should be reasonable, got {audio_size} characters"
 
         # Decode to get actual byte size
         decoded_size = len(base64.b64decode(response["base64_audio"]))

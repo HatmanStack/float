@@ -1,16 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useColorScheme, Platform } from 'react-native';
-import { Pressable } from 'react-native';
-import { ThemedText } from "@/frontend/components/ThemedText';
-import { ThemedView } from "@/frontend/components/ThemedView';
-import { useGoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from "@/frontend/context/AuthContext';
-import useStyles from "@/frontend/constants/StylesConstants';
-import { Colors } from "@/frontend/constants/Colors';
-import * as WebBrowser from 'expo-web-browser';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import axios from 'axios';
+import React, { useEffect, useState, useCallback } from "react";
+import { useColorScheme, Platform } from "react-native";
+import { Pressable } from "react-native";
+import { ThemedText } from "@/frontend/components/ThemedText";
+import { ThemedView } from "@/frontend/components/ThemedView";
+import { useGoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/frontend/context/AuthContext";
+import useStyles from "@/frontend/constants/StylesConstants";
+import { Colors } from "@/frontend/constants/Colors";
+import * as WebBrowser from "expo-web-browser";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import axios from "axios";
 GoogleSignin.configure({
   webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
 });
@@ -90,7 +90,7 @@ const AuthScreen: React.FC = (): React.ReactNode => {
   const { user, handleGoogleLogin, handleGuestLogin } = useAuthentication();
   const styles = useStyles();
   const colorScheme = useColorScheme();
-  const backgroundAuthColor = colorScheme === 'light' ? '#60465a' : '#bfaeba';
+  const backgroundAuthColor = colorScheme === 'light' ? '#60465a' : '#bfaeba";
   if (!isUserLoaded) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -153,12 +153,12 @@ const AuthScreen: React.FC = (): React.ReactNode => {
 };
 function useClientId(): string {
   if (Platform.OS === 'web') {
-    return process.env.EXPO_PUBLIC_WEB_CLIENT_ID || '';
+    return process.env.EXPO_PUBLIC_WEB_CLIENT_ID || '";
   }
   if (Platform.OS === 'android') {
-    return process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || '';
+    return process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || '";
   }
-  return '';
+  return '";
 }
 const CustomAuth: React.FC = (): React.ReactNode => {
   const clientId = useClientId();

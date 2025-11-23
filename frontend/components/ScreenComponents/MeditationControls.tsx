@@ -1,10 +1,10 @@
-import { Audio } from 'expo-av';
-import React, { useState, useCallback } from 'react';
-import { Pressable, ActivityIndicator } from 'react-native';
-import { Colors } from "@/frontend/constants/Colors';
-import useStyles from "@/frontend/constants/StylesConstants';
-import { ThemedText } from "@/frontend/components/ThemedText';
-import { ThemedView } from "@/frontend/components/ThemedView';
+import { Audio } from "expo-av";
+import React, { useState, useCallback } from "react";
+import { Pressable, ActivityIndicator } from "react-native";
+import { Colors } from "@/frontend/constants/Colors";
+import useStyles from "@/frontend/constants/StylesConstants";
+import { ThemedText } from "@/frontend/components/ThemedText";
+import { ThemedView } from "@/frontend/components/ThemedView";
 interface MeditationControlsProps {
   isCalling: boolean;
   meditationURI: string;

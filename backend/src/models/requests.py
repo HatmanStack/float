@@ -10,43 +10,56 @@ class BaseRequest:
     pass
     user_id: str
     inference_type: InferenceType
+
+
 @dataclass
 class SummaryRequest(BaseRequest):
     """Request model for sentiment analysis/summary.
     Represents a request to analyze sentiment from audio and/or text input.
     At least one of audio or prompt must be provided and not be "NotAvailable".
     """
+
     audio: Optional[str] = None  # Base64 encoded audio or "NotAvailable"
     prompt: Optional[str] = None  # Text prompt or "NotAvailable"
+
     def __post_init__(self) -> None:
         pass
         self.inference_type = InferenceType.SUMMARY
+
     def validate(self) -> bool:
         pass
         audio_available: bool = bool(self.audio and self.audio != "NotAvailable")
         prompt_available: bool = bool(self.prompt and self.prompt != "NotAvailable")
         return audio_available or prompt_available
+
+
 @dataclass
 class MeditationRequest(BaseRequest):
     pass
     input_data: Union[Dict[str, Any], List[Dict[str, Any]]]
     music_list: List[str]
+
     def __post_init__(self) -> None:
         pass
         self.inference_type = InferenceType.MEDITATION
+
     def validate(self) -> bool:
         pass
         print(f"[MEDITATION_VALIDATION] input_data type: {type(self.input_data)}")
         print(f"[MEDITATION_VALIDATION] input_data: {self.input_data}")
         print(f"[MEDITATION_VALIDATION] music_list type: {type(self.music_list)}")
         print(f"[MEDITATION_VALIDATION] music_list: {self.music_list}")
-        input_data_valid = isinstance(self.input_data, (dict, list)) and bool(self.input_data)
+        input_data_valid = isinstance(self.input_data, (dict, list)) and bool(
+            self.input_data
+        )
         music_list_valid = isinstance(self.music_list, list)
         print(f"[MEDITATION_VALIDATION] input_data_valid: {input_data_valid}")
         print(f"[MEDITATION_VALIDATION] music_list_valid: {music_list_valid}")
         result = input_data_valid and music_list_valid
         print(f"[MEDITATION_VALIDATION] validation result: {result}")
         return result
+
+
 def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
     pass
     if isinstance(value, str):
@@ -56,6 +69,8 @@ def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
             print(f"[PARSE_REQUEST] Failed to parse {field_name} JSON: {value}")
             return default if default is not None else {}
     return value
+
+
 def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
     pass
     user_id = body.get("user_id")
@@ -69,6 +84,8 @@ def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
     except ValueError:
         raise ValueError(f"Invalid inference_type: {inference_type}")
     return user_id, inference_enum
+
+
 def parse_request_body(body: Dict[str, Any]) -> BaseRequest:
     pass
     user_id, inference_enum = _validate_request_fields(body)

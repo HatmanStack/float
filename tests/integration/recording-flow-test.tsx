@@ -10,8 +10,8 @@
  * - Error scenarios
  */
 
-import React, { useState } from 'react';
-import { View, Text, Button } from 'react-native';
+import React, { useState } from "react";
+import { View, Text, Button } from "react-native";
 import {
   renderWithIncidentContext,
   renderWithAllContexts,
@@ -23,10 +23,10 @@ import {
   fireEvent,
   act,
   INTEGRATION_TIMEOUTS,
-} from './test-utils';
-import { useIncident } from "@/frontend/context/IncidentContext';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+} from "./test-utils";
+import { useIncident } from "@/frontend/context/IncidentContext";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 
 // Mock backend summary response
 const mockSummaryResponse = {
@@ -51,7 +51,7 @@ function RecordingComponent() {
   const requestPermission = async () => {
     const { status } = await Audio.requestPermissionsAsync();
     setPermissionStatus(status === 'granted' ? 'granted' : 'denied');
-    return status === 'granted';
+    return status === 'granted";
   };
 
   const startRecording = () => {

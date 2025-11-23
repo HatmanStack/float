@@ -29,9 +29,9 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { StartRecording, StopRecording } from "@/frontend/components/AudioRecording';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import { StartRecording, StopRecording } from "@/frontend/components/AudioRecording";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 
 describe('AudioRecording', () => {
   beforeEach(() => {
@@ -132,7 +132,7 @@ describe('AudioRecording', () => {
 
   describe('StopRecording', () => {
     it('should stop recording and return base64 data', async () => {
-      const base64Data = 'mockBase64Data==';
+      const base64Data = 'mockBase64Data==";
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(base64Data);
 
       const result = await StopRecording(mockRecording as any);
@@ -147,7 +147,7 @@ describe('AudioRecording', () => {
     });
 
     it('should delete recording file after reading on mobile', async () => {
-      const base64Data = 'mockBase64Data==';
+      const base64Data = 'mockBase64Data==";
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(base64Data);
 
       await StopRecording(mockRecording as any);

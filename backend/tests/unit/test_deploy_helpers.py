@@ -5,6 +5,7 @@ import subprocess
 # We are running pytest from backend/ directory, so path should be relative to that
 DEPLOY_HELPERS_SCRIPT = "scripts/deploy-helpers.sh"
 
+
 def run_bash_function(function_name, *args):
     """
     Helper to run a bash function from the source file.
@@ -14,29 +15,26 @@ def run_bash_function(function_name, *args):
     cmd = f"source {DEPLOY_HELPERS_SCRIPT}; {function_name} {args_str}"
 
     # Run in bash
-    result = subprocess.run(
-        ["bash", "-c", cmd],
-        capture_output=True,
-        text=True
-    )
+    result = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
     return result
+
 
 class TestDeployHelpers:
     def test_generate_samconfig_toml(self, tmp_path):
         output_file = tmp_path / "samconfig.toml"
 
         args = [
-            "test-stack",           # stack_name
-            "us-east-1",            # region
-            "arn:aws:layer:1",      # ffmpeg_layer
-            "gemini-key",           # gkey
-            "openai-key",           # openai_key
-            "xi-key",               # xi_key
-            "0.8",                  # similarity
-            "0.4",                  # stability
-            "0.5",                  # style
-            "voice-123",            # voice_id
-            str(output_file)        # output_file
+            "test-stack",  # stack_name
+            "us-east-1",  # region
+            "arn:aws:layer:1",  # ffmpeg_layer
+            "gemini-key",  # gkey
+            "openai-key",  # openai_key
+            "xi-key",  # xi_key
+            "0.8",  # similarity
+            "0.4",  # stability
+            "0.5",  # style
+            "voice-123",  # voice_id
+            str(output_file),  # output_file
         ]
 
         result = run_bash_function("generate_samconfig_toml", *args)
@@ -57,7 +55,9 @@ class TestDeployHelpers:
         api_endpoint = "https://api.example.com"
         audio_bucket = "test-bucket"
 
-        result = run_bash_function("generate_frontend_env", api_endpoint, audio_bucket, str(output_file))
+        result = run_bash_function(
+            "generate_frontend_env", api_endpoint, audio_bucket, str(output_file)
+        )
         assert result.returncode == 0
 
         assert output_file.exists()
@@ -93,7 +93,7 @@ class TestDeployHelpers:
             result = subprocess.run(
                 ["git", "check-ignore", "-v", "samconfig.toml"],
                 capture_output=True,
-                text=True
+                text=True,
             )
             # Exit code 0 means ignored, 1 means not ignored
             assert result.returncode == 0

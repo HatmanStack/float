@@ -236,14 +236,17 @@ class TestFileUtils:
         assert is_audio_file("image.jpg") is False
         assert is_audio_file("noextension") is False
 
-    @pytest.mark.parametrize("unsafe,expected", [
-        ("file<name>.mp3", "file_name_.mp3"),
-        ("path/to:file.wav", "path_to_file.wav"),
-        ("file|name?.mp3", "file_name_.mp3"),
-        ("  .dotfile  ", "dotfile"),
-        ("", "untitled"),
-        ("normal_file.mp3", "normal_file.mp3"),
-    ])
+    @pytest.mark.parametrize(
+        "unsafe,expected",
+        [
+            ("file<name>.mp3", "file_name_.mp3"),
+            ("path/to:file.wav", "path_to_file.wav"),
+            ("file|name?.mp3", "file_name_.mp3"),
+            ("  .dotfile  ", "dotfile"),
+            ("", "untitled"),
+            ("normal_file.mp3", "normal_file.mp3"),
+        ],
+    )
     def test_safe_filename_sanitization(self, unsafe, expected):
         """Test filename sanitization."""
         assert safe_filename(unsafe) == expected

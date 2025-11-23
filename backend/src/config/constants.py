@@ -5,11 +5,15 @@ class InferenceType(Enum):
     pass
     SUMMARY = "summary"
     MEDITATION = "meditation"
+
+
 class TTSProvider(Enum):
     pass
     OPENAI = "openai"
     GOOGLE = "google"
     ELEVENLABS = "elevenlabs"
+
+
 class SentimentLabel(Enum):
     pass
     ANGRY = "Angry"
@@ -19,6 +23,8 @@ class SentimentLabel(Enum):
     NEUTRAL = "Neutral"
     SAD = "Sad"
     SURPRISED = "Surprised"
+
+
 CHUNK_SIZE = 1024
 MAX_AUDIO_DURATION = 600  # 10 minutes
 DEFAULT_SILENCE_DURATION = 10  # seconds

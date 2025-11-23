@@ -34,7 +34,11 @@ def lambda_handler_real(skip_if_e2e_disabled):
 def lambda_event_factory():
     """Factory for creating Lambda events."""
 
-    def create_event(body: Dict[str, Any], method: str = "POST", origin: str = "https://float-app.fun") -> dict:
+    def create_event(
+        body: Dict[str, Any],
+        method: str = "POST",
+        origin: str = "https://float-app.fun",
+    ) -> dict:
         """
         Create a Lambda event dict.
 

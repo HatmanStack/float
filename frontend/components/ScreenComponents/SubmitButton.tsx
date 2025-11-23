@@ -1,8 +1,8 @@
-import React from 'react';
-import { ActivityIndicator, Pressable } from 'react-native';
-import { ThemedText } from "@/frontend/components/ThemedText';
-import { Colors } from "@/frontend/constants/Colors';
-import useStyles from "@/frontend/constants/StylesConstants';
+import React from "react";
+import { ActivityIndicator, Pressable } from "react-native";
+import { ThemedText } from "@/frontend/components/ThemedText";
+import { Colors } from "@/frontend/constants/Colors";
+import useStyles from "@/frontend/constants/StylesConstants";
 interface SubmitButtonProps {
   submitActivity: boolean;
   handleSummaryCall: () => void;

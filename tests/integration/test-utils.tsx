@@ -1,7 +1,7 @@
-import React, { ReactElement } from 'react';
-import { render, RenderOptions, waitFor as rtlWaitFor } from '@testing-library/react-native';
-import { AuthProvider } from "@/frontend/context/AuthContext';
-import { IncidentProvider } from "@/frontend/context/IncidentContext';
+import React, { ReactElement } from "react";
+import { render, RenderOptions, waitFor as rtlWaitFor } from "@testing-library/react-native";
+import { AuthProvider } from "@/frontend/context/AuthContext";
+import { IncidentProvider } from "@/frontend/context/IncidentContext";
 
 /**
  * Integration Test Utilities
@@ -329,4 +329,4 @@ export {
   screen,
   within,
   act,
-} from '@testing-library/react-native';
+} from "@testing-library/react-native";

@@ -23,9 +23,7 @@ class TestS3UploadIntegration:
         # Arrange
         bucket = test_config.AWS_S3_BUCKET
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        key = test_config.get_test_s3_key(
-            test_user_id, f"test_upload_{timestamp}.json"
-        )
+        key = test_config.get_test_s3_key(test_user_id, f"test_upload_{timestamp}.json")
         test_data = {
             "user_id": test_user_id,
             "timestamp": timestamp,
@@ -59,9 +57,7 @@ class TestS3UploadIntegration:
         # Arrange
         bucket = test_config.AWS_S3_BUCKET
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        key = test_config.get_test_s3_key(
-            test_user_id, f"sentiment_{timestamp}.json"
-        )
+        key = test_config.get_test_s3_key(test_user_id, f"sentiment_{timestamp}.json")
         sentiment_data = {
             "user_id": test_user_id,
             "sentiment_label": "Sad",
@@ -92,9 +88,7 @@ class TestS3UploadIntegration:
         # Arrange
         bucket = test_config.AWS_S3_BUCKET
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        key = test_config.get_test_s3_key(
-            test_user_id, f"meditation_{timestamp}.json"
-        )
+        key = test_config.get_test_s3_key(test_user_id, f"meditation_{timestamp}.json")
         meditation_data = {
             "user_id": test_user_id,
             "timestamp": timestamp,
@@ -207,7 +201,9 @@ class TestS3DownloadIntegration:
             # Verify contents match
             with open(local_path, "r") as f:
                 downloaded_data = json.load(f)
-            assert downloaded_data == original_data, "Downloaded data should match original"
+            assert (
+                downloaded_data == original_data
+            ), "Downloaded data should match original"
 
             print("\n✓ File downloaded and verified successfully")
 
@@ -220,9 +216,7 @@ class TestS3DownloadIntegration:
         """Test downloading a file that doesn't exist."""
         # Arrange
         bucket = test_config.AWS_S3_BUCKET
-        key = test_config.get_test_s3_key(
-            test_user_id, "nonexistent_file_12345.json"
-        )
+        key = test_config.get_test_s3_key(test_user_id, "nonexistent_file_12345.json")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             local_path = tmp.name
@@ -271,13 +265,13 @@ class TestS3ListIntegration:
 
         # Assert
         assert isinstance(objects, list), "Should return a list"
-        assert len(objects) >= 3, f"Should find at least 3 objects, found {len(objects)}"
+        assert (
+            len(objects) >= 3
+        ), f"Should find at least 3 objects, found {len(objects)}"
 
         # Verify our test files are in the list
         uploaded_keys = [
-            test_config.get_test_s3_key(
-                test_user_id, f"list_test_{timestamp}_{i}.json"
-            )
+            test_config.get_test_s3_key(test_user_id, f"list_test_{timestamp}_{i}.json")
             for i in range(3)
         ]
         for uploaded_key in uploaded_keys:
@@ -306,7 +300,9 @@ class TestS3ListIntegration:
         nonexistent_prefix = f"test-data/nonexistent-user-{time.time()}/data/"
 
         # Act
-        objects = real_s3_storage_service.list_objects(bucket, prefix=nonexistent_prefix)
+        objects = real_s3_storage_service.list_objects(
+            bucket, prefix=nonexistent_prefix
+        )
 
         # Assert
         assert isinstance(objects, list), "Should return a list"
@@ -371,9 +367,7 @@ class TestS3Performance:
         # Arrange
         bucket = test_config.AWS_S3_BUCKET
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        key = test_config.get_test_s3_key(
-            test_user_id, f"perf_test_{timestamp}.json"
-        )
+        key = test_config.get_test_s3_key(test_user_id, f"perf_test_{timestamp}.json")
         data = {"test": "performance", "timestamp": timestamp}
 
         # Track for cleanup

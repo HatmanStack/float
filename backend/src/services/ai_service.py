@@ -4,11 +4,11 @@ from typing import Any, Dict, Optional
 
 class AIService(ABC):
     pass
+
     @abstractmethod
-    def analyze_sentiment(self, audio_file: Optional[str], user_text: Optional[str]) -> str:
-        pass
-        pass
+    def analyze_sentiment(
+        self, audio_file: Optional[str], user_text: Optional[str]
+    ) -> str: ...
+
     @abstractmethod
-    def generate_meditation(self, input_data: Dict[str, Any]) -> str:
-        pass
-        pass
+    def generate_meditation(self, input_data: Dict[str, Any]) -> str: ...

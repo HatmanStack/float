@@ -1,9 +1,9 @@
-import React from 'react';
-import { render } from '@testing-library/react-native';
-import FloatNotifications from "@/frontend/components/Notifications';
-import * as Notifications from 'expo-notifications';
-import * as Permissions from 'expo-permissions';
-import { Platform } from 'react-native';
+import React from "react";
+import { render } from "@testing-library/react-native";
+import FloatNotifications from "@/frontend/components/Notifications";
+import * as Notifications from "expo-notifications";
+import * as Permissions from "expo-permissions";
+import { Platform } from "react-native";
 
 // Mock expo-notifications
 const mockAddNotificationReceivedListener = jest.fn();
@@ -60,7 +60,7 @@ describe('FloatNotifications', () => {
 
   it('should not register for notifications on web platform', () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'web';
+    Platform.OS = 'web";
 
     render(<FloatNotifications />);
 
@@ -70,7 +70,7 @@ describe('FloatNotifications', () => {
 
   it('should register for notifications on iOS', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     render(<FloatNotifications />);
 
@@ -83,7 +83,7 @@ describe('FloatNotifications', () => {
 
   it('should register for notifications on Android', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'android';
+    Platform.OS = 'android";
 
     render(<FloatNotifications />);
 
@@ -102,7 +102,7 @@ describe('FloatNotifications', () => {
 
   it('should request permission when not granted', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     mockGetAsync.mockResolvedValue({ status: 'undetermined' });
     mockAskAsync.mockResolvedValue({ status: 'granted' });
@@ -118,7 +118,7 @@ describe('FloatNotifications', () => {
 
   it('should show alert when permission is denied', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     mockGetAsync.mockResolvedValue({ status: 'denied' });
     mockAskAsync.mockResolvedValue({ status: 'denied' });
@@ -133,7 +133,7 @@ describe('FloatNotifications', () => {
 
   it('should set up notification listeners', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     render(<FloatNotifications />);
 
@@ -147,7 +147,7 @@ describe('FloatNotifications', () => {
 
   it('should clean up listeners on unmount', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     const { unmount } = render(<FloatNotifications />);
 
@@ -160,7 +160,7 @@ describe('FloatNotifications', () => {
 
   it('should log received notifications', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -184,7 +184,7 @@ describe('FloatNotifications', () => {
 
   it('should log notification responses', async () => {
     // @ts-ignore - mocking Platform.OS
-    Platform.OS = 'ios';
+    Platform.OS = 'ios";
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 

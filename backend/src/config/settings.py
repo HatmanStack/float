@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
 class Settings:
     pass
     AWS_S3_BUCKET: str = os.getenv("AWS_S3_BUCKET", "float-cust-data")
@@ -13,6 +15,7 @@ class Settings:
     TEMP_DIR: str = "/tmp"
     AUDIO_SAMPLE_RATE: int = 44100
     GEMINI_SAFETY_LEVEL: int = 4
+
     @classmethod
     def validate(cls, require_keys: bool = True) -> bool:
         pass
@@ -24,6 +27,10 @@ class Settings:
         ]
         missing = [name for name, value in required_vars if not value]
         if missing:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+            raise ValueError(
+                f"Missing required environment variables: {', '.join(missing)}"
+            )
         return True
+
+
 settings = Settings()

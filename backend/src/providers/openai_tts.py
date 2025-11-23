@@ -8,8 +8,10 @@ from ..services.tts_service import TTSService
 
 class OpenAITTSProvider(TTSService):
     pass
+
     def __init__(self):
         self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+
     def synthesize_speech(self, text: str, output_path: str) -> bool:
         pass
         try:
@@ -27,6 +29,7 @@ class OpenAITTSProvider(TTSService):
             print(f"Error in OpenAI TTS synthesis: {e}")
             traceback.print_exc()
             return False
+
     def get_provider_name(self) -> str:
         pass
         return "openai"

@@ -99,7 +99,9 @@ class TestOpenAITTSIntegration:
             assert file_size > 5000, f"Longer audio should be larger: {file_size} bytes"
             assert elapsed_time < 30, f"Longer TTS took too long: {elapsed_time:.2f}s"
 
-            print(f"\n✓ Longer meditation text synthesis completed in {elapsed_time:.2f}s")
+            print(
+                f"\n✓ Longer meditation text synthesis completed in {elapsed_time:.2f}s"
+            )
             print(f"  File size: {file_size:,} bytes")
 
         finally:
@@ -166,7 +168,9 @@ class TestOpenAITTSIntegration:
             # Assert
             assert result is True, "Short text synthesis should succeed"
             assert os.path.exists(output_path), "Audio file should be created"
-            assert os.path.getsize(output_path) > 0, "Even short audio should have content"
+            assert (
+                os.path.getsize(output_path) > 0
+            ), "Even short audio should have content"
 
             print("\n✓ Very short text synthesis completed")
 
@@ -217,7 +221,9 @@ class TestOpenAITTSIntegration:
 
                 # Assert each synthesis
                 assert result is True, f"Synthesis {i+1} should succeed"
-                assert os.path.exists(output_path), f"Audio file {i+1} should be created"
+                assert os.path.exists(
+                    output_path
+                ), f"Audio file {i+1} should be created"
 
             print("\n✓ Multiple synthesis calls completed successfully")
 
@@ -357,7 +363,9 @@ class TestTTSPerformance:
             ratio = max(size1, size2) / min(size1, size2)
             assert ratio < 1.5, f"File sizes should be similar, got {size1} and {size2}"
 
-            print(f"\n✓ File size consistency verified (size1: {size1}, size2: {size2})")
+            print(
+                f"\n✓ File size consistency verified (size1: {size1}, size2: {size2})"
+            )
 
         finally:
             # Cleanup

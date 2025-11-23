@@ -1,6 +1,6 @@
-import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
-import ArchivedItemsScreen from "@/frontend/components/history';
+import React from "react";
+import { render, waitFor } from "@testing-library/react-native";
+import ArchivedItemsScreen from "@/frontend/components/history";
 
 // Mock IncidentContext
 const mockSetIncidentList = jest.fn();

@@ -1,6 +1,6 @@
-import { Audio } from 'expo-av';
-import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { Audio } from "expo-av";
+import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system";
 export async function StartRecording() {
   try {
     const { status } = await Audio.requestPermissionsAsync();

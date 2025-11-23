@@ -5,7 +5,7 @@
  * Integration tests test interactions between components through Context providers.
  */
 
-import { mockAsyncStorage } from './test-utils';
+import { mockAsyncStorage } from "./test-utils";
 
 // Increase timeout for integration tests
 // Integration tests involve multiple components and async operations

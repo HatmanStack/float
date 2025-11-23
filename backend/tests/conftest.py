@@ -50,7 +50,9 @@ def mock_storage_service():
 def mock_audio_service():
     """Mock audio service for testing."""
     service = MagicMock()
-    service.combine_voice_and_music.return_value = ["Ambient-Peaceful-Meditation_300.wav"]
+    service.combine_voice_and_music.return_value = [
+        "Ambient-Peaceful-Meditation_300.wav"
+    ]
     return service
 
 
@@ -110,7 +112,10 @@ def mock_event_factory():
     def create_event(body: dict, method: str = "POST") -> dict:
         return {
             "httpMethod": method,
-            "headers": {"Content-Type": "application/json", "Origin": "https://float-app.fun"},
+            "headers": {
+                "Content-Type": "application/json",
+                "Origin": "https://float-app.fun",
+            },
             "body": json.dumps(body),
         }
 
@@ -123,7 +128,9 @@ def mock_lambda_context():
     context = MagicMock()
     context.function_name = "float-meditation"
     context.function_version = "$LATEST"
-    context.invoked_function_arn = "arn:aws:lambda:us-east-1:123456789012:function:float-meditation"
+    context.invoked_function_arn = (
+        "arn:aws:lambda:us-east-1:123456789012:function:float-meditation"
+    )
     context.memory_limit_in_mb = 512
     context.aws_request_id = "test-request-id-12345"
     context.log_group_name = "/aws/lambda/float-meditation"
@@ -153,11 +160,14 @@ def request_factory():
             body["prompt"] = prompt or "I had a difficult day"
             body["audio"] = audio
         elif inference_type == "meditation":
-            body["input_data"] = kwargs.get("input_data", {
-                "sentiment_label": ["Sad"],
-                "intensity": [4],
-                "user_summary": ["Had a bad day"]
-            })
+            body["input_data"] = kwargs.get(
+                "input_data",
+                {
+                    "sentiment_label": ["Sad"],
+                    "intensity": [4],
+                    "user_summary": ["Had a bad day"],
+                },
+            )
             body["music_list"] = kwargs.get("music_list", [])
 
         # Allow additional custom fields
@@ -205,7 +215,7 @@ def mock_s3_response():
         "Contents": [
             {"Key": "user123/2024/01/summary_001.json"},
             {"Key": "user123/2024/01/meditation_001.mp3"},
-            {"Key": "user123/2024/01/meditation_002.mp3"}
+            {"Key": "user123/2024/01/meditation_002.mp3"},
         ]
     }
 
@@ -226,7 +236,7 @@ def test_music_list():
     return [
         "Ambient-Peaceful_300.wav",
         "Nature-Calm_180.wav",
-        "Meditation-Deep_240.wav"
+        "Meditation-Deep_240.wav",
     ]
 
 
@@ -240,7 +250,7 @@ def test_input_data():
         "added_text": ["Work stress", "Meeting anxiety"],
         "summary": ["Work-related stress", "Pre-meeting anxiety"],
         "user_summary": ["I'm stressed about work", "I'm anxious about the meeting"],
-        "user_short_summary": ["Work stress", "Meeting anxiety"]
+        "user_short_summary": ["Work stress", "Meeting anxiety"],
     }
 
 
@@ -249,27 +259,20 @@ def parametrized_requests(request_factory):
     """Parametrized test requests for various scenarios."""
     return {
         "valid_summary_text": request_factory(
-            inference_type="summary",
-            prompt="I'm feeling happy today"
+            inference_type="summary", prompt="I'm feeling happy today"
         ),
         "valid_summary_audio": request_factory(
             inference_type="summary",
             prompt="NotAvailable",
-            audio="dGVzdCBhdWRpbyBkYXRh"
+            audio="dGVzdCBhdWRpbyBkYXRh",
         ),
         "valid_meditation": request_factory(
             inference_type="meditation",
             input_data={"sentiment_label": ["Happy"]},
-            music_list=["Track1.wav"]
+            music_list=["Track1.wav"],
         ),
-        "invalid_no_user_id": {
-            "inference_type": "summary",
-            "prompt": "Test"
-        },
-        "invalid_no_type": {
-            "user_id": "test-123",
-            "prompt": "Test"
-        }
+        "invalid_no_user_id": {"inference_type": "summary", "prompt": "Test"},
+        "invalid_no_type": {"user_id": "test-123", "prompt": "Test"},
     }
 
 
@@ -281,3 +284,15 @@ def mock_gemini_model():
         text='{"sentiment_label": "Neutral", "intensity": 3}'
     )
     return model
+
+
+@pytest.fixture(autouse=True)
+def mock_ffmpeg_global():
+    """Mock FFmpegAudioService globally to avoid looking for ffmpeg binary."""
+    from unittest.mock import patch
+
+    # Patch both where it's defined and where it's used to cover all bases
+    with patch("src.services.ffmpeg_audio_service.FFmpegAudioService"), patch(
+        "src.handlers.lambda_handler.FFmpegAudioService"
+    ) as mock_use:
+        yield mock_use

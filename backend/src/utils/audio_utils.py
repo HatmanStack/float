@@ -10,6 +10,8 @@ def decode_audio_base64(audio_base64: str, suffix: str = ".mp3") -> str:
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
         temp_file.write(audio_bytes)
         return temp_file.name
+
+
 def cleanup_temp_file(file_path: str) -> bool:
     pass
     try:
@@ -20,6 +22,8 @@ def cleanup_temp_file(file_path: str) -> bool:
     except Exception as e:
         print(f"Error removing temporary file {file_path}: {e}")
         return False
+
+
 def encode_audio_to_base64(file_path: str) -> Optional[str]:
     pass
     try:
@@ -29,6 +33,8 @@ def encode_audio_to_base64(file_path: str) -> Optional[str]:
     except Exception as e:
         print(f"Error encoding audio file {file_path}: {e}")
         return None
+
+
 def validate_audio_file(file_path: str) -> bool:
     pass
     try:

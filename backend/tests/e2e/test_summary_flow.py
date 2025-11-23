@@ -54,7 +54,9 @@ class TestSummaryFlowHappyPath:
                     )
                     if "Contents" in objects:
                         for obj in objects["Contents"]:
-                            e2e_test_s3_cleanup.append((settings.AWS_S3_BUCKET, obj["Key"]))
+                            e2e_test_s3_cleanup.append(
+                                (settings.AWS_S3_BUCKET, obj["Key"])
+                            )
                 except Exception as e:
                     print(f"Warning: Could not list S3 objects for cleanup: {e}")
 
@@ -172,7 +174,9 @@ class TestSummaryFlowHappyPath:
             assert field in response, f"Response missing required field: {field}"
 
         # Verify field types
-        assert isinstance(response["sentiment_label"], str), "sentiment_label should be string"
+        assert isinstance(
+            response["sentiment_label"], str
+        ), "sentiment_label should be string"
         assert isinstance(response["intensity"], int), "intensity should be integer"
         assert isinstance(response["summary"], str), "summary should be string"
 
@@ -292,7 +296,9 @@ class TestSummaryFlowEdgeCases:
             )
 
             assert response, f"Request {i+1} should succeed"
-            assert "sentiment_label" in response, f"Request {i+1} should return sentiment"
+            assert (
+                "sentiment_label" in response
+            ), f"Request {i+1} should return sentiment"
 
             print(f"  ✓ Request {i+1} completed: {response['sentiment_label']}")
 
@@ -406,9 +412,7 @@ class TestSummaryFlowPerformance:
 
         # Assert
         avg_time = sum(times) / len(times)
-        assert (
-            avg_time < 15
-        ), f"Average time should be <15s, got {avg_time:.2f}s"
+        assert avg_time < 15, f"Average time should be <15s, got {avg_time:.2f}s"
 
         print(f"\n✓ Average performance over {num_requests} requests: {avg_time:.2f}s")
         print(f"  Min: {min(times):.2f}s, Max: {max(times):.2f}s")

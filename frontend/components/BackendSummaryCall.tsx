@@ -1,6 +1,6 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '";
 interface SummaryResponse {
   sentiment_label?: string;
   intensity?: number;
@@ -12,7 +12,7 @@ interface SummaryResponse {
   color_key?: number;
 }
 interface SummaryPayload {
-  inference_type: 'summary';
+  inference_type: 'summary";
   audio: string;
   prompt: string;
   input_data: string;
@@ -42,7 +42,7 @@ export async function BackendSummaryCall(
     (lambdaUrl.startsWith('https://') || lambdaUrl.startsWith('http://'));
   if (!isValidUrl) {
     const errorMessage =
-      'FATAL: LAMBDA_FUNCTION_URL is not set. Please update it in BackendSummaryCall.';
+      'FATAL: LAMBDA_FUNCTION_URL is not set. Please update it in BackendSummaryCall.";
     console.error(errorMessage);
     throw new Error(errorMessage);
   }

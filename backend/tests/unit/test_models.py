@@ -236,7 +236,10 @@ class TestMeditationResponse:
     def test_meditation_response_to_dict(self):
         """Test converting meditation response to dictionary."""
         resp = create_meditation_response(
-            request_id=123, user_id="user-123", music_list=[], base64_audio="base64audiodata"
+            request_id=123,
+            user_id="user-123",
+            music_list=[],
+            base64_audio="base64audiodata",
         )
         resp_dict = resp.to_dict()
         assert resp_dict["request_id"] == 123
@@ -246,7 +249,10 @@ class TestMeditationResponse:
     def test_meditation_response_serialization(self):
         """Test converting meditation response to JSON."""
         resp = create_meditation_response(
-            request_id=123, user_id="user-123", music_list=[], base64_audio="base64audiodata"
+            request_id=123,
+            user_id="user-123",
+            music_list=[],
+            base64_audio="base64audiodata",
         )
         json_str = resp.to_json()
         assert "base64audiodata" in json_str

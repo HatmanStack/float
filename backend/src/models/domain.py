@@ -12,9 +12,15 @@ class SentimentAnalysis:
     intensity: int  # 1-5 scale
     confidence: Optional[float] = None
     summary: Optional[str] = None
+
     def validate(self) -> bool:
         pass
-        return isinstance(self.sentiment_label, SentimentLabel) and 1 <= self.intensity <= 5
+        return (
+            isinstance(self.sentiment_label, SentimentLabel)
+            and 1 <= self.intensity <= 5
+        )
+
+
 @dataclass
 class AudioTrack:
     pass
@@ -22,9 +28,12 @@ class AudioTrack:
     duration: Optional[float] = None
     format: Optional[str] = None
     size_bytes: Optional[int] = None
+
     def __post_init__(self):
         if self.format is None and "." in self.key:
             self.format = self.key.split(".")[-1].lower()
+
+
 @dataclass
 class UserIncident:
     pass
@@ -35,6 +44,7 @@ class UserIncident:
     added_text: Optional[str] = None
     user_summary: Optional[str] = None
     short_summary: Optional[str] = None
+
     def to_meditation_data(self) -> Dict[str, Any]:
         pass
         return {
@@ -47,6 +57,8 @@ class UserIncident:
             "user_summary": [self.user_summary or ""],
             "user_short_summary": [self.short_summary or ""],
         }
+
+
 @dataclass
 class MeditationSession:
     pass
@@ -56,9 +68,12 @@ class MeditationSession:
     background_music: Optional[AudioTrack] = None
     duration: Optional[float] = None
     tts_provider: Optional[TTSProvider] = None
+
     def validate(self) -> bool:
         pass
         return bool(self.user_id and self.transcript)
+
+
 @dataclass
 class ProcessingJob:
     pass
@@ -70,11 +85,13 @@ class ProcessingJob:
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
     result_data: Optional[Dict[str, Any]] = None
+
     def mark_completed(self, result: Dict[str, Any]):
         pass
         self.status = "completed"
         self.completed_at = datetime.now()
         self.result_data = result
+
     def mark_failed(self, error: str):
         pass
         self.status = "failed"

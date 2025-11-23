@@ -1,5 +1,5 @@
-import * as FileSystem from 'expo-file-system';
-import { Platform } from 'react-native';
+import * as FileSystem from "expo-file-system";
+import { Platform } from "react-native";
 interface IncidentData {
   sentiment_label?: string;
   intensity?: number;
@@ -38,7 +38,7 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
   });
   return transformedDict;
 };
-const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
+const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '";
 if (!LAMBDA_FUNCTION_URL) {
   console.warn('EXPO_PUBLIC_LAMBDA_FUNCTION_URL is not configured. Backend calls will fail.');
 }

@@ -135,7 +135,9 @@ class TestS3StorageService:
 
             service = S3StorageService()
             result = service.download_file(
-                bucket="test-bucket", key="nonexistent.mp3", local_path="/tmp/nonexistent.mp3"
+                bucket="test-bucket",
+                key="nonexistent.mp3",
+                local_path="/tmp/nonexistent.mp3",
             )
 
             assert result is False
@@ -149,7 +151,7 @@ class TestS3StorageService:
 
             mock_s3.put_object.side_effect = ClientError(
                 {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}},
-                "PutObject"
+                "PutObject",
             )
 
             service = S3StorageService()
@@ -199,7 +201,7 @@ class TestS3StorageService:
                 "Contents": [
                     {"Key": "user123/file1.json"},
                     {"Key": "user123/file2.json"},
-                    {"Key": "user123/file3.json"}
+                    {"Key": "user123/file3.json"},
                 ]
             }
 
@@ -208,7 +210,9 @@ class TestS3StorageService:
 
             assert len(result) == 3
             assert "user123/file1.json" in result
-            mock_s3.list_objects_v2.assert_called_once_with(Bucket="test-bucket", Prefix="user123/")
+            mock_s3.list_objects_v2.assert_called_once_with(
+                Bucket="test-bucket", Prefix="user123/"
+            )
 
     def test_list_objects_empty_bucket(self):
         """Test list_objects returns empty list for empty bucket."""
@@ -251,7 +255,7 @@ class TestS3StorageService:
 
             mock_s3.list_objects_v2.side_effect = ClientError(
                 {"Error": {"Code": "NoSuchBucket", "Message": "Bucket not found"}},
-                "ListObjectsV2"
+                "ListObjectsV2",
             )
 
             service = S3StorageService()
@@ -282,7 +286,7 @@ class TestS3StorageService:
             result = service.upload_json(
                 bucket="test-bucket",
                 key="user@email.com/data/2024-01-01.json",
-                data={"test": "data"}
+                data={"test": "data"},
             )
 
             assert result is True
@@ -376,7 +380,9 @@ class TestFFmpegAudioService:
     def test_ffmpeg_binary_verification_small_file_warning(self, mock_storage_service):
         """Test FFmpeg binary verification warns for small file size."""
         with patch("os.path.exists", return_value=True):
-            with patch("os.path.getsize", return_value=50000):  # 50KB - suspiciously small
+            with patch(
+                "os.path.getsize", return_value=50000
+            ):  # 50KB - suspiciously small
                 service = FFmpegAudioService(mock_storage_service)
 
                 # Should still initialize but print warning
@@ -395,7 +401,9 @@ class TestFFmpegAudioService:
         """Test combine_voice_and_music handles subprocess errors."""
         service = FFmpegAudioService(mock_storage_service)
 
-        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ffmpeg")):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "ffmpeg")
+        ):
             with pytest.raises(subprocess.CalledProcessError):
                 service.combine_voice_and_music(
                     voice_path="/tmp/voice.mp3",
@@ -408,32 +416,31 @@ class TestFFmpegAudioService:
         """Test select_background_music handles string input for used_music."""
         mock_storage_service.list_objects.return_value = [
             "Track1_300.wav",
-            "Track2_180.wav"
+            "Track2_180.wav",
         ]
 
         service = FFmpegAudioService(mock_storage_service)
 
         # Test with string that should be parsed
         result = service.select_background_music(
-            used_music="['Track1_300.wav']",
-            duration=250,
-            output_path="/tmp/music.mp3"
+            used_music="['Track1_300.wav']", duration=250, output_path="/tmp/music.mp3"
         )
 
         assert isinstance(result, list)
 
     def test_select_background_music_with_single_string(self, mock_storage_service):
         """Test select_background_music handles single string input."""
-        mock_storage_service.list_objects.return_value = ["Track1_300.wav", "Track2_300.wav"]
+        mock_storage_service.list_objects.return_value = [
+            "Track1_300.wav",
+            "Track2_300.wav",
+        ]
         mock_storage_service.download_file.return_value = True
 
         service = FFmpegAudioService(mock_storage_service)
 
         # Test with single string (should be converted to list)
         result = service.select_background_music(
-            used_music="Track1_300.wav",
-            duration=250,
-            output_path="/tmp/music.mp3"
+            used_music="Track1_300.wav", duration=250, output_path="/tmp/music.mp3"
         )
 
         assert isinstance(result, list)
@@ -443,15 +450,13 @@ class TestFFmpegAudioService:
         mock_storage_service.list_objects.return_value = [
             "Track1_300.wav",
             "Track2_180.wav",
-            "Track3_240.wav"
+            "Track3_240.wav",
         ]
 
         service = FFmpegAudioService(mock_storage_service)
 
         result = service.select_background_music(
-            used_music=[],
-            duration=250,
-            output_path="/tmp/music.mp3"
+            used_music=[], duration=250, output_path="/tmp/music.mp3"
         )
 
         # Should select tracks with duration close to 250 seconds
@@ -461,16 +466,14 @@ class TestFFmpegAudioService:
         """Test select_background_music falls back to 300s tracks."""
         mock_storage_service.list_objects.return_value = [
             "Track1_300.wav",
-            "Track2_300.wav"
+            "Track2_300.wav",
         ]
 
         service = FFmpegAudioService(mock_storage_service)
 
         # Request duration that doesn't match any tracks except 300s
         result = service.select_background_music(
-            used_music=[],
-            duration=100,
-            output_path="/tmp/music.mp3"
+            used_music=[], duration=100, output_path="/tmp/music.mp3"
         )
 
         assert isinstance(result, list)
@@ -486,7 +489,8 @@ class TestServiceErrorHandling:
             mock_settings.OPENAI_API_KEY = ""
 
             with patch(
-                "src.providers.openai_tts.openai.OpenAI", side_effect=Exception("API key invalid")
+                "src.providers.openai_tts.openai.OpenAI",
+                side_effect=Exception("API key invalid"),
             ):
                 # Should fail gracefully when initializing without key
                 with pytest.raises(Exception):
@@ -546,7 +550,9 @@ class TestGeminiAIService:
             mock_model.generate_content.return_value = mock_response
 
             service = GeminiAIService()
-            result = service.analyze_sentiment(audio_file=None, user_text="I had a difficult day")
+            result = service.analyze_sentiment(
+                audio_file=None, user_text="I had a difficult day"
+            )
 
             assert result is not None
             assert "sentiment_label" in result.lower()
@@ -576,7 +582,9 @@ class TestGeminiAIService:
 
             # Mock file reading
             with patch("pathlib.Path.read_bytes", return_value=b"fake_audio_data"):
-                result = service.analyze_sentiment(audio_file="/tmp/test.mp3", user_text=None)
+                result = service.analyze_sentiment(
+                    audio_file="/tmp/test.mp3", user_text=None
+                )
 
             assert result is not None
             assert "sentiment_label" in result.lower()
@@ -615,7 +623,7 @@ class TestGeminiAIService:
             input_data = {
                 "sentiment_label": ["Sad"],
                 "intensity": [4],
-                "user_summary": ["Had a bad day"]
+                "user_summary": ["Had a bad day"],
             }
 
             result = service.generate_meditation(input_data)
@@ -634,14 +642,16 @@ class TestGeminiAIService:
 
             for emotion in ["Happy", "Sad", "Angry", "Fearful"]:
                 mock_response = MagicMock()
-                mock_response.text = f"<speak><voice>Meditation for {emotion}</voice></speak>"
+                mock_response.text = (
+                    f"<speak><voice>Meditation for {emotion}</voice></speak>"
+                )
                 mock_model.generate_content.return_value = mock_response
 
                 service = GeminiAIService()
                 input_data = {
                     "sentiment_label": [emotion],
                     "intensity": [3],
-                    "user_summary": [f"Feeling {emotion}"]
+                    "user_summary": [f"Feeling {emotion}"],
                 }
 
                 result = service.generate_meditation(input_data)
@@ -669,6 +679,7 @@ class TestGeminiAIService:
 
             with pytest.raises(Exception, match="Invalid API key"):
                 from src.services.gemini_service import GeminiAIService
+
                 GeminiAIService()
 
     def test_malformed_api_response_handled(self):
@@ -761,7 +772,7 @@ class TestGeminiAIService:
             service = GeminiAIService()
 
             # Verify safety settings exist
-            assert hasattr(service, 'safety_settings')
+            assert hasattr(service, "safety_settings")
             assert service.safety_settings is not None
             assert len(service.safety_settings) > 0
 
@@ -781,7 +792,9 @@ class TestGeminiAIService:
 
             # Test with potentially problematic input
             dangerous_input = "<script>alert('xss')</script>"
-            result = service.analyze_sentiment(audio_file=None, user_text=dangerous_input)
+            result = service.analyze_sentiment(
+                audio_file=None, user_text=dangerous_input
+            )
 
             # Should still work - input is included in prompt as-is
             assert result is not None
