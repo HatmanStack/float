@@ -1,236 +1,74 @@
+# Backend Testing Workflow
+# Runs linting, type checking, and tests on every push
+
 name: Backend Tests
 
-on:
-  push:
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-tests.yml'
-  pull_request:
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-tests.yml'
+on: push
 
 jobs:
-  lint:
-    name: Lint and Type Check
+  test:
+    name: Lint, Type Check, and Test
     runs-on: ubuntu-latest
-    timeout-minutes: 5
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Python setup
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Add uv to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
           cd backend
-          pip install -r requirements.txt -r requirements-dev.txt
+          uv pip install --system -r requirements.txt -r requirements-dev.txt
 
-      - name: Run ruff linting
+      # Linting
+      - name: Lint with ruff
         run: |
           cd backend
           ruff check src/ tests/
 
-      - name: Run black formatting check
+      - name: Check formatting with black
         run: |
           cd backend
           black --check src/ tests/
 
-      - name: Run mypy type checking
+      # Type checking
+      - name: Type check with mypy
         run: |
           cd backend
           mypy src/
 
-      - name: Validate deployment scripts
+      # Tests
+      - name: Run unit tests
         run: |
           cd backend
-          shellcheck scripts/*.sh || echo "Shellcheck not installed or failed, skipping"
+          pytest tests/unit/ -v
 
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          cd backend
-          pip install -r requirements.txt -r requirements-dev.txt
-
-      - name: Run unit tests with coverage
-        run: |
-          cd backend
-          # Run tests excluding e2e and integration that require AWS/API keys
-          # But for now we just run all unit tests which should be mocked
-          pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-unit-coverage
-          path: backend/coverage.xml
-
-  deployment-tests:
-    name: Deployment Script Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          cd backend
-          pip install -r requirements.txt -r requirements-dev.txt
-
-      - name: Run deployment logic tests
-        run: |
-          cd backend
-          pytest tests/unit/test_deploy_helpers.py -v
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    continue-on-error: true
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          cd backend
-          pip install -r requirements.txt -r requirements-dev.txt
-
-      - name: Run integration tests
-        # These tests should use mocks (moto), so keys shouldn't be strictly necessary
-        # unless they hit real APIs.
-        env:
-          G_KEY_TEST: ${{ secrets.G_KEY_TEST }}
-          OPENAI_API_KEY_TEST: ${{ secrets.OPENAI_API_KEY_TEST }}
-          XI_KEY_TEST: ${{ secrets.XI_KEY_TEST }}
-        run: |
-          cd backend
-          pytest tests/integration/ -v --cov=src --cov-report=xml --cov-report=term-missing
-
-  e2e-tests:
-    name: End-to-End Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    continue-on-error: true
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          cd backend
-          pip install -r requirements.txt -r requirements-dev.txt
-
-      - name: Run E2E tests
-        env:
-          G_KEY_TEST: ${{ secrets.G_KEY_TEST }}
-          OPENAI_API_KEY_TEST: ${{ secrets.OPENAI_API_KEY_TEST }}
-          XI_KEY_TEST: ${{ secrets.XI_KEY_TEST }}
-        run: |
-          cd backend
-          if [ -z "$G_KEY_TEST" ]; then
-            echo "⚠️ E2E tests skipped - API keys not available"
-            exit 0
-          fi
-          pytest tests/e2e/ -v --cov=src --cov-report=xml --cov-report=term-missing
-
-  coverage:
-    name: Coverage Report
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, e2e-tests, deployment-tests]
-    if: always()
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          cd backend
-          pip install -r requirements.txt -r requirements-dev.txt
-
-      - name: Run all tests with combined coverage
-        # Note: running all tests again here might be redundant but ensuring a full report
-        env:
-          G_KEY_TEST: ${{ secrets.G_KEY_TEST }}
-          OPENAI_API_KEY_TEST: ${{ secrets.OPENAI_API_KEY_TEST }}
-        run: |
-          cd backend
-          pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing --cov-report=html || echo "Some tests failed, but generating report"
-
-      - name: Check coverage threshold
-        run: |
-          cd backend
-          if [ -f coverage.xml ]; then
-            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(float(root.attrib['line-rate']) * 100)")
-            echo "Coverage: $COVERAGE%"
-            echo "### Coverage Report 📊" >> $GITHUB_STEP_SUMMARY
-            echo "**Total Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
-            if (( $(echo "$COVERAGE < 68" | bc -l) )); then
-              echo "❌ Coverage below 68% threshold" >> $GITHUB_STEP_SUMMARY
-              # exit 1  # Relaxing this for now as we migrate
-            else
-              echo "✅ Coverage meets 68% threshold" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "No coverage.xml found"
-          fi
-
-      - name: Upload combined coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage-html
-          path: backend/htmlcov/
+# Integration tests disabled - requires AWS credentials or API keys
+# To enable: set up secrets in GitHub Settings, then uncomment below
+#
+# - name: Run integration tests
+#   env:
+#     G_KEY_TEST: ${{ secrets.G_KEY_TEST }}
+#     OPENAI_API_KEY_TEST: ${{ secrets.OPENAI_API_KEY_TEST }}
+#   run: |
+#     cd backend
+#     pytest tests/integration/ -v
