@@ -33,28 +33,33 @@
 **Decision Rationale**:
 
 **Simplicity**:
+
 - No additional AWS services required
 - No API calls to fetch secrets (faster cold starts)
 - Easy to update via SAM deployment
 
 **Cost**:
+
 - **Zero additional cost** (environment variables are free)
 - Secrets Manager: ~$2/month for current secrets
 - Parameter Store API calls: ~$0.05/10,000 calls
 
 **Security**:
+
 - Environment variables encrypted at rest by AWS Lambda
 - Only accessible to Lambda execution role (IAM-controlled)
 - Not visible in CloudWatch Logs (if handled correctly)
 - Parameter files git-ignored (secrets never committed)
 
 **Developer Experience**:
+
 - Easy to update: edit parameter file and redeploy
 - No code changes needed to rotate secrets
 - Clear separation of config per environment (staging/production)
 - Fast local development with `.env` files
 
 **Trade-offs Accepted**:
+
 - No automatic secret rotation (manual rotation required)
 - No secret versioning (CloudFormation stack versions provide some history)
 - Secrets visible in Lambda console (IAM controls access)
@@ -63,6 +68,7 @@
 **Consequences**:
 
 **Positive**:
+
 - Zero additional cost for secret storage
 - Faster Lambda cold starts (no Secrets Manager API calls)
 - Simple deployment process (secrets in parameter files)
@@ -70,12 +76,14 @@
 - No additional IAM permissions needed beyond Lambda execution role
 
 **Negative**:
+
 - Manual secret rotation (no automated rotation policies)
 - Secrets visible in AWS Console Lambda configuration (IAM-protected)
 - No built-in secret versioning (rely on git history for parameter files)
 - If secrets leak, must rotate manually and redeploy
 
 **Security Measures**:
+
 - Parameter files with real secrets added to `.gitignore`
 - Example parameter files (with placeholders) committed to git
 - GitHub secrets used for CI/CD deployment (never in repository)
@@ -84,12 +92,14 @@
 
 **Future Migration Path**:
 If compliance requirements change or automatic rotation is needed:
+
 1. Migrate to AWS Secrets Manager (no application code changes)
 2. Update SAM template to reference secrets ARNs
 3. Add IAM permissions for Lambda to access Secrets Manager
 4. Update Lambda code to fetch secrets from Secrets Manager (minimal changes)
 
 **Implementation**:
+
 - SAM template parameters: `GKey`, `OpenAIKey`, `XIKey`, `BucketNameCustomerData`, etc.
 - Parameter files: `infrastructure/parameters/staging.json`, `production.json`
 - Git-ignored parameter files contain real secrets
@@ -97,10 +107,12 @@ If compliance requirements change or automatic rotation is needed:
 - GitHub Actions workflows use GitHub secrets to inject parameters
 
 **Related ADRs**:
+
 - ADR-0006: SAM Infrastructure as Code
 - ADR-0003: Secrets Management (Phase 0)
 
 **References**:
+
 - [AWS Lambda Environment Variables](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html)
 - [AWS Secrets Manager Pricing](https://aws.amazon.com/secrets-manager/pricing/)
 - [infrastructure/README.md](../infrastructure/README.md) - Parameter file documentation

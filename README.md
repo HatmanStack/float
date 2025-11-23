@@ -76,11 +76,13 @@ See [FRONTEND_QUALITY.md](FRONTEND_QUALITY.md) for detailed standards.
 Float has comprehensive test coverage across both frontend and backend:
 
 **Backend (Python):**
+
 - 200+ tests (unit, integration, E2E)
 - 68% code coverage
 - Tests run on every push via GitHub Actions
 
 **Frontend (TypeScript/React Native):**
+
 - 145+ tests (component, integration, E2E with Detox)
 - 75% code coverage
 - Tests run on every push via GitHub Actions
@@ -174,6 +176,7 @@ npm run lint && npm run format
 ### Continuous Integration & Deployment
 
 **GitHub Actions Workflows:**
+
 - **Backend Tests**: Runs unit, integration, and E2E tests with coverage reporting
 - **Frontend Tests**: Runs component, integration tests with coverage reporting
 

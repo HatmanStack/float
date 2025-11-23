@@ -11,6 +11,7 @@ The result is a simpler, more maintainable deployment process that reduces cogni
 ## Prerequisites
 
 ### Required Tools
+
 - **AWS SAM CLI** (installed globally): `brew install aws-sam-cli` or equivalent
 - **AWS CLI** (configured): `aws configure` with valid credentials
 - **Node.js** (v20+): For frontend and npm scripts
@@ -19,21 +20,23 @@ The result is a simpler, more maintainable deployment process that reduces cogni
 - **Git**: For version control
 
 ### Environment Setup
+
 - AWS account with appropriate permissions (Lambda, API Gateway, S3, CloudFormation, IAM)
 - Public FFmpeg Lambda layer available (or custom layer ARN ready)
 - API keys ready: Google Gemini, OpenAI, ElevenLabs (optional)
 
 ### Existing Codebase
+
 - Monorepo structure in place: `frontend/`, `backend/`, `tests/`, `docs/`
 - Backend Python code in `backend/src/`
 - Current infrastructure in `infrastructure/` directory (will be migrated)
 
 ## Phase Summary
 
-| Phase | Goal | Token Estimate | Status |
-|-------|------|----------------|--------|
-| Phase-0 | Foundation: Architecture decisions, deployment script design, testing strategy | ~15,000 | Pending |
-| Phase-1 | Implementation: Migrate infrastructure, create deployment scripts, update configurations | ~85,000 | Pending |
+| Phase   | Goal                                                                                     | Token Estimate | Status  |
+| ------- | ---------------------------------------------------------------------------------------- | -------------- | ------- |
+| Phase-0 | Foundation: Architecture decisions, deployment script design, testing strategy           | ~15,000        | Pending |
+| Phase-1 | Implementation: Migrate infrastructure, create deployment scripts, update configurations | ~85,000        | Pending |
 
 **Total Estimated Tokens**: ~100,000
 

@@ -26,7 +26,7 @@ export function IncidentColoring() {
       typeof incident.intensity === 'string'
         ? parseInt(incident.intensity, 10)
         : incident.intensity;
-    const colorSetKey = intensityMapping[intensityNum] || 'one";
+    const colorSetKey = intensityMapping[intensityNum] || 'one';
     const result = colorSet[colorSetKey as keyof typeof colorSet];
     return Array.isArray(result) ? result : [];
   };

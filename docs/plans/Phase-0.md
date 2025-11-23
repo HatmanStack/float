@@ -5,6 +5,7 @@
 Establish the architectural foundation, design decisions, and deployment patterns for the simplified Float deployment system. This phase defines the "law" that all subsequent implementation must follow, ensuring consistency and maintainability.
 
 **Success Criteria:**
+
 - Clear ADRs documenting all major decisions
 - Deployment script logic fully specified
 - Testing strategy defined with mocking approach
@@ -21,12 +22,14 @@ Establish the architectural foundation, design decisions, and deployment pattern
 **Decision**: Simplify to single environment (default/development) deployment.
 
 **Rationale**:
+
 - Reduces cognitive overhead and maintenance burden
 - Environment promotion can be handled through separate AWS accounts or stack names
 - Most development workflows need only one active deployment
 - Multi-environment support can be added later if genuinely needed (YAGNI principle)
 
 **Consequences**:
+
 - ✅ Simpler configuration management
 - ✅ Fewer scripts to maintain
 - ✅ Clearer deployment flow
@@ -39,6 +42,7 @@ Establish the architectural foundation, design decisions, and deployment pattern
 **Decision**: Store all secrets and configuration in `samconfig.toml`, add to `.gitignore`.
 
 **Rationale**:
+
 - Follows react-stocks pattern successfully used in production
 - Simpler than AWS Secrets Manager for small projects
 - Local development workflow is straightforward
@@ -46,6 +50,7 @@ Establish the architectural foundation, design decisions, and deployment pattern
 - Clear separation between code (versioned) and secrets (local)
 
 **Consequences**:
+
 - ✅ Simple secret management
 - ✅ No additional AWS services required
 - ✅ Fast local iterations
@@ -59,6 +64,7 @@ Establish the architectural foundation, design decisions, and deployment pattern
 **Decision**: Move all infrastructure code into `backend/` directory, colocated with application code.
 
 **Rationale**:
+
 - Infrastructure-as-code is part of the backend application
 - Follows react-stocks successful pattern
 - Reduces directory hopping during development
@@ -66,12 +72,14 @@ Establish the architectural foundation, design decisions, and deployment pattern
 - Maintains monorepo structure for frontend separation
 
 **Consequences**:
+
 - ✅ Better code locality
 - ✅ Simpler mental model
 - ✅ Easier to find infrastructure code
 - ⚠️ Requires migration of existing files
 
 **New Structure**:
+
 ```
 backend/
 ├── src/                    # Python application code
@@ -97,6 +105,7 @@ backend/
 **Decision**: Implement interactive deployment script that prompts for missing configuration and persists locally.
 
 **Rationale**:
+
 - First-time setup is guided and user-friendly
 - Subsequent deployments are automatic (no prompts)
 - Secrets are saved locally, not committed
@@ -104,6 +113,7 @@ backend/
 - No reliance on SAM's `--guided` mode (we control the flow)
 
 **Consequences**:
+
 - ✅ Great developer experience
 - ✅ No manual file editing required
 - ✅ Secrets persist between deployments
@@ -116,6 +126,7 @@ backend/
 **Decision**: Remove Makefile build integration, use standard SAM Python builder with requirements.txt only.
 
 **Rationale**:
+
 - Simpler is better (YAGNI)
 - Remove pyproject.toml entirely (was causing build issues)
 - Standard SAM conventions reduce surprises
@@ -123,6 +134,7 @@ backend/
 - Makefile can remain for development tasks (linting, testing) but not SAM builds
 
 **Consequences**:
+
 - ✅ Standard SAM workflow
 - ✅ Fewer moving parts
 - ✅ Better compatibility
@@ -135,12 +147,14 @@ backend/
 **Decision**: Remove pyproject.toml, move tool configurations to separate standard files.
 
 **Rationale**:
+
 - Lambda deployment doesn't need package metadata
 - Standard tool config files are more explicit
 - Reduces confusion between development tools and deployment
 - Each tool uses its canonical config file
 
 **Tool Configuration Mapping**:
+
 - pytest → `pytest.ini`
 - ruff → `ruff.toml`
 - mypy → `mypy.ini`
@@ -148,6 +162,7 @@ backend/
 - coverage → `.coveragerc`
 
 **Consequences**:
+
 - ✅ Clear separation of concerns
 - ✅ Standard tool usage
 - ✅ No deployment confusion
@@ -160,12 +175,14 @@ backend/
 **Decision**: Provide public FFmpeg layer ARN as default, allow override via configuration.
 
 **Rationale**:
+
 - Out-of-box deployment experience
 - Users can deploy without finding/building FFmpeg layer
 - Advanced users can override with custom layer
 - Public layer available: `arn:aws:lambda:us-east-1:145266761615:layer:ffmpeg:4`
 
 **Consequences**:
+
 - ✅ Immediate deployment capability
 - ✅ Flexibility for custom layers
 - ⚠️ Region-specific ARN (users in other regions must override)
@@ -177,6 +194,7 @@ backend/
 **Decision**: Build samconfig.toml programmatically in deploy script, avoid `--guided` mode.
 
 **Rationale**:
+
 - Full control over configuration flow
 - Can prompt in logical order
 - Can validate inputs before saving
@@ -185,6 +203,7 @@ backend/
 - Consistent experience across SAM versions
 
 **Consequences**:
+
 - ✅ Predictable deployment flow
 - ✅ Better error handling
 - ✅ Custom validation logic
@@ -242,6 +261,7 @@ backend/
    - Validation failures stop before deployment
 
 **File: `.deploy-config.json`** (gitignored)
+
 ```json
 {
   "stackName": "float-meditation-dev",
@@ -258,6 +278,7 @@ backend/
 ```
 
 **File: `samconfig.toml`** (generated, gitignored)
+
 ```toml
 version = 0.1
 
@@ -283,6 +304,7 @@ parameter_overrides = "FFmpegLayerArn=\"arn:aws:lambda:...\" GKey=\"***\" OpenAI
 **Purpose**: Validate SAM template.yaml before deployment.
 
 **Behavior**:
+
 - Run `sam validate --template template.yaml --lint`
 - Display validation results
 - Exit with non-zero code on failure
@@ -292,6 +314,7 @@ parameter_overrides = "FFmpegLayerArn=\"arn:aws:lambda:...\" GKey=\"***\" OpenAI
 **Purpose**: Stream CloudWatch logs for deployed Lambda function.
 
 **Behavior**:
+
 - Read stack name from `.deploy-config.json` or samconfig.toml
 - Determine function name from stack
 - Run `aws logs tail /aws/lambda/{function-name} --follow`
@@ -306,6 +329,7 @@ CI pipeline runs linting, unit tests, and mocked integration tests. **No live AW
 ### Test Categories
 
 **1. Unit Tests** (`backend/tests/unit/`)
+
 - Test individual functions and classes in isolation
 - Mock all external dependencies (AWS services, API calls)
 - Fast execution (< 1 second per test)
@@ -313,6 +337,7 @@ CI pipeline runs linting, unit tests, and mocked integration tests. **No live AW
 - Pattern: pytest with pytest-mock
 
 **2. Integration Tests** (`backend/tests/integration/`)
+
 - Test interactions between components
 - Mock external services (AWS SDK, HTTP APIs)
 - Use moto for AWS service mocking
@@ -320,6 +345,7 @@ CI pipeline runs linting, unit tests, and mocked integration tests. **No live AW
 - Pattern: pytest with moto + pytest-mock
 
 **3. E2E Tests** (`tests/e2e/`)
+
 - Test full user workflows
 - Frontend + Backend integration
 - Mock backend API calls (no live Lambda)
@@ -328,6 +354,7 @@ CI pipeline runs linting, unit tests, and mocked integration tests. **No live AW
 ### Mocking Strategy
 
 **AWS Services** (using moto):
+
 ```python
 import boto3
 from moto import mock_s3, mock_lambda
@@ -340,6 +367,7 @@ def test_s3_storage():
 ```
 
 **External APIs** (using pytest-mock):
+
 ```python
 def test_gemini_service(mocker):
     # Mock Google Generative AI SDK
@@ -349,6 +377,7 @@ def test_gemini_service(mocker):
 ```
 
 **Environment Variables**:
+
 ```python
 @pytest.fixture
 def mock_env(monkeypatch):
@@ -359,6 +388,7 @@ def mock_env(monkeypatch):
 ### CI Pipeline Configuration
 
 **GitHub Actions** (`.github/workflows/test.yml`):
+
 ```yaml
 name: Test Suite
 
@@ -395,6 +425,7 @@ jobs:
 ```
 
 **Key Principles**:
+
 - ✅ No AWS credentials in CI
 - ✅ No live resource creation
 - ✅ Fast test execution (< 5 minutes total)
@@ -406,6 +437,7 @@ jobs:
 ### Commit Message Format
 
 **Template**:
+
 ```
 type(scope): brief description
 
@@ -419,6 +451,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Types**: feat, fix, refactor, test, docs, chore, ci
 
 **Examples**:
+
 ```
 refactor(deploy): simplify deployment to single script
 
@@ -440,6 +473,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 ### Code Organization
 
 **Backend Structure**:
+
 ```
 backend/
 ├── src/              # Application code (DRY, testable)
@@ -485,6 +519,7 @@ backend/
 ### Integration Points
 
 Phase-1 implementation will reference:
+
 - ADR decisions for architectural choices
 - Deployment script spec for implementation details
 - Testing strategy for test creation

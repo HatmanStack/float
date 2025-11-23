@@ -1,6 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '";
+const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 interface SummaryResponse {
   sentiment_label?: string;
   intensity?: number;

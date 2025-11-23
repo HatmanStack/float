@@ -1,7 +1,7 @@
-import React, { ReactElement } from "react";
-import { render, RenderOptions, waitFor as rtlWaitFor } from "@testing-library/react-native";
-import { AuthProvider } from "@/frontend/context/AuthContext";
-import { IncidentProvider } from "@/frontend/context/IncidentContext";
+import React, { ReactElement } from 'react';
+import { render, RenderOptions, waitFor as rtlWaitFor } from '@testing-library/react-native';
+import { AuthProvider } from '@/frontend/context/AuthContext';
+import { IncidentProvider } from '@/frontend/context/IncidentContext';
 
 /**
  * Integration Test Utilities
@@ -143,18 +143,14 @@ export function renderIntegration(
   return {
     ...renderResult,
     // Helper to re-render with same wrapper
-    rerender: (element: ReactElement) =>
-      renderResult.rerender(<Wrapper>{element}</Wrapper>),
+    rerender: (element: ReactElement) => renderResult.rerender(<Wrapper>{element}</Wrapper>),
   };
 }
 
 /**
  * Render with only AuthProvider for auth-specific integration tests
  */
-export function renderWithAuthContext(
-  ui: ReactElement,
-  options: IntegrationRenderOptions = {}
-) {
+export function renderWithAuthContext(ui: ReactElement, options: IntegrationRenderOptions = {}) {
   return renderIntegration(ui, { ...options, withAuth: true, withIncident: false });
 }
 
@@ -171,10 +167,7 @@ export function renderWithIncidentContext(
 /**
  * Render with both providers (same as renderIntegration with defaults)
  */
-export function renderWithAllContexts(
-  ui: ReactElement,
-  options: IntegrationRenderOptions = {}
-) {
+export function renderWithAllContexts(ui: ReactElement, options: IntegrationRenderOptions = {}) {
   return renderIntegration(ui, { ...options, withAuth: true, withIncident: true });
 }
 
@@ -222,9 +215,7 @@ export const mockAsyncStorage = {
   }),
 
   multiGet: jest.fn((keys: string[]) => {
-    return Promise.resolve(
-      keys.map((key) => [key, mockAsyncStorage.store.get(key) || null])
-    );
+    return Promise.resolve(keys.map((key) => [key, mockAsyncStorage.store.get(key) || null]));
   }),
 
   multiSet: jest.fn((pairs: [string, string][]) => {
@@ -317,16 +308,10 @@ export function resetAllMocks() {
  * Integration test timeout constants
  */
 export const INTEGRATION_TIMEOUTS = {
-  SHORT: 1000,    // Quick state updates
-  MEDIUM: 3000,   // API calls, animations
-  LONG: 5000,     // Complex operations
+  SHORT: 1000, // Quick state updates
+  MEDIUM: 3000, // API calls, animations
+  LONG: 5000, // Complex operations
 };
 
 // Re-export commonly used testing library functions
-export {
-  waitFor,
-  fireEvent,
-  screen,
-  within,
-  act,
-} from "@testing-library/react-native";
+export { waitFor, fireEvent, screen, within, act } from '@testing-library/react-native';

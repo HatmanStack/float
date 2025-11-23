@@ -7,7 +7,7 @@ import { Colors } from "@/frontend/constants/Colors";
 interface CollapsibleProps extends PropsWithChildren {
   title: string;
   incidentColor?: string;
-  textType?: 'subtitle' | 'incidentSubtitle";
+  textType?: 'subtitle' | 'incidentSubtitle';
   isOpen: boolean;
   onToggle: () => void;
 }

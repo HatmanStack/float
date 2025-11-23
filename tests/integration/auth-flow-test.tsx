@@ -10,8 +10,8 @@
  * - Error scenarios
  */
 
-import React from "react";
-import { View, Text, Button } from "react-native";
+import React from 'react';
+import { View, Text, Button } from 'react-native';
 import {
   renderWithAuthContext,
   renderWithAllContexts,
@@ -22,9 +22,9 @@ import {
   fireEvent,
   act,
   INTEGRATION_TIMEOUTS,
-} from "./test-utils";
-import { useAuth } from "@/frontend/context/AuthContext";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
+} from './test-utils';
+import { useAuth } from '@/frontend/context/AuthContext';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Use mocked AsyncStorage from test-utils
 const AsyncStorage = mockAsyncStorage;
@@ -352,17 +352,29 @@ describe('Auth Flow Integration Tests', () => {
     it('should handle sign in affecting multiple components simultaneously', async () => {
       function Component1() {
         const { user } = useAuth();
-        return <Text testID="component-1">{user ? 'Component 1: Logged In' : 'Component 1: Logged Out'}</Text>;
+        return (
+          <Text testID="component-1">
+            {user ? 'Component 1: Logged In' : 'Component 1: Logged Out'}
+          </Text>
+        );
       }
 
       function Component2() {
         const { user } = useAuth();
-        return <Text testID="component-2">{user ? 'Component 2: Logged In' : 'Component 2: Logged Out'}</Text>;
+        return (
+          <Text testID="component-2">
+            {user ? 'Component 2: Logged In' : 'Component 2: Logged Out'}
+          </Text>
+        );
       }
 
       function Component3() {
         const { user } = useAuth();
-        return <Text testID="component-3">{user ? 'Component 3: Logged In' : 'Component 3: Logged Out'}</Text>;
+        return (
+          <Text testID="component-3">
+            {user ? 'Component 3: Logged In' : 'Component 3: Logged Out'}
+          </Text>
+        );
       }
 
       const { getByTestId } = renderWithAuthContext(

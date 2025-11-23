@@ -26,18 +26,19 @@ The project has **4 GitHub Actions workflows**:
 ### 1. Backend Tests (`backend-tests.yml`)
 
 **Triggers:**
+
 - **Push** to any branch with backend changes
 - **Pull Request** with backend changes
 
 **Jobs:**
 
-| Job | Purpose | Duration | Required for Merge |
-|-----|---------|----------|-------------------|
-| Lint | Ruff, Black, MyPy checks | 2-3 min | ✅ Yes |
-| Unit Tests | Fast isolated tests | 3-5 min | ✅ Yes |
-| Integration Tests | External API tests | 5-10 min | ⚠️ Optional (needs API keys) |
-| E2E Tests | Full Lambda flow tests | 5-10 min | ⚠️ Optional (needs API keys) |
-| Coverage | Combined coverage report | 5-10 min | ✅ Yes (must be 68%+) |
+| Job               | Purpose                  | Duration | Required for Merge           |
+| ----------------- | ------------------------ | -------- | ---------------------------- |
+| Lint              | Ruff, Black, MyPy checks | 2-3 min  | ✅ Yes                       |
+| Unit Tests        | Fast isolated tests      | 3-5 min  | ✅ Yes                       |
+| Integration Tests | External API tests       | 5-10 min | ⚠️ Optional (needs API keys) |
+| E2E Tests         | Full Lambda flow tests   | 5-10 min | ⚠️ Optional (needs API keys) |
+| Coverage          | Combined coverage report | 5-10 min | ✅ Yes (must be 68%+)        |
 
 **Environment**: Python 3.12, Ubuntu Latest
 
@@ -46,18 +47,19 @@ The project has **4 GitHub Actions workflows**:
 ### 2. Frontend Tests (`frontend-tests.yml`)
 
 **Triggers:**
+
 - **Push** to any branch with frontend changes
 - **Pull Request** with frontend changes
 
 **Jobs:**
 
-| Job | Purpose | Duration | Required for Merge |
-|-----|---------|----------|-------------------|
-| Lint | ESLint, TypeScript, Prettier | 2-3 min | ✅ Yes |
-| Component Tests | React component tests | 3-5 min | ✅ Yes |
-| Integration Tests | Context/hook integration | 3-5 min | ✅ Yes |
-| E2E Tests | Detox E2E (main only) | 15-30 min | ⚠️ Optional (main branch) |
-| Coverage | Combined coverage report | 5-10 min | ✅ Yes (informational) |
+| Job               | Purpose                      | Duration  | Required for Merge        |
+| ----------------- | ---------------------------- | --------- | ------------------------- |
+| Lint              | ESLint, TypeScript, Prettier | 2-3 min   | ✅ Yes                    |
+| Component Tests   | React component tests        | 3-5 min   | ✅ Yes                    |
+| Integration Tests | Context/hook integration     | 3-5 min   | ✅ Yes                    |
+| E2E Tests         | Detox E2E (main only)        | 15-30 min | ⚠️ Optional (main branch) |
+| Coverage          | Combined coverage report     | 5-10 min  | ✅ Yes (informational)    |
 
 **Environment**: Node.js 24.x, Ubuntu Latest
 
@@ -66,10 +68,12 @@ The project has **4 GitHub Actions workflows**:
 ### 3. Deploy Backend Staging (`deploy-backend-staging.yml`)
 
 **Triggers:**
+
 - **Push to main** branch (automatic deployment)
 - **Manual** via workflow_dispatch
 
 **Steps:**
+
 1. Validate SAM template
 2. Build SAM application (with Docker)
 3. Deploy to AWS CloudFormation stack: `float-meditation-staging`
@@ -80,6 +84,7 @@ The project has **4 GitHub Actions workflows**:
 **Duration**: 10-15 minutes
 
 **Requirements**:
+
 - AWS credentials (from GitHub secrets)
 - API keys for staging environment
 - FFmpeg layer ARN
@@ -89,11 +94,13 @@ The project has **4 GitHub Actions workflows**:
 ### 4. Deploy Backend Production (`deploy-backend-production.yml`)
 
 **Triggers:**
+
 - **Manual only** via workflow_dispatch
 - Requires confirmation: type "DEPLOY TO PRODUCTION"
 - Requires deployment notes
 
 **Steps:**
+
 1. Pre-deployment checks (staging health, branch verification)
 2. **Manual approval required** (GitHub environment protection)
 3. Validate SAM template
@@ -108,6 +115,7 @@ The project has **4 GitHub Actions workflows**:
 **Duration**: 20-30 minutes
 
 **Requirements**:
+
 - Manual approval from designated reviewers
 - Production AWS credentials
 - Production API keys
@@ -372,11 +380,13 @@ The following secrets must be configured in GitHub repository settings for CI/CD
 ### AWS Credentials
 
 **Staging Environment:**
+
 - `AWS_ACCESS_KEY_ID_STAGING` - AWS access key for staging deployments
 - `AWS_SECRET_ACCESS_KEY_STAGING` - AWS secret key for staging deployments
 - `AWS_REGION_STAGING` - AWS region (e.g., `us-east-1`)
 
 **Production Environment:**
+
 - `AWS_ACCESS_KEY_ID_PRODUCTION` - AWS access key for production deployments
 - `AWS_SECRET_ACCESS_KEY_PRODUCTION` - AWS secret key for production deployments
 - `AWS_REGION_PRODUCTION` - AWS region (e.g., `us-east-1`)
@@ -384,16 +394,19 @@ The following secrets must be configured in GitHub repository settings for CI/CD
 ### API Keys
 
 **Test Environment** (for integration/E2E tests):
+
 - `G_KEY_TEST` - Google Gemini API key for testing
 - `OPENAI_API_KEY_TEST` - OpenAI API key for testing
 - `XI_KEY_TEST` - ElevenLabs API key for testing (optional)
 
 **Staging Environment:**
+
 - `G_KEY_STAGING` - Google Gemini API key for staging
 - `OPENAI_API_KEY_STAGING` - OpenAI API key for staging
 - `XI_KEY_STAGING` - ElevenLabs API key for staging
 
 **Production Environment:**
+
 - `G_KEY_PRODUCTION` - Google Gemini API key for production
 - `OPENAI_API_KEY_PRODUCTION` - OpenAI API key for production
 - `XI_KEY_PRODUCTION` - ElevenLabs API key for production
@@ -401,6 +414,7 @@ The following secrets must be configured in GitHub repository settings for CI/CD
 ### Infrastructure
 
 **FFmpeg Layer ARNs:**
+
 - `FFMPEG_LAYER_ARN_STAGING` - Lambda layer ARN for staging (e.g., `arn:aws:lambda:us-east-1:123456789:layer:ffmpeg:1`)
 - `FFMPEG_LAYER_ARN_PRODUCTION` - Lambda layer ARN for production
 
@@ -409,11 +423,13 @@ The following secrets must be configured in GitHub repository settings for CI/CD
 Two GitHub Environments should be configured:
 
 **`staging` Environment:**
+
 - No special protection rules
 - Automatically deployed on merge to main
 - Uses staging secrets
 
 **`production` Environment:**
+
 - **Required reviewers**: 2+ people
 - **Deployment branches**: main only
 - **Wait timer**: Optional (e.g., 5 minutes)

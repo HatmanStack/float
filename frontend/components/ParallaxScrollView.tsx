@@ -19,7 +19,7 @@ export default function ParallaxScrollView({
   headerBackgroundColor,
   headerText,
 }: ParallaxScrollViewProps): React.ReactNode {
-  const colorScheme = useColorScheme() ?? 'light";
+  const colorScheme = useColorScheme() ?? 'light';
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
   const headerAnimatedStyle = useAnimatedStyle(() => {

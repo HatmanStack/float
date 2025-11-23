@@ -186,7 +186,7 @@ describe('AuthScreen', () => {
 
   it('should handle Google web login on web platform', async () => {
     // @ts-ignore
-    Platform.OS = 'web";
+    Platform.OS = 'web';
 
     const mockUserInfo = {
       data: {

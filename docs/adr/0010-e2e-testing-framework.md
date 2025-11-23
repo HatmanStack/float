@@ -33,6 +33,7 @@
 **Decision Rationale**:
 
 **Detox Strengths**:
+
 - **Built for React Native**: Native RN support, no WebViews or bridges required
 - **Gray-box testing**: Can access React Native internals for faster, more reliable tests
 - **Automatic synchronization**: Waits for RN to be idle (no manual `waitFor` everywhere)
@@ -41,12 +42,14 @@
 - **Active development**: Maintained by Wix, good community support (used by major RN apps)
 
 **Use Case Alignment**:
+
 - Float only needs mobile app E2E (not web), so Detox's RN focus is ideal
 - Critical user flows are well-defined (auth, record, meditation)
 - E2E tests represent 10% of total test suite (per test pyramid)
 - Tests run in CI on Android (Linux runners available, iOS requires macOS)
 
 **Trade-offs Accepted**:
+
 - **Requires native builds**: Slower CI builds (need to compile iOS/Android apps)
 - **More complex setup**: Requires Xcode or Android Studio for local development
 - **Learning curve**: More complex than pure JavaScript solutions (Maestro)
@@ -55,6 +58,7 @@
 **Consequences**:
 
 **Positive**:
+
 - Realistic mobile testing (actual iOS/Android builds, not simulators)
 - Automatic synchronization eliminates flaky waits
 - Fast test execution (gray-box access to RN internals)
@@ -63,6 +67,7 @@
 - CI integration on Android (Linux runners are free/cheap)
 
 **Negative**:
+
 - Native build requirement slows CI (5-10 minutes to build app)
 - More complex setup than web testing frameworks
 - Requires Xcode (macOS) for iOS tests (expensive CI runners)
@@ -72,24 +77,28 @@
 **Implementation**:
 
 **Test Coverage** (E2E tests represent 10% of total tests):
+
 - Authentication flow (sign in, sign out)
 - Recording flow (record audio, submit)
 - Meditation generation flow (generate, play, save)
 - Error scenarios (network failures, validation errors)
 
 **CI Strategy**:
+
 - E2E tests run on **Android only** in CI (Linux runners)
 - iOS E2E tests run locally only (manual testing before releases)
 - E2E tests only run on **main branch** (not every PR, to save CI time)
 - E2E tests marked as `continue-on-error` (informational, don't block merges)
 
 **Configuration**:
+
 - Test on Android API 31+ (Linux CI runners)
 - Test on iOS 15+ (local development only)
 - Use release builds for E2E tests (matches production)
 - Mock backend API for deterministic E2E tests (no external dependencies)
 
 **Test Organization**:
+
 ```
 e2e/
 ├── complete-user-journey.e2e.ts    # Happy path end-to-end
@@ -98,6 +107,7 @@ e2e/
 ```
 
 **Detox Matchers Used**:
+
 - `by.id()` - Find elements by testID prop (preferred)
 - `by.text()` - Find elements by visible text
 - `by.type()` - Find elements by component type
@@ -105,21 +115,25 @@ e2e/
 - `expect(element()).toBeVisible()` - Assertions
 
 **Future Considerations**:
+
 - If web support added → consider Playwright for web E2E
 - If CI budget allows → add iOS E2E tests on macOS runners
 - If flakiness increases → review synchronization and waits
 - If test suite grows → implement test sharding for parallel execution
 
 **Alternative Solutions if Detox Fails**:
+
 1. Migrate to Maestro if Detox becomes unmaintained
 2. Use Appium if cross-platform testing (mobile + web) becomes required
 3. Increase integration test coverage if E2E tests too unreliable
 
 **Related ADRs**:
+
 - ADR-0009: Comprehensive Testing Strategy
 - ADR-0005: Testing Strategy (Phase 0)
 
 **References**:
+
 - [Detox Documentation](https://wix.github.io/Detox/)
 - [e2e/README.md](../../e2e/README.md) - Setup and usage guide
 - [.detoxrc.js](../../.detoxrc.js) - Configuration file

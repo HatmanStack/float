@@ -51,7 +51,7 @@ function RecordingComponent() {
   const requestPermission = async () => {
     const { status } = await Audio.requestPermissionsAsync();
     setPermissionStatus(status === 'granted' ? 'granted' : 'denied');
-    return status === 'granted";
+    return status === 'granted';
   };
 
   const startRecording = () => {

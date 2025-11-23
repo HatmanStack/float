@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from "react";
-import { View, Platform } from "react-native";
-import * as Notifications from "expo-notifications";
-import * as Permissions from "expo-permissions";
+import React, { useEffect, useRef } from 'react';
+import { View, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Permissions from 'expo-permissions';
 export default function FloatNotifications() {
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);

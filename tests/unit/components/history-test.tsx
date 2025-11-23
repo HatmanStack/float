@@ -1,6 +1,6 @@
-import React from "react";
-import { render, waitFor } from "@testing-library/react-native";
-import ArchivedItemsScreen from "@/frontend/components/history";
+import React from 'react';
+import { render, waitFor } from '@testing-library/react-native';
+import ArchivedItemsScreen from '@/frontend/components/history';
 
 // Mock IncidentContext
 const mockSetIncidentList = jest.fn();
@@ -27,7 +27,11 @@ jest.mock('@/components/ParallaxScrollView', () => {
 jest.mock('@/components/ThemedView', () => ({
   ThemedView: ({ children, style, ...props }: any) => {
     const { View } = require('react-native');
-    return <View style={style} {...props}>{children}</View>;
+    return (
+      <View style={style} {...props}>
+        {children}
+      </View>
+    );
   },
 }));
 

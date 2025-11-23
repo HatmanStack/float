@@ -7,6 +7,7 @@ This directory contains integration tests for the Float meditation app.
 Integration tests verify that multiple components work together correctly through shared state and Context providers. They sit between unit tests (single component) and E2E tests (full application).
 
 **Differences from Component Tests:**
+
 - **Component Tests**: Test a single component in isolation with mocked dependencies
 - **Integration Tests**: Test multiple components interacting through real Context providers
 - **E2E Tests**: Test complete user flows through the entire application
@@ -249,10 +250,7 @@ it('should share incident state across components', async () => {
 If tests timeout, increase the timeout:
 
 ```typescript
-await waitForIntegration(
-  () => expect(element).toBeTruthy(),
-  { timeout: 5000 }
-);
+await waitForIntegration(() => expect(element).toBeTruthy(), { timeout: 5000 });
 ```
 
 ### Context Not Updating

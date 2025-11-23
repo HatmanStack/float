@@ -38,7 +38,7 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
   });
   return transformedDict;
 };
-const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '";
+const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 if (!LAMBDA_FUNCTION_URL) {
   console.warn('EXPO_PUBLIC_LAMBDA_FUNCTION_URL is not configured. Backend calls will fail.');
 }

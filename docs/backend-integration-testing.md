@@ -180,19 +180,19 @@ pytest -m "not slow" -v
 
 ### Integration Tests
 
-| Service | Target Time | Actual |
-|---------|------------|--------|
-| Gemini Sentiment Analysis | <15s | ~5-10s |
-| Gemini Meditation Generation | <60s | ~20-40s |
-| OpenAI TTS Synthesis | <10s | ~3-8s |
-| S3 Upload/Download | <5s | ~1-3s |
+| Service                      | Target Time | Actual  |
+| ---------------------------- | ----------- | ------- |
+| Gemini Sentiment Analysis    | <15s        | ~5-10s  |
+| Gemini Meditation Generation | <60s        | ~20-40s |
+| OpenAI TTS Synthesis         | <10s        | ~3-8s   |
+| S3 Upload/Download           | <5s         | ~1-3s   |
 
 ### E2E Tests
 
-| Flow | Target Time | Actual |
-|------|------------|--------|
-| Summary Request | <15s | ~8-12s |
-| Meditation Request | <90s | ~40-70s |
+| Flow               | Target Time | Actual  |
+| ------------------ | ----------- | ------- |
+| Summary Request    | <15s        | ~8-12s  |
+| Meditation Request | <90s        | ~40-70s |
 
 ## Test Data Cleanup
 

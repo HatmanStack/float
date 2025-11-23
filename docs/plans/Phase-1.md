@@ -5,6 +5,7 @@
 Migrate the Float meditation app from complex multi-script infrastructure to a simplified, single-environment deployment system. Transform the current infrastructure/ directory setup into a colocated backend/ structure with interactive deployment scripts and clean configuration management.
 
 **Success Criteria:**
+
 - Backend directory contains all infrastructure code
 - Single `npm run deploy` command works end-to-end
 - Secrets never committed (gitignored properly)
@@ -27,10 +28,12 @@ Migrate the Float meditation app from complex multi-script infrastructure to a s
 **Goal**: Set up the backend directory to receive infrastructure files and ensure secrets will not be committed.
 
 **Files to Modify/Create:**
+
 - `backend/.gitignore` - Add deployment config and secrets
 - `.gitignore` - Update root gitignore if needed
 
 **Prerequisites:**
+
 - None (first task)
 
 **Implementation Steps:**
@@ -46,6 +49,7 @@ Migrate the Float meditation app from complex multi-script infrastructure to a s
 5. Test gitignore rules using `git check-ignore -v` to confirm patterns match
 
 **Verification Checklist:**
+
 - [x] `backend/.gitignore` contains `samconfig.toml`
 - [x] `backend/.gitignore` contains `.deploy-config.json`
 - [x] `backend/.gitignore` contains `.aws-sam/`
@@ -53,12 +57,14 @@ Migrate the Float meditation app from complex multi-script infrastructure to a s
 - [x] Existing Python patterns still work
 
 **Testing Instructions:**
+
 - Create dummy `backend/samconfig.toml` file
 - Run `git status` and verify it's not shown
 - Run `git check-ignore -v backend/samconfig.toml` and verify it matches gitignore pattern
 - Delete dummy file after verification
 
 **Commit Message Template:**
+
 ```
 chore(backend): add gitignore rules for deployment secrets
 
@@ -78,12 +84,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Extract development tool configurations from pyproject.toml into separate standard files before removing pyproject.toml.
 
 **Files to Create:**
+
 - `backend/pytest.ini` - Pytest configuration
 - `backend/ruff.toml` - Ruff linter configuration
 - `backend/mypy.ini` - MyPy type checker configuration
 - `backend/.coveragerc` - Coverage.py configuration
 
 **Prerequisites:**
+
 - Task 1 complete
 
 **Implementation Steps:**
@@ -113,6 +121,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    - Run `pytest --cov` to verify coverage config
 
 **Verification Checklist:**
+
 - [x] `pytest.ini` exists with correct test paths
 - [x] `ruff.toml` exists with Python 3.13 target
 - [x] `mypy.ini` exists with Python 3.13 setting
@@ -123,6 +132,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Coverage runs with correct settings
 
 **Testing Instructions:**
+
 - Run pytest collection: `cd backend && pytest --collect-only`
 - Run ruff: `ruff check src/`
 - Run mypy: `mypy src/ --show-error-codes`
@@ -130,6 +140,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - Verify all tools use new config files (check output for config file paths)
 
 **Commit Message Template:**
+
 ```
 refactor(backend): extract tool configs from pyproject.toml
 
@@ -150,9 +161,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Extract development dependencies into separate requirements-dev.txt before removing pyproject.toml, ensuring CI and local development can install dev tools.
 
 **Files to Create:**
+
 - `backend/requirements-dev.txt`
 
 **Prerequisites:**
+
 - Task 2 complete (tool configs migrated)
 
 **Implementation Steps:**
@@ -191,6 +204,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    ```
 
 **Verification Checklist:**
+
 - [x] `requirements-dev.txt` created with all dev dependencies
 - [x] All dependencies have version pins (>=)
 - [x] File includes pytest, pytest-mock, pytest-cov, moto
@@ -201,6 +215,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] No missing dependency errors
 
 **Testing Instructions:**
+
 - Create isolated environment:
   ```bash
   cd backend
@@ -224,6 +239,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   ```
 
 **Commit Message Template:**
+
 ```
 feat(backend): create requirements-dev.txt for development dependencies
 
@@ -244,10 +260,12 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Remove pyproject.toml entirely to eliminate SAM build conflicts and simplify dependency management.
 
 **Files to Modify/Delete:**
+
 - `backend/pyproject.toml` - DELETE
 - `backend/requirements.txt` - Verify and clean
 
 **Prerequisites:**
+
 - Task 2 complete (tool configs migrated)
 - Task 2.5 complete (requirements-dev.txt created)
 
@@ -269,6 +287,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Update any documentation that references pyproject.toml
 
 **Verification Checklist:**
+
 - [x] `pyproject.toml` does not exist
 - [x] `requirements.txt` has no `-e .` line
 - [x] All dependencies in requirements.txt have version pins
@@ -280,6 +299,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] `mypy` runs using mypy.ini
 
 **Testing Instructions:**
+
 - Create test SAM build:
   ```bash
   cd backend
@@ -295,6 +315,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - Verify no import errors related to missing package metadata
 
 **Commit Message Template:**
+
 ```
 refactor(backend): remove pyproject.toml build configuration
 
@@ -315,6 +336,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Move template.yaml, samconfig.toml, scripts/, and related files from infrastructure/ to backend/.
 
 **Files to Move:**
+
 - `infrastructure/template.yaml` → `backend/template.yaml`
 - `infrastructure/samconfig.toml` → `backend/samconfig.toml` (will be regenerated)
 - `infrastructure/scripts/` → `backend/scripts/` (will be rewritten)
@@ -322,6 +344,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - `infrastructure/parameters/` → DELETE (using samconfig.toml instead)
 
 **Prerequisites:**
+
 - Task 1 complete (gitignore updated)
 - Task 3 complete (pyproject.toml removed)
 
@@ -340,6 +363,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 7. Keep infrastructure/ directory for now (will clean up in final task)
 
 **Verification Checklist:**
+
 - [x] `backend/template.yaml` exists
 - [x] `backend/test-requests/` directory exists with JSON files
 - [x] `backend/scripts/` directory exists (may be empty)
@@ -348,11 +372,13 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Infrastructure directory still exists (not deleted yet)
 
 **Testing Instructions:**
+
 - Validate template: `sam validate --template backend/template.yaml --lint`
 - Check template syntax: `cat backend/template.yaml | grep CodeUri` (should show `.`)
 - Verify test requests: `ls -la backend/test-requests/`
 
 **Commit Message Template:**
+
 ```
 refactor(infrastructure): migrate template to backend directory
 
@@ -372,9 +398,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Modify template.yaml to support single-environment deployment with sensible defaults and remove unnecessary complexity.
 
 **Files to Modify:**
+
 - `backend/template.yaml`
 
 **Prerequisites:**
+
 - Task 4 complete (template migrated)
 
 **Implementation Steps:**
@@ -403,6 +431,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 7. Validate template after changes
 
 **Verification Checklist:**
+
 - [x] No `Environment` parameter exists
 - [x] FFmpegLayerArn has default value
 - [x] Function name is `float-meditation` (no variable)
@@ -412,12 +441,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Outputs section has all needed values (API URL, bucket, function ARN)
 
 **Testing Instructions:**
+
 - Validate template: `sam validate --template backend/template.yaml --lint`
 - Check for Environment references: `grep -i "environment" backend/template.yaml` (should only be ENV vars, not parameter)
 - Verify FFmpeg default: `grep "FFmpegLayerArn" backend/template.yaml -A 3`
 - Review outputs: `grep -A 20 "^Outputs:" backend/template.yaml`
 
 **Commit Message Template:**
+
 ```
 refactor(template): simplify for single-environment deployment
 
@@ -438,10 +469,12 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Implement the interactive deployment script that handles configuration, building, deploying, and environment file generation.
 
 **Files to Create:**
+
 - `backend/scripts/deploy.sh`
 - `backend/.deploy-config.json.template` (example structure)
 
 **Prerequisites:**
+
 - Task 4 complete (scripts directory exists)
 - Task 5 complete (template updated)
 - Phase-0 deployment script specification reviewed
@@ -494,6 +527,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    - Clean up partial state on failure
 
 **Verification Checklist:**
+
 - [x] Script is executable (`chmod +x`)
 - [x] Pre-flight checks verify AWS and SAM CLI
 - [x] Interactive prompts work with defaults
@@ -507,6 +541,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Testing Instructions:**
 
 **Unit-level testing** (manual):
+
 - Run script with no config: `./scripts/deploy.sh`
   - Verify all prompts appear
   - Test with dummy values
@@ -519,12 +554,14 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   - Provide invalid API key format, verify validation
 
 **Integration testing** (requires AWS):
+
 - Full deployment with test API keys
 - Verify stack creation in CloudFormation
 - Verify frontend .env has correct values
 - Test subsequent deployment (should skip prompts)
 
 **Mock testing** (for CI):
+
 - Create unit tests in `tests/unit/test_deploy_script.sh`:
   - Test configuration parsing logic
   - Test samconfig.toml generation
@@ -532,6 +569,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   - Mock AWS CLI and SAM CLI calls
 
 **Commit Message Template:**
+
 ```
 feat(deploy): create interactive deployment script
 
@@ -553,9 +591,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Create a simple script to validate the SAM template before deployment.
 
 **Files to Create:**
+
 - `backend/scripts/validate.sh`
 
 **Prerequisites:**
+
 - Task 4 complete (scripts directory exists)
 
 **Implementation Steps:**
@@ -573,6 +613,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Make script executable
 
 **Verification Checklist:**
+
 - [x] Script is executable
 - [x] Validates template.yaml successfully
 - [x] Shows clear error messages on validation failure
@@ -580,6 +621,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Can be run from backend/ directory
 
 **Testing Instructions:**
+
 - Run on valid template: `cd backend && ./scripts/validate.sh`
   - Should show success message
   - Should exit with code 0
@@ -590,6 +632,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - Verify lint flag works (catches template issues)
 
 **Commit Message Template:**
+
 ```
 feat(deploy): add template validation script
 
@@ -609,9 +652,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Create a script to easily view CloudWatch logs for the deployed Lambda function.
 
 **Files to Create:**
+
 - `backend/scripts/logs.sh`
 
 **Prerequisites:**
+
 - Task 6 complete (deploy script creates config)
 
 **Implementation Steps:**
@@ -632,6 +677,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Make script executable
 
 **Verification Checklist:**
+
 - [x] Script is executable
 - [x] Reads configuration correctly
 - [x] Determines function name correctly
@@ -640,6 +686,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Can accept optional time filter (--since 1h)
 
 **Testing Instructions:**
+
 - Test with deployed stack:
   - Deploy stack first (Task 6)
   - Run `./scripts/logs.sh`
@@ -653,6 +700,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   - Verify only recent logs shown
 
 **Commit Message Template:**
+
 ```
 feat(deploy): add CloudWatch logs viewer script
 
@@ -672,9 +720,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Add npm scripts for deployment commands to provide consistent developer interface.
 
 **Files to Modify/Create:**
+
 - `backend/package.json` - Create if doesn't exist
 
 **Prerequisites:**
+
 - Task 6, 7, 8 complete (scripts created)
 
 **Implementation Steps:**
@@ -696,6 +746,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Test npm scripts work from backend/ directory
 
 **Verification Checklist:**
+
 - [x] `package.json` exists in backend/
 - [x] "deploy" script points to deploy.sh
 - [x] "validate" script points to validate.sh
@@ -707,6 +758,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] `npm run logs` works from backend/
 
 **Testing Instructions:**
+
 - From backend/ directory:
   ```bash
   npm run validate  # Should validate template
@@ -718,6 +770,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - Check that errors from scripts are properly shown
 
 **Commit Message Template:**
+
 ```
 feat(deploy): add npm scripts for deployment commands
 
@@ -738,9 +791,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Update Makefile to remove SAM build target and keep only development quality checks.
 
 **Files to Modify:**
+
 - `backend/Makefile`
 
 **Prerequisites:**
+
 - Task 3 complete (pyproject.toml removed)
 - Task 9 complete (npm scripts added)
 
@@ -761,6 +816,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Verify remaining targets still work
 
 **Verification Checklist:**
+
 - [x] `build-FloatMeditationFunction` target removed
 - [x] Development targets remain (test, lint, format, type-check)
 - [x] .PHONY updated correctly
@@ -771,6 +827,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Help text updated
 
 **Testing Instructions:**
+
 - Run each make target:
   ```bash
   cd backend
@@ -784,6 +841,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - Verify all development tools still work
 
 **Commit Message Template:**
+
 ```
 refactor(backend): remove SAM build from Makefile
 
@@ -803,10 +861,12 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Create unit tests for deployment script logic to ensure CI can verify deployment code without AWS resources.
 
 **Files to Create:**
+
 - `backend/tests/unit/test_deploy_helpers.py` - Test helper functions
 - `backend/scripts/deploy-helpers.sh` - Extract testable functions from deploy.sh
 
 **Prerequisites:**
+
 - Task 6 complete (deploy script created)
 
 **Implementation Steps:**
@@ -832,6 +892,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 5. Create bash test harness if needed for shell-specific testing
 
 **Verification Checklist:**
+
 - [x] Helper functions extracted from deploy.sh
 - [x] Test fixtures created for configuration
 - [x] Python tests cover configuration parsing
@@ -842,6 +903,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Tests can run in CI environment
 
 **Testing Instructions:**
+
 - Run tests: `pytest backend/tests/unit/test_deploy_helpers.py -v`
 - Verify no AWS calls made: `AWS_ACCESS_KEY_ID= pytest ...` (should still pass)
 - Check coverage: `pytest --cov=backend/scripts --cov-report=term-missing`
@@ -852,6 +914,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   ```
 
 **Commit Message Template:**
+
 ```
 test(deploy): add unit tests for deployment script logic
 
@@ -873,9 +936,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Update GitHub Actions workflow to work with new backend structure and run tests without AWS credentials.
 
 **Files to Modify:**
+
 - `.github/workflows/backend-tests.yml`
 
 **Prerequisites:**
+
 - Task 11 complete (deployment tests created)
 - All tool configs migrated (Tasks 2-3)
 
@@ -893,22 +958,23 @@ Email: 82614182+HatmanStack@users.noreply.github.com
    - Change to backend/ directory for Python work
    - Update requirements.txt path
    - Update pytest paths
-3. Add linting steps:
+5. Add linting steps:
    - Install ruff
    - Run `ruff check backend/src backend/tests`
-4. Update test steps:
+6. Update test steps:
    - Install test dependencies (pytest, pytest-mock, pytest-cov, moto)
    - Run unit tests: `pytest backend/tests/unit -v --cov=backend/src`
    - Run integration tests: `pytest backend/tests/integration -v` (mocked AWS)
    - Ensure no AWS credentials needed
-5. Add deployment script validation:
+7. Add deployment script validation:
    - Run shellcheck on scripts: `shellcheck backend/scripts/*.sh`
    - Run deployment helper tests
-6. Remove any steps that require live AWS resources
-7. Ensure frontend tests still run (separate job if needed)
-8. Add status badge to README
+8. Remove any steps that require live AWS resources
+9. Ensure frontend tests still run (separate job if needed)
+10. Add status badge to README
 
 **Verification Checklist:**
+
 - [x] File path correct: `.github/workflows/backend-tests.yml`
 - [x] Python version updated to 3.13 in ALL setup-python actions
 - [x] All `pip install -e ".[dev]"` replaced with `pip install -r requirements.txt -r requirements-dev.txt`
@@ -924,6 +990,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Failed tests show clear error messages
 
 **Testing Instructions:**
+
 - Create test PR to trigger CI
 - Verify workflow runs without errors
 - Check that all test steps pass
@@ -934,6 +1001,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   - Fix and verify CI passes
 
 **Commit Message Template:**
+
 ```
 ci: update workflow for new backend structure
 
@@ -958,9 +1026,11 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Remove the old infrastructure/ directory now that all files are migrated to backend/.
 
 **Files to Delete:**
+
 - `infrastructure/` (entire directory)
 
 **Prerequisites:**
+
 - Tasks 1-12 complete (all migration done)
 - Deployment tested and working from backend/
 
@@ -985,6 +1055,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Remove backup after successful deployment
 
 **Verification Checklist:**
+
 - [x] Backup created (infrastructure-backup/)
 - [x] infrastructure/ directory deleted
 - [x] Git shows directory removal
@@ -994,6 +1065,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] No orphaned files remain
 
 **Testing Instructions:**
+
 - Before deletion:
   - Create backup: `cp -r infrastructure/ infrastructure-backup/`
   - Document current state: `ls -R infrastructure/ > infrastructure-manifest.txt`
@@ -1005,6 +1077,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
   - `rm -rf infrastructure-backup/`
 
 **Commit Message Template:**
+
 ```
 refactor: remove infrastructure directory
 
@@ -1025,6 +1098,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 **Goal**: Update project documentation to reflect new deployment structure and commands.
 
 **Files to Modify/Delete:**
+
 - `README.md` - Update
 - `docs/DEVELOPMENT.md` - Update
 - `docs/infrastructure-deploy.md` - DELETE
@@ -1036,6 +1110,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - `docs/DEPLOYMENT.md` - Create
 
 **Prerequisites:**
+
 - Task 13 complete (infrastructure cleaned up)
 
 **Implementation Steps:**
@@ -1069,6 +1144,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 6. Verify all internal links still work
 
 **Verification Checklist:**
+
 - [x] README.md updated with new deployment commands
 - [x] ALL infrastructure docs deleted (4 files):
   - [x] infrastructure-deploy.md
@@ -1083,6 +1159,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - [x] Examples use current structure
 
 **Testing Instructions:**
+
 - Read through each updated doc
 - Follow quick start instructions from scratch
 - Verify commands work as documented
@@ -1090,6 +1167,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 - Have another developer review for clarity
 
 **Commit Message Template:**
+
 ```
 docs: update for simplified deployment structure
 
@@ -1113,6 +1191,7 @@ Email: 82614182+HatmanStack@users.noreply.github.com
 After all tasks are complete, perform this end-to-end verification:
 
 1. **Clean Slate Test**:
+
    ```bash
    # Start from fresh clone
    git clone <repo> float-test
@@ -1135,6 +1214,7 @@ After all tasks are complete, perform this end-to-end verification:
    ```
 
 2. **Test Suite Verification**:
+
    ```bash
    # All tests pass without AWS credentials
    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
@@ -1174,6 +1254,7 @@ After all tasks are complete, perform this end-to-end verification:
 ### Integration Points
 
 This phase integrates with:
+
 - **Frontend**: Receives .env file from deployment
 - **CI/CD**: Runs tests without live AWS
 - **AWS**: Deploys via SAM to CloudFormation
@@ -1203,18 +1284,20 @@ After successful verification:
 ### Verification Summary
 
 **Tools Used:**
+
 - ✓ Glob: Verified existence of all expected files
 - ✓ Read: Inspected implementation of key files
 - ✓ Bash: Checked git history, gitignore rules, file permissions
 - ✓ Grep: Searched for compliance with requirements
 
 **Files Verified:**
+
 - backend/.gitignore, pytest.ini, ruff.toml, mypy.ini, .coveragerc
 - backend/requirements-dev.txt, package.json
 - backend/template.yaml
-- backend/scripts/*.sh (deploy.sh, logs.sh, validate.sh, deploy-helpers.sh)
+- backend/scripts/\*.sh (deploy.sh, logs.sh, validate.sh, deploy-helpers.sh)
 - backend/tests/unit/test_deploy_helpers.py
-- backend/tests/fixtures/*.json
+- backend/tests/fixtures/\*.json
 - .github/workflows/backend-tests.yml
 - docs/DEPLOYMENT.md, backend/README.md
 
@@ -1265,6 +1348,7 @@ After successful verification:
 ### POSITIVE FINDINGS
 
 **Implementation Quality - Excellent:**
+
 - ✓ All 14 tasks technically completed in terms of file changes
 - ✓ Template simplified correctly (no Environment parameter, FFmpeg default value added)
 - ✓ Deployment scripts comprehensive and well-structured
@@ -1276,6 +1360,7 @@ After successful verification:
 - ✓ Old infrastructure documentation deleted
 
 **Files Changed (from git log 4682e98):**
+
 ```
 Created:
 - backend/.gitignore, pytest.ini, ruff.toml, mypy.ini, .coveragerc
@@ -1306,17 +1391,20 @@ The implementation is **functionally complete** with excellent code quality, but
 **Path Forward:**
 
 **Option A - Clean History (Recommended for learning/portfolio):**
+
 1. Consider rebasing commit 4682e98 into 14 separate atomic commits matching the plan
 2. Each commit follows the conventional commit format specified
 3. Demonstrates mastery of git best practices
 
 **Option B - Pragmatic Completion:**
+
 1. Delete infrastructure/ directory with proper commit: `git rm -r infrastructure/`
 2. Run and verify all tests pass: `pytest backend/tests/ -v`
 3. Accept that work was done in bulk (acceptable for prototyping, less ideal for production)
 4. Document decision in commit message
 
 **Either path requires:**
+
 - Infrastructure directory fully removed
 - Tests verified passing
 - Final verification of `npm run deploy` workflow
@@ -1336,24 +1424,31 @@ The implementation is **functionally complete** with excellent code quality, but
 ### Common Issues
 
 **Issue**: "sam: command not found"
+
 - **Solution**: Install SAM CLI globally: `brew install aws-sam-cli`
 
-**Issue**: "Invalid distribution name: __init__-0.0.0"
+**Issue**: "Invalid distribution name: **init**-0.0.0"
+
 - **Solution**: Verify pyproject.toml deleted and requirements.txt has no `-e .`
 
 **Issue**: Deployment succeeds but frontend .env not created
+
 - **Solution**: Check stack outputs exist, verify deploy.sh post-deployment logic
 
 **Issue**: "No module named pip" during sam build
+
 - **Solution**: Verify BuildMethod metadata removed from template.yaml
 
 **Issue**: samconfig.toml committed to git
+
 - **Solution**: Add to .gitignore, remove from git: `git rm --cached backend/samconfig.toml`
 
 **Issue**: Tests fail in CI with "AWS credentials required"
+
 - **Solution**: Ensure tests use moto/mocks, no live AWS SDK calls
 
 **Issue**: Old infrastructure/ scripts being used
+
 - **Solution**: Clear shell hash: `hash -r`, verify PATH, remove infrastructure-backup/
 
 ### Rollback Plan

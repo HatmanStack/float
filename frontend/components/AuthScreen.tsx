@@ -90,7 +90,7 @@ const AuthScreen: React.FC = (): React.ReactNode => {
   const { user, handleGoogleLogin, handleGuestLogin } = useAuthentication();
   const styles = useStyles();
   const colorScheme = useColorScheme();
-  const backgroundAuthColor = colorScheme === 'light' ? '#60465a' : '#bfaeba";
+  const backgroundAuthColor = colorScheme === 'light' ? '#60465a' : '#bfaeba';
   if (!isUserLoaded) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

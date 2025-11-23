@@ -1,8 +1,8 @@
-import React from "react";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 
-import MeditationControls from "@/frontend/components/ScreenComponents/MeditationControls";
-import { Audio } from "expo-av";
+import MeditationControls from '@/frontend/components/ScreenComponents/MeditationControls';
+import { Audio } from 'expo-av';
 
 // Mock Expo Audio to control playback behavior
 jest.mock('expo-av', () => ({

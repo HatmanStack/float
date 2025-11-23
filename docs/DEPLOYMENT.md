@@ -19,6 +19,7 @@ npm run deploy
 ```
 
 This interactive script will:
+
 1. Check for required tools
 2. Prompt for missing configuration (first run only)
 3. Build the SAM application
@@ -30,11 +31,13 @@ This interactive script will:
 Configuration is stored locally in `backend/.deploy-config.json`. This file is gitignored to prevent leaking secrets.
 
 ### Required Secrets
+
 - `GEMINI_API_KEY`: Google Gemini API key
 - `OPENAI_API_KEY`: OpenAI API key
 - `ELEVENLABS_API_KEY`: ElevenLabs API key (optional)
 
 ### Default Settings
+
 - **Region**: `us-east-1`
 - **Stack Name**: `float-meditation-dev`
 - **FFmpeg Layer**: Public layer in us-east-1
@@ -43,26 +46,31 @@ Configuration is stored locally in `backend/.deploy-config.json`. This file is g
 
 All commands should be run from the `backend/` directory:
 
-| Command | Description |
-|---------|-------------|
-| `npm run deploy` | Interactive build and deployment |
-| `npm run validate` | Validate SAM template |
-| `npm run logs` | Stream CloudWatch logs for the Lambda function |
-| `npm run build` | Build the application (SAM build) |
+| Command            | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| `npm run deploy`   | Interactive build and deployment               |
+| `npm run validate` | Validate SAM template                          |
+| `npm run logs`     | Stream CloudWatch logs for the Lambda function |
+| `npm run build`    | Build the application (SAM build)              |
 
 ## Troubleshooting
 
 ### "sam: command not found"
+
 Install the SAM CLI:
+
 ```bash
 brew install aws-sam-cli
 ```
 
 ### "AWS credentials not found"
+
 Configure your AWS CLI:
+
 ```bash
 aws configure
 ```
 
 ### Frontend .env not updating
+
 Ensure the deployment script completes successfully. It writes to `../frontend/.env` only after a successful CloudFormation deployment.

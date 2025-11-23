@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { ThemedText } from "@/frontend/components/ThemedText";
-import { Collapsible } from "@/frontend/components/Collapsible";
+import React, { useState } from 'react';
+import { ThemedText } from '@/frontend/components/ThemedText';
+import { Collapsible } from '@/frontend/components/Collapsible';
 const Guidance = () => {
   const [isOpen, setIsOpen] = useState(false);
   const toggleCollapsible = () => {

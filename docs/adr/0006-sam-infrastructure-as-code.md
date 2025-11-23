@@ -33,6 +33,7 @@
 **Consequences**:
 
 **Positive**:
+
 - All infrastructure defined in version-controlled code (`infrastructure/template.yaml`)
 - Single-command deployment with guaranteed reproducibility
 - Environment parity between staging and production (same template, different parameters)
@@ -43,28 +44,33 @@
 - CloudFormation change sets for safe production deployments
 
 **Negative**:
+
 - Requires SAM CLI installation and Docker for local development
 - Learning curve for SAM/CloudFormation syntax
 - Deployment slower than manual zip upload (builds with Docker)
 - Debugging SAM build issues can be challenging
 
 **Implementation**:
+
 - Single environment-agnostic SAM template (see ADR-0001)
 - Parameter files for staging and production environments
 - Automated deployment scripts with validation and error handling
 - GitHub Actions integration for CI/CD automation
 
 **Trade-offs Accepted**:
+
 - Slower initial deployment (Docker build) for long-term reliability and consistency
 - Additional tooling requirements (SAM CLI, Docker) for better automation
 - CloudFormation abstractions vs. direct AWS API control
 
 **Related ADRs**:
+
 - ADR-0001: SAM Template Structure (Phase 0)
 - ADR-0007: HTTP API Gateway (this decision)
 - ADR-0008: Environment Variables for Secrets (this decision)
 
 **References**:
+
 - [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/)
 - [infrastructure/README.md](../infrastructure/README.md) - Implementation details
 - [infrastructure/DEPLOYMENT.md](../infrastructure/DEPLOYMENT.md) - Deployment guide

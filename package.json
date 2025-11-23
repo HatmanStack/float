@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -24,11 +23,11 @@
       "./jest.setup.js"
     ],
     "setupFilesAfterEnv": [
-      "./tests/unit/components/__tests__/utils/setup.ts"
+      "./tests/unit/components/utils/setup.ts"
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/tests/unit/components/__tests__/utils/",
+      "/tests/unit/components/utils/",
       "/tests/integration/setup.ts",
       "/tests/integration/test-utils.tsx"
     ]

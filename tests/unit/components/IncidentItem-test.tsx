@@ -1,10 +1,10 @@
-import React from "react";
-import { View, TouchableOpacity, Text } from "react-native";
-import { render, screen, fireEvent } from "@testing-library/react-native";
-import IncidentItem from "@/frontend/components/ScreenComponents/IncidentItem";
-import { useIncident } from "@/frontend/context/IncidentContext";
-import { ThemedText } from "@/frontend/components/ThemedText";
-import { Collapsible } from "@/frontend/components/Collapsible";
+import React from 'react';
+import { View, TouchableOpacity, Text } from 'react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import IncidentItem from '@/frontend/components/ScreenComponents/IncidentItem';
+import { useIncident } from '@/frontend/context/IncidentContext';
+import { ThemedText } from '@/frontend/components/ThemedText';
+import { Collapsible } from '@/frontend/components/Collapsible';
 
 // Mock the useIncident hook and its return values
 jest.mock('@/context/IncidentContext', () => ({

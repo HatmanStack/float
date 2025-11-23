@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import { Animated, Pressable, ViewStyle } from "react-native";
-import { ThemedText } from "@/frontend/components/ThemedText";
-import { Collapsible } from "@/frontend/components/Collapsible";
-import { ThemedView } from "@/frontend/components/ThemedView";
-import { useIncident } from "@/frontend/context/IncidentContext";
-import useStyles from "@/frontend/constants/StylesConstants";
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Animated, Pressable, ViewStyle } from 'react-native';
+import { ThemedText } from '@/frontend/components/ThemedText';
+import { Collapsible } from '@/frontend/components/Collapsible';
+import { ThemedView } from '@/frontend/components/ThemedView';
+import { useIncident } from '@/frontend/context/IncidentContext';
+import useStyles from '@/frontend/constants/StylesConstants';
 const IncidentItem = ({
   renderKey,
   incident,

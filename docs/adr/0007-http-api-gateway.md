@@ -28,11 +28,13 @@
 **Decision Rationale**:
 
 **Cost Savings**:
+
 - HTTP API: $1.00 per million requests
 - REST API: $3.50 per million requests
 - **70% cost reduction** at scale
 
 **Sufficient Features**:
+
 - Built-in CORS support (complements existing Lambda middleware)
 - JWT authorizers (if needed in future)
 - CloudWatch metrics and logging
@@ -41,11 +43,13 @@
 - Good enough for Float's simple POST endpoint routing
 
 **Performance**:
+
 - Lower latency than REST API
 - Faster cold starts
 - Direct Lambda proxy integration
 
 **Trade-offs Accepted**:
+
 - No API keys (not needed - no third-party API access)
 - No usage plans (not needed - no tiered pricing)
 - No request/response transformation (Lambda handles this)
@@ -54,6 +58,7 @@
 **Consequences**:
 
 **Positive**:
+
 - 70% cost savings on API Gateway requests
 - Simpler configuration in SAM template
 - Faster API response times
@@ -62,16 +67,19 @@
 - Custom domain support for production
 
 **Negative**:
+
 - Cannot implement API keys in future without migration
 - No built-in caching (must implement in Lambda/S3 if needed)
 - Fewer API management features if requirements change
 
 **Future Considerations**:
+
 - If API keys become required → migrate to REST API (breaking change)
 - If multiple microservices → consider ALB or API Gateway custom domains
 - If caching needed → implement CloudFront or Lambda-level caching first
 
 **Implementation**:
+
 - HTTP API defined in `infrastructure/template.yaml`
 - Single `POST /meditation` route (proxy to Lambda)
 - CORS configured for all origins (development and production)
@@ -79,9 +87,11 @@
 - No authorizer initially (can add JWT in future)
 
 **Related ADRs**:
+
 - ADR-0006: SAM Infrastructure as Code
 - ADR-0003: Secrets Management (Phase 0)
 
 **References**:
+
 - [AWS HTTP API vs REST API Comparison](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html)
 - [HTTP API Pricing](https://aws.amazon.com/api-gateway/pricing/)

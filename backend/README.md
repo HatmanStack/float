@@ -31,11 +31,13 @@ backend/
 ## Testing
 
 Run the full test suite:
+
 ```bash
 make test
 ```
 
 Run specific test categories:
+
 ```bash
 pytest tests/unit
 pytest tests/integration
@@ -44,6 +46,7 @@ pytest tests/integration
 ## Deployment
 
 Deploy to AWS:
+
 ```bash
 npm run deploy
 ```

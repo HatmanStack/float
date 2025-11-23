@@ -1,19 +1,19 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useWindowDimensions, Platform } from "react-native";
-import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
-import * as Notifications from "expo-notifications";
-import ParallaxScrollView from "@/frontend/components/ParallaxScrollView";
-import { BackendMeditationCall } from "@/frontend/components/BackendMeditationCall";
-import { ThemedText } from "@/frontend/components/ThemedText";
-import { ThemedView } from "@/frontend/components/ThemedView";
-import { useIncident } from "@/frontend/context/IncidentContext";
-import { useAuth } from "@/frontend/context/AuthContext";
-import Guidance from "@/frontend/components/ScreenComponents/Guidance";
-import IncidentItem from "@/frontend/components/ScreenComponents/IncidentItem";
-import MeditationControls from "@/frontend/components/ScreenComponents/MeditationControls";
-import useStyles from "@/frontend/constants/StylesConstants";
-import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useWindowDimensions, Platform } from 'react-native';
+import * as React from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import * as Notifications from 'expo-notifications';
+import ParallaxScrollView from '@/frontend/components/ParallaxScrollView';
+import { BackendMeditationCall } from '@/frontend/components/BackendMeditationCall';
+import { ThemedText } from '@/frontend/components/ThemedText';
+import { ThemedView } from '@/frontend/components/ThemedView';
+import { useIncident } from '@/frontend/context/IncidentContext';
+import { useAuth } from '@/frontend/context/AuthContext';
+import Guidance from '@/frontend/components/ScreenComponents/Guidance';
+import IncidentItem from '@/frontend/components/ScreenComponents/IncidentItem';
+import MeditationControls from '@/frontend/components/ScreenComponents/MeditationControls';
+import useStyles from '@/frontend/constants/StylesConstants';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 function useIncidentSelection() {
   const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
   const handlePress = useCallback(
@@ -124,8 +124,7 @@ export default function TabTwoScreen(): React.ReactNode {
     incidentList,
     musicList
   );
-  useEffect(() => {
-  }, [width, height]);
+  useEffect(() => {}, [width, height]);
   useEffect(() => {
     setRenderKey((prevKey) => prevKey + 1);
   }, [colorChangeArrayOfArrays]);

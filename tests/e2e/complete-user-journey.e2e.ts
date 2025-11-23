@@ -8,7 +8,7 @@
  * @requires Backend API mocked or available
  */
 
-import { by, device, element, expect as detoxExpect, waitFor } from "detox";
+import { by, device, element, expect as detoxExpect, waitFor } from 'detox';
 
 describe('Complete User Journey', () => {
   beforeAll(async () => {

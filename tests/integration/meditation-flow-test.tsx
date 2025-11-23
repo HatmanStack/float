@@ -10,8 +10,8 @@
  * - Error scenarios
  */
 
-import React, { useState } from "react";
-import { View, Text, Button } from "react-native";
+import React, { useState } from 'react';
+import { View, Text, Button } from 'react-native';
 import {
   renderWithIncidentContext,
   renderWithAllContexts,
@@ -21,8 +21,8 @@ import {
   fireEvent,
   act,
   INTEGRATION_TIMEOUTS,
-} from "./test-utils";
-import { useIncident } from "@/frontend/context/IncidentContext";
+} from './test-utils';
+import { useIncident } from '@/frontend/context/IncidentContext';
 
 // Mock meditation response
 const mockMeditationResponse = {

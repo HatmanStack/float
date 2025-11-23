@@ -8,7 +8,7 @@
  * @requires Network mocking capability
  */
 
-import { by, device, element, expect as detoxExpect, waitFor } from "detox";
+import { by, device, element, expect as detoxExpect, waitFor } from 'detox';
 
 describe('Error Scenarios', () => {
   beforeAll(async () => {
@@ -43,9 +43,7 @@ describe('Error Scenarios', () => {
         .withTimeout(60000); // Allow time for timeout
 
       // Verify error message
-      await detoxExpect(element(by.id('error-message'))).toHaveText(
-        /network|timeout|connection/i
-      );
+      await detoxExpect(element(by.id('error-message'))).toHaveText(/network|timeout|connection/i);
 
       // Verify retry button available
       await detoxExpect(element(by.id('retry-button'))).toBeVisible();

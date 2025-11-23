@@ -17,8 +17,8 @@ jest.mock('react-native', () => ({
 import { BackendMeditationCall } from "@/frontend/components/BackendMeditationCall";
 import * as FileSystem from "expo-file-system";
 
-const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com";
-const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA";
+const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';
+const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA';
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -56,7 +56,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['music1', 'music2'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     const webResponse = await BackendMeditationCall(
       selectedIndexes,
@@ -95,7 +95,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['music1'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     await expect(
       BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL)
@@ -128,7 +128,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['music1'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
 
@@ -156,7 +156,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['music1'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
 
@@ -179,7 +179,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['track1', 'track2', 'track3'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
 
@@ -201,7 +201,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['music1'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
 
@@ -231,7 +231,7 @@ describe('BackendMeditationCall', () => {
       },
     ];
     const musicList = ['music1'];
-    const user = 'testuser";
+    const user = 'testuser';
 
     await expect(
       BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL)

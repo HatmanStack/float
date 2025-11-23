@@ -1,10 +1,10 @@
-import React from "react";
-import { Pressable } from "react-native";
-import { ThemedText } from "@/frontend/components/ThemedText";
-import { ThemedView } from "@/frontend/components/ThemedView";
-import { Colors } from "@/frontend/constants/Colors";
-import useStyles from "@/frontend/constants/StylesConstants";
-import { Audio } from "expo-av";
+import React from 'react';
+import { Pressable } from 'react-native';
+import { ThemedText } from '@/frontend/components/ThemedText';
+import { ThemedView } from '@/frontend/components/ThemedView';
+import { Colors } from '@/frontend/constants/Colors';
+import useStyles from '@/frontend/constants/StylesConstants';
+import { Audio } from 'expo-av';
 interface RecordButtonProps {
   recording: Audio.Recording | null;
   handleStartRecording: () => void;

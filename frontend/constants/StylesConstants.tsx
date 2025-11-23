@@ -4,7 +4,7 @@ const useStyles = () => {
   const buttonWidth = windowWidth < 500 ? 150 : 200;
   const buttonMarginTop = Platform.OS === 'android' ? 60 : 30;
   const colorScheme = useColorScheme();
-  const headerImageColor = colorScheme === 'light' ? '#60465a' : '#bfaeba";
+  const headerImageColor = colorScheme === 'light' ? '#60465a' : '#bfaeba';
   return StyleSheet.create({
     button: {
       padding: 20,

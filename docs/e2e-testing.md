@@ -7,6 +7,7 @@ This directory contains E2E tests for the Float meditation app using Detox.
 E2E tests verify complete user journeys through the application, testing the integration of all components, navigation, and backend interactions.
 
 **Test Coverage:**
+
 - Complete user journey (auth → record → summary → meditation → playback)
 - Error scenarios and recovery flows
 - Navigation and screen transitions
@@ -16,12 +17,14 @@ E2E tests verify complete user journeys through the application, testing the int
 ## Prerequisites
 
 ### iOS Testing
+
 - macOS with Xcode installed
 - iOS Simulator configured
 - Node.js 24.x
 - Detox CLI: `npm install -g detox-cli`
 
 ### Android Testing
+
 - Android Studio installed
 - Android SDK configured
 - Android Emulator (AVD) created: `Pixel_5_API_31`
@@ -39,11 +42,13 @@ npm install --save-dev detox jest
 ### 2. Build the App
 
 **iOS:**
+
 ```bash
 detox build --configuration ios.sim.debug
 ```
 
 **Android:**
+
 ```bash
 detox build --configuration android.emu.debug
 ```
@@ -66,11 +71,13 @@ avdmanager create avd -n Pixel_5_API_31 -k "system-images;android-31;google_apis
 ### Run All E2E Tests
 
 **iOS:**
+
 ```bash
 detox test --configuration ios.sim.debug
 ```
 
 **Android:**
+
 ```bash
 detox test --configuration android.emu.debug
 ```
@@ -181,19 +188,19 @@ await waitFor(element(by.id('element')))
 
 ```typescript
 // By ID (testID prop)
-element(by.id('my-element-id'))
+element(by.id('my-element-id'));
 
 // By text
-element(by.text('Sign In'))
+element(by.text('Sign In'));
 
 // By label
-element(by.label('Username'))
+element(by.label('Username'));
 
 // By type
-element(by.type('RCTTextInput'))
+element(by.type('RCTTextInput'));
 
 // Combined matchers
-element(by.id('button').and(by.text('Submit')))
+element(by.id('button').and(by.text('Submit')));
 ```
 
 ## Best Practices
@@ -225,6 +232,7 @@ element(by.id('button').and(by.text('Submit')))
 ## Current E2E Test Plan
 
 ### Complete User Journey (Planned)
+
 - Launch app
 - Sign in (mock authentication)
 - Navigate to recording screen
@@ -239,6 +247,7 @@ element(by.id('button').and(by.text('Submit')))
 - Verify incident in history
 
 ### Error Scenarios (Planned)
+
 - Offline mode (network error)
 - Permission denial
 - Backend errors (500, 400)
@@ -311,6 +320,7 @@ emulator -avd Pixel_5_API_31 -no-snapshot-load
 ## Status
 
 **Current Implementation:**
+
 - ✅ Detox configuration created (.detoxrc.js)
 - ✅ Jest E2E configuration created
 - ✅ Documentation complete
@@ -318,6 +328,7 @@ emulator -avd Pixel_5_API_31 -no-snapshot-load
 - ⏳ Helper utilities (planned)
 
 **Note:** Actual E2E test execution requires:
+
 - Native app builds (iOS/Android)
 - Emulator/simulator setup
 - Can be run locally or in CI/CD

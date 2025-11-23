@@ -286,12 +286,7 @@ const user = mockUser; // { id: 'test-user-123', name: 'Test User' }
 #### Helper Functions
 
 ```typescript
-import {
-  mockFetch,
-  mockFetchError,
-  resetAllMocks,
-  waitFor,
-} from '../utils/testUtils';
+import { mockFetch, mockFetchError, resetAllMocks, waitFor } from '../utils/testUtils';
 
 // Mock successful fetch
 mockFetch({ data: 'response' });
@@ -318,23 +313,23 @@ As of the latest update:
 
 ### Coverage by Component
 
-| Component | Tests | Coverage |
-|-----------|-------|----------|
-| BackendSummaryCall | 6 | 75%+ |
-| BackendMeditationCall | 7 | 72%+ |
-| AudioRecording | 13 | 85%+ |
-| LocalFileLoadAndSave | 4 | 60%+ |
-| ThemedView | 8 | 85%+ |
-| ParallaxScrollView | 9 | 71%+ |
-| Collapsible | 10 | 76%+ |
-| Notifications | 10 | 77%+ |
-| History | 10 | 76%+ |
-| AuthScreen | 10 | 78%+ |
-| IncidentItem | Existing | 80%+ |
-| IncidentColoring | Existing | 90%+ |
-| MeditationControls | Existing | 75%+ |
-| Guidance | Existing | 75%+ |
-| ThemedText | Existing | 85%+ |
+| Component             | Tests    | Coverage |
+| --------------------- | -------- | -------- |
+| BackendSummaryCall    | 6        | 75%+     |
+| BackendMeditationCall | 7        | 72%+     |
+| AudioRecording        | 13       | 85%+     |
+| LocalFileLoadAndSave  | 4        | 60%+     |
+| ThemedView            | 8        | 85%+     |
+| ParallaxScrollView    | 9        | 71%+     |
+| Collapsible           | 10       | 76%+     |
+| Notifications         | 10       | 77%+     |
+| History               | 10       | 76%+     |
+| AuthScreen            | 10       | 78%+     |
+| IncidentItem          | Existing | 80%+     |
+| IncidentColoring      | Existing | 90%+     |
+| MeditationControls    | Existing | 75%+     |
+| Guidance              | Existing | 75%+     |
+| ThemedText            | Existing | 85%+     |
 
 ### Viewing Coverage Reports
 
@@ -349,6 +344,7 @@ Open `coverage/lcov-report/index.html` in a browser to view detailed coverage.
 ### 1. Test Behavior, Not Implementation
 
 **Good:**
+
 ```typescript
 it('should display user name when logged in', () => {
   const { getByText } = render(<Profile user={{ name: 'John' }} />);
@@ -357,6 +353,7 @@ it('should display user name when logged in', () => {
 ```
 
 **Bad:**
+
 ```typescript
 it('should call setState with user name', () => {
   // Testing implementation details
@@ -366,12 +363,14 @@ it('should call setState with user name', () => {
 ### 2. Use Descriptive Test Names
 
 **Good:**
+
 ```typescript
 it('should show error message when login fails', () => { ... });
 it('should disable submit button while loading', () => { ... });
 ```
 
 **Bad:**
+
 ```typescript
 it('test 1', () => { ... });
 it('works', () => { ... });
@@ -398,8 +397,9 @@ it('should update user profile', async () => {
 ### 4. Mock External Dependencies
 
 Always mock:
+
 - API calls (fetch, axios)
-- Native modules (expo-*, react-native modules)
+- Native modules (expo-\*, react-native modules)
 - Third-party libraries
 - Context providers (when testing components in isolation)
 
@@ -432,6 +432,7 @@ afterEach(() => {
 ### 7. Avoid Test Interdependencies
 
 **Good:**
+
 ```typescript
 it('should add item', () => {
   const { getByText } = render(<List />);
@@ -447,6 +448,7 @@ it('should remove item', () => {
 ```
 
 **Bad:**
+
 ```typescript
 // Don't rely on previous test state
 let sharedState;
@@ -499,6 +501,7 @@ afterEach(() => {
 ### Issue: Tests timeout
 
 **Solution:** Increase timeout or ensure async operations complete:
+
 ```typescript
 it('long running test', async () => {
   // ... test code
@@ -508,6 +511,7 @@ it('long running test', async () => {
 ### Issue: Mock not working
 
 **Solution:** Ensure mocks are defined BEFORE imports:
+
 ```typescript
 // ✓ Correct
 jest.mock('./myModule');
@@ -521,6 +525,7 @@ jest.mock('./myModule');
 ### Issue: State updates not reflected
 
 **Solution:** Use waitFor or act:
+
 ```typescript
 import { waitFor } from '@testing-library/react-native';
 
@@ -532,6 +537,7 @@ await waitFor(() => {
 ### Issue: Cannot find element
 
 **Solution:** Check component actually renders the element:
+
 ```typescript
 // Debug what's rendered
 const { debug } = render(<MyComponent />);
@@ -559,6 +565,7 @@ When adding new tests:
 ## Questions?
 
 For questions about testing:
+
 1. Check this documentation
 2. Review existing test files for examples
 3. Consult the team

@@ -13,7 +13,7 @@ export interface ThemedTextProps extends TextProps {
     | 'link'
     | 'header'
     | 'details'
-    | 'incidentDetails";
+    | 'incidentDetails';
 }
 export function ThemedText({
   style,

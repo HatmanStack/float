@@ -1,13 +1,17 @@
-import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
-import { Collapsible } from "@/frontend/components/Collapsible";
-import { Text } from "react-native";
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import { Collapsible } from '@/frontend/components/Collapsible';
+import { Text } from 'react-native';
 
 // Mock ThemedView and ThemedText
 jest.mock('@/components/ThemedView', () => ({
   ThemedView: ({ children, style, ...props }: any) => {
     const { View } = require('react-native');
-    return <View style={style} {...props}>{children}</View>;
+    return (
+      <View style={style} {...props}>
+        {children}
+      </View>
+    );
   },
 }));
 
