@@ -7,7 +7,6 @@ from ..config.constants import InferenceType
 
 @dataclass
 class BaseRequest:
-    pass
     user_id: str
     inference_type: InferenceType
 
@@ -23,11 +22,9 @@ class SummaryRequest(BaseRequest):
     prompt: Optional[str] = None  # Text prompt or "NotAvailable"
 
     def __post_init__(self) -> None:
-        pass
         self.inference_type = InferenceType.SUMMARY
 
     def validate(self) -> bool:
-        pass
         audio_available: bool = bool(self.audio and self.audio != "NotAvailable")
         prompt_available: bool = bool(self.prompt and self.prompt != "NotAvailable")
         return audio_available or prompt_available
@@ -35,16 +32,13 @@ class SummaryRequest(BaseRequest):
 
 @dataclass
 class MeditationRequest(BaseRequest):
-    pass
     input_data: Union[Dict[str, Any], List[Dict[str, Any]]]
     music_list: List[str]
 
     def __post_init__(self) -> None:
-        pass
         self.inference_type = InferenceType.MEDITATION
 
     def validate(self) -> bool:
-        pass
         print(f"[MEDITATION_VALIDATION] input_data type: {type(self.input_data)}")
         print(f"[MEDITATION_VALIDATION] input_data: {self.input_data}")
         print(f"[MEDITATION_VALIDATION] music_list type: {type(self.music_list)}")
@@ -61,7 +55,6 @@ class MeditationRequest(BaseRequest):
 
 
 def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
-    pass
     if isinstance(value, str):
         try:
             return json.loads(value)
@@ -72,7 +65,6 @@ def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
 
 
 def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
-    pass
     user_id = body.get("user_id")
     if not user_id:
         raise ValueError("user_id is required")
@@ -87,7 +79,6 @@ def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
 
 
 def parse_request_body(body: Dict[str, Any]) -> BaseRequest:
-    pass
     user_id, inference_enum = _validate_request_fields(body)
     request: BaseRequest
     if inference_enum == InferenceType.SUMMARY:

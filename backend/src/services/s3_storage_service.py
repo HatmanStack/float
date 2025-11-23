@@ -8,13 +8,11 @@ from .storage_service import StorageService
 
 
 class S3StorageService(StorageService):
-    pass
 
     def __init__(self):
         self.s3_client = boto3.client("s3")
 
     def upload_json(self, bucket: str, key: str, data: Dict[str, Any]) -> bool:
-        pass
         try:
             json_data = json.dumps(data)
             self.s3_client.put_object(Bucket=bucket, Key=key, Body=json_data)
@@ -28,7 +26,6 @@ class S3StorageService(StorageService):
             return False
 
     def download_file(self, bucket: str, key: str, local_path: str) -> bool:
-        pass
         try:
             self.s3_client.download_file(bucket, key, local_path)
             print(f"File downloaded successfully: {key} -> {local_path}")
@@ -41,7 +38,6 @@ class S3StorageService(StorageService):
             return False
 
     def list_objects(self, bucket: str, prefix: Optional[str] = None) -> List[str]:
-        pass
         try:
             kwargs = {"Bucket": bucket}
             if prefix:

@@ -15,7 +15,6 @@ from ..models.responses import ErrorResponse
 def cors_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
-    pass
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         method = event.get("requestContext", {}).get("http", {}).get("method", "")
@@ -37,7 +36,6 @@ def cors_middleware(
 def json_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
-    pass
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         try:
@@ -88,7 +86,6 @@ def json_middleware(
 def method_validation_middleware(
     allowed_methods: list,
 ) -> Callable[[Callable[..., Dict[str, Any]]], Callable[..., Dict[str, Any]]]:
-    pass
 
     def decorator(
         handler: Callable[..., Dict[str, Any]],
@@ -119,7 +116,6 @@ def method_validation_middleware(
 def request_validation_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
-    pass
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         try:
@@ -155,7 +151,6 @@ def request_validation_middleware(
 def error_handling_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
-    pass
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         try:
@@ -175,7 +170,6 @@ def error_handling_middleware(
 def create_error_response(
     status_code: int, error_message: str, details: Optional[str] = None
 ) -> Dict[str, Any]:
-    pass
     error_response = ErrorResponse(error=error_message, details=details)
     return {
         "statusCode": status_code,
@@ -185,12 +179,10 @@ def create_error_response(
 
 
 def create_success_response(data: Dict[str, Any]) -> Dict[str, Any]:
-    pass
     return {"statusCode": HTTP_OK, "headers": CORS_HEADERS, "body": json.dumps(data)}
 
 
 def apply_middleware(*middleware_functions):
-    pass
 
     def decorator(func):
         @functools.wraps(func)

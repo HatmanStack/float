@@ -7,14 +7,12 @@ from ..config.constants import SentimentLabel, TTSProvider
 
 @dataclass
 class SentimentAnalysis:
-    pass
     sentiment_label: SentimentLabel
     intensity: int  # 1-5 scale
     confidence: Optional[float] = None
     summary: Optional[str] = None
 
     def validate(self) -> bool:
-        pass
         return (
             isinstance(self.sentiment_label, SentimentLabel)
             and 1 <= self.intensity <= 5
@@ -23,7 +21,6 @@ class SentimentAnalysis:
 
 @dataclass
 class AudioTrack:
-    pass
     key: str
     duration: Optional[float] = None
     format: Optional[str] = None
@@ -36,7 +33,6 @@ class AudioTrack:
 
 @dataclass
 class UserIncident:
-    pass
     user_id: str
     timestamp: datetime
     sentiment: SentimentAnalysis
@@ -46,7 +42,6 @@ class UserIncident:
     short_summary: Optional[str] = None
 
     def to_meditation_data(self) -> Dict[str, Any]:
-        pass
         return {
             "user_id": self.user_id,
             "sentiment_label": [self.sentiment.sentiment_label.value],
@@ -61,7 +56,6 @@ class UserIncident:
 
 @dataclass
 class MeditationSession:
-    pass
     user_id: str
     transcript: str
     audio_path: Optional[str] = None
@@ -70,13 +64,11 @@ class MeditationSession:
     tts_provider: Optional[TTSProvider] = None
 
     def validate(self) -> bool:
-        pass
         return bool(self.user_id and self.transcript)
 
 
 @dataclass
 class ProcessingJob:
-    pass
     job_id: str
     user_id: str
     job_type: str  # 'summary', 'meditation', etc.
@@ -87,13 +79,11 @@ class ProcessingJob:
     result_data: Optional[Dict[str, Any]] = None
 
     def mark_completed(self, result: Dict[str, Any]):
-        pass
         self.status = "completed"
         self.completed_at = datetime.now()
         self.result_data = result
 
     def mark_failed(self, error: str):
-        pass
         self.status = "failed"
         self.completed_at = datetime.now()
         self.error_message = error

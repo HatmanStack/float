@@ -6,7 +6,6 @@ load_dotenv()
 
 
 class Settings:
-    pass
     AWS_S3_BUCKET: str = os.getenv("AWS_S3_BUCKET", "float-cust-data")
     AWS_AUDIO_BUCKET: str = os.getenv("AWS_AUDIO_BUCKET", "audio-er-lambda")
     GEMINI_API_KEY: str = os.getenv("G_KEY", "")
@@ -18,7 +17,6 @@ class Settings:
 
     @classmethod
     def validate(cls, require_keys: bool = True) -> bool:
-        pass
         if not require_keys:
             return True
         required_vars = [

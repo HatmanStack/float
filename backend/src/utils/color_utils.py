@@ -11,28 +11,24 @@ if TYPE_CHECKING:
 
 
 def modified_sigmoid(x: "NDArray[Any]", k: float = 0.005) -> "NDArray[Any]":
-    pass
     if np is None:
         raise ImportError("numpy is required for this function")
     return 1 / (1 + np.exp(-k * x))
 
 
 def sigmoid(x: "NDArray[Any]") -> "NDArray[Any]":
-    pass
     if np is None:
         raise ImportError("numpy is required for this function")
     return 1 / (1 + np.exp(-x))
 
 
 def tanh(x: "NDArray[Any]") -> "NDArray[Any]":
-    pass
     if np is None:
         raise ImportError("numpy is required for this function")
     return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
 
 
 def triangular_weights(num_colors: int, peak_index: int) -> "NDArray[Any]":
-    pass
     if np is None:
         raise ImportError("numpy is required for this function")
     x = np.arange(num_colors)
@@ -42,7 +38,6 @@ def triangular_weights(num_colors: int, peak_index: int) -> "NDArray[Any]":
 
 
 def gaussian_weights(num_colors: int, mean: float, std: float) -> "NDArray[Any]":
-    pass
     if np is None or norm is None:
         raise ImportError("numpy and scipy are required for this function")
     x = np.linspace(0, num_colors - 1, num_colors)
@@ -53,7 +48,6 @@ def gaussian_weights(num_colors: int, mean: float, std: float) -> "NDArray[Any]"
 
 
 def custom_weights(num_colors: int, peak_width: float) -> "NDArray[Any]":
-    pass
     if np is None:
         raise ImportError("numpy is required for this function")
     x = np.arange(num_colors)
@@ -64,18 +58,15 @@ def custom_weights(num_colors: int, peak_width: float) -> "NDArray[Any]":
 
 
 def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
-    pass
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
 
 
 def rgb_to_hex(rgb: Tuple[int, ...]) -> str:
-    pass
     return "#{:02x}{:02x}{:02x}".format(*rgb)
 
 
 def generate_color_gradient(start_hex: str, end_hex: str, num_colors: int) -> List[str]:
-    pass
     start_rgb = hex_to_rgb(start_hex)
     end_rgb = hex_to_rgb(end_hex)
     x = np.linspace(-6, 6, num_colors)
@@ -91,7 +82,6 @@ def generate_color_gradient(start_hex: str, end_hex: str, num_colors: int) -> Li
 
 
 def generate_color_mapping() -> Dict[str, List[str]]:
-    pass
     if np is None:
         raise ImportError("numpy is required for this function")
     labels = ["one", "two", "three", "four", "five"]

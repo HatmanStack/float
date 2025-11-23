@@ -12,7 +12,6 @@ from .storage_service import StorageService
 
 
 class FFmpegAudioService(AudioService):
-    pass
 
     def __init__(self, storage_service: StorageService):
         self.storage_service = storage_service
@@ -20,7 +19,6 @@ class FFmpegAudioService(AudioService):
         self._verify_ffmpeg()
 
     def _verify_ffmpeg(self):
-        pass
         print("--- STARTING FFMPEG DIAGNOSTICS ---", flush=True)
         if not os.path.exists(self.ffmpeg_executable):
             print(
@@ -43,7 +41,6 @@ class FFmpegAudioService(AudioService):
             )
 
     def get_audio_duration(self, file_path: str) -> float:
-        pass
         try:
             result = subprocess.run(
                 [self.ffmpeg_executable, "-i", file_path, "-f", "null", "-"],
@@ -65,7 +62,6 @@ class FFmpegAudioService(AudioService):
     def combine_voice_and_music(
         self, voice_path: str, music_list: List[str], timestamp: str, output_path: str
     ) -> List[str]:
-        pass
         print("Combining Audio")
         music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
         music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
@@ -175,7 +171,6 @@ class FFmpegAudioService(AudioService):
     def select_background_music(
         self, used_music: List[str], duration: float, output_path: str
     ) -> List[str]:
-        pass
         if used_music is None:
             used_music = []
         else:
@@ -218,7 +213,6 @@ class FFmpegAudioService(AudioService):
             raise Exception(f"Failed to download music file: {file_key}")
 
     def _extract_last_numeric_value(self, filename: str) -> Optional[int]:
-        pass
         matches = re.findall(r"(\d+)(?=\D*$)", filename)
         if matches:
             return int(matches[-1])

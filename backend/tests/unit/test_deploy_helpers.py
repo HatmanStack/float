@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 
 # Path to the bash script wrapper for testing
@@ -11,7 +12,7 @@ def run_bash_function(function_name, *args):
     Helper to run a bash function from the source file.
     It constructs a small script that sources the helper file and calls the function.
     """
-    args_str = " ".join([f"'{arg}'" for arg in args])
+    args_str = " ".join([shlex.quote(arg) for arg in args])
     cmd = f"source {DEPLOY_HELPERS_SCRIPT}; {function_name} {args_str}"
 
     # Run in bash
@@ -66,29 +67,28 @@ class TestDeployHelpers:
         assert f"EXPO_PUBLIC_LAMBDA_FUNCTION_URL={api_endpoint}" in content
         assert f"EXPO_PUBLIC_S3_BUCKET={audio_bucket}" in content
 
-    def test_validate_api_key_format_valid(self):
-        result = run_bash_function("validate_api_key_format", "some-key", "Service")
+    def test_check_api_key_presence_valid(self):
+        result = run_bash_function("check_api_key_presence", "some-key", "Service")
         assert result.returncode == 0
 
-    def test_validate_api_key_format_invalid_empty(self):
-        result = run_bash_function("validate_api_key_format", "", "Service")
+    def test_check_api_key_presence_invalid_empty(self):
+        result = run_bash_function("check_api_key_presence", "", "Service")
         assert result.returncode == 1
 
-    def test_validate_api_key_format_optional(self):
+    def test_check_api_key_presence_optional(self):
         # ElevenLabs key is optional
-        result = run_bash_function("validate_api_key_format", "", "ElevenLabs")
+        result = run_bash_function("check_api_key_presence", "", "ElevenLabs")
         assert result.returncode == 0
 
     def test_gitignore_secrets(self, tmp_path):
         """Verify that samconfig.toml is ignored by git."""
-        # Create dummy samconfig.toml in backend dir (current working dir)
         samconfig = "samconfig.toml"
 
-        # Ensure file exists
-        with open(samconfig, "w") as f:
-            f.write("secret=true")
-
         try:
+            # Create dummy samconfig.toml in backend dir (current working dir)
+            with open(samconfig, "w") as f:
+                f.write("secret=true")
+
             # Check if ignored
             result = subprocess.run(
                 ["git", "check-ignore", "-v", "samconfig.toml"],

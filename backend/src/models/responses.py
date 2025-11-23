@@ -7,25 +7,21 @@ from ..config.constants import InferenceType
 
 @dataclass
 class BaseResponse:
-    pass
     request_id: int
     user_id: str
     inference_type: InferenceType
 
     def to_dict(self) -> Dict[str, Any]:
-        pass
         data = asdict(self)
         data["inference_type"] = self.inference_type.value
         return data
 
     def to_json(self) -> str:
-        pass
         return json.dumps(self.to_dict())
 
 
 @dataclass
 class SummaryResponse(BaseResponse):
-    pass
     sentiment_label: str
     intensity: str
     speech_to_text: str
@@ -40,7 +36,6 @@ class SummaryResponse(BaseResponse):
 
 @dataclass
 class MeditationResponse(BaseResponse):
-    pass
     music_list: List[str]
     base64: str  # Base64 encoded combined audio
 
@@ -50,23 +45,19 @@ class MeditationResponse(BaseResponse):
 
 @dataclass
 class ErrorResponse:
-    pass
     error: str
     details: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        pass
         return asdict(self)
 
     def to_json(self) -> str:
-        pass
         return json.dumps(self.to_dict())
 
 
 def create_summary_response(
     request_id: int, user_id: str, summary_result: str
 ) -> SummaryResponse:
-    pass
     try:
         json_start = summary_result.find("{")
         json_end = summary_result.rfind("}") + 1
@@ -93,7 +84,6 @@ def create_summary_response(
 def create_meditation_response(
     request_id: int, user_id: str, music_list: List[str], base64_audio: str
 ) -> MeditationResponse:
-    pass
     return MeditationResponse(
         request_id=request_id,
         user_id=user_id,

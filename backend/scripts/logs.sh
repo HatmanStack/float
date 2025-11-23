@@ -21,13 +21,13 @@ STACK_NAME=""
 # Try to get stack name from config
 if [ -f "$CONFIG_FILE" ]; then
     if command -v jq &> /dev/null; then
-        STACK_NAME=$(jq -r .stackName "$CONFIG_FILE")
+        STACK_NAME=$(jq -r .stackName "$CONFIG_FILE" 2>/dev/null) || STACK_NAME=""
     else
-        STACK_NAME=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE'))['stackName'])")
+        STACK_NAME=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE')).get('stackName', ''))" 2>/dev/null) || STACK_NAME=""
     fi
 elif [ -f "$SAM_CONFIG_FILE" ]; then
     # Simple grep to find stack_name in toml
-    STACK_NAME=$(grep "stack_name" "$SAM_CONFIG_FILE" | head -n 1 | cut -d '"' -f 2)
+    STACK_NAME=$(grep "stack_name" "$SAM_CONFIG_FILE" | head -n 1 | cut -d '"' -f 2 2>/dev/null) || STACK_NAME=""
 fi
 
 # Fallback to prompt
@@ -43,6 +43,12 @@ print_status "Fetching logs for function: $FUNCTION_NAME (Stack: $STACK_NAME)"
 print_status "Log Group: $LOG_GROUP"
 print_status "Press Ctrl+C to stop streaming logs."
 
-# Check if log group exists (optional, or just let aws logs tail handle it)
-# We pass all arguments to the script to aws logs tail (e.g. --since 1h)
+# Check if AWS CLI is available
+if ! command -v aws &> /dev/null; then
+    print_error "Error: AWS CLI is not installed or not in PATH."
+    print_error "Install it with: pip install awscli"
+    exit 1
+fi
+
+# Pass all arguments to aws logs tail (e.g. --since 1h)
 aws logs tail "$LOG_GROUP" --follow "$@"

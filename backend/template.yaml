@@ -91,9 +91,6 @@ Resources:
             Method: POST
       Environment:
         Variables:
-          # Environment identifier - defaults to 'dev' if not set, but effectively unused in single-env setup
-          ENVIRONMENT: dev
-
           # AWS S3 Configuration
           AWS_S3_BUCKET: !Ref CustomerDataBucket
           AWS_AUDIO_BUCKET: !Ref AudioBucket

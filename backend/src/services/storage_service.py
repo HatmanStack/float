@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional
 
 
 class StorageService(ABC):
-    pass
 
     @abstractmethod
     def upload_json(self, bucket: str, key: str, data: Dict[str, Any]) -> bool: ...

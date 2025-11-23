@@ -47,13 +47,13 @@ EXPO_PUBLIC_S3_BUCKET=$audio_bucket
 EOF
 }
 
-validate_api_key_format() {
+check_api_key_presence() {
     local key="$1"
     local service="$2"
 
     if [ -z "$key" ]; then
         if [ "$service" == "ElevenLabs" ]; then
-            return 0 # Optional
+            return 0  # ElevenLabs key is optional
         fi
         return 1
     fi

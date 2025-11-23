@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiAIService(AIService):
-    pass
 
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -27,7 +26,6 @@ class GeminiAIService(AIService):
         self._setup_prompts()
 
     def _setup_prompts(self):
-        pass
         self.prompt_text = """You are an AI assistant specialized in determining the sentiment and its intensity from provided data.
 Your task is to analyze the given data, which is a text string.
 Use this data to return a sentiment label from the provided labels on a scale from 1 to 5, where 5 indicates the strongest intensity of the emotion indicated by the data.

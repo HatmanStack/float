@@ -3,7 +3,6 @@ from typing import List
 
 
 class AudioService(ABC):
-    pass
 
     @abstractmethod
     def get_audio_duration(self, file_path: str) -> float: ...

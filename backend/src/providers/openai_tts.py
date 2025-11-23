@@ -7,13 +7,11 @@ from ..services.tts_service import TTSService
 
 
 class OpenAITTSProvider(TTSService):
-    pass
 
     def __init__(self):
         self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
     def synthesize_speech(self, text: str, output_path: str) -> bool:
-        pass
         try:
             print(f"Creating OpenAI voice for text: {text[:100]}...")
             response = self.client.audio.speech.create(
@@ -31,5 +29,4 @@ class OpenAITTSProvider(TTSService):
             return False
 
     def get_provider_name(self) -> str:
-        pass
         return "openai"

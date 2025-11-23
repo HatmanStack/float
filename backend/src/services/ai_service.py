@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 
 
 class AIService(ABC):
-    pass
 
     @abstractmethod
     def analyze_sentiment(

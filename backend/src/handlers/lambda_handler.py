@@ -28,7 +28,6 @@ from .middleware import (
 
 
 class LambdaHandler:
-    pass
 
     def __init__(
         self, ai_service: Optional[AIService] = None, validate_config: bool = True
@@ -42,17 +41,14 @@ class LambdaHandler:
 
     @staticmethod
     def _create_ai_service() -> AIService:
-        pass
         from ..services.gemini_service import GeminiAIService
 
         return GeminiAIService()
 
     def get_tts_provider(self):
-        pass
         return self.tts_provider
 
     def handle_summary_request(self, request: SummaryRequest) -> Dict[str, Any]:
-        pass
         print(f"Processing summary request for user: {request.user_id}")
         audio_file = None
         if request.audio and request.audio != "NotAvailable":
@@ -74,13 +70,11 @@ class LambdaHandler:
     def _ensure_input_data_is_dict(
         self, input_data: Union[Dict[str, Any], List[Dict[str, Any]]]
     ) -> Dict[str, Any]:
-        pass
         return input_data if isinstance(input_data, dict) else {"floats": input_data}
 
     def _generate_meditation_audio(
         self, meditation_text: str, timestamp: str
     ) -> tuple[str, str]:
-        pass
         voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
         combined_path = f"{settings.TEMP_DIR}/combined_{timestamp}.mp3"
         tts_provider = self.get_tts_provider()
@@ -91,7 +85,6 @@ class LambdaHandler:
         return voice_path, combined_path
 
     def handle_meditation_request(self, request: MeditationRequest) -> Dict[str, Any]:
-        pass
         print(f"Processing meditation request for user: {request.user_id}")
         input_data = self._ensure_input_data_is_dict(request.input_data)
         meditation_text = self.ai_service.generate_meditation(input_data)
@@ -127,7 +120,6 @@ class LambdaHandler:
     def _store_summary_results(
         self, request: SummaryRequest, response, has_audio: bool
     ):
-        pass
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         object_key = f"{request.user_id}/summary/{timestamp}.json"
         self.storage_service.upload_json(
@@ -145,7 +137,6 @@ class LambdaHandler:
             )
 
     def _store_meditation_results(self, request: MeditationRequest, response):
-        pass
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         object_key = f"{request.user_id}/meditation/{timestamp}.json"
         self.storage_service.upload_json(
@@ -160,7 +151,6 @@ class LambdaHandler:
         error_handling_middleware,
     )
     def handle_request(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-        pass
         try:
             parsed_body = event.get("parsed_body", {})
             request = parse_request_body(parsed_body)
@@ -182,7 +172,6 @@ _handler: Optional[LambdaHandler] = None
 
 
 def _get_handler() -> LambdaHandler:
-    pass
     global _handler
     if _handler is None:
         _handler = LambdaHandler()
@@ -190,7 +179,6 @@ def _get_handler() -> LambdaHandler:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    pass
     print(f"[LAMBDA_HANDLER] Function called with event keys: {list(event.keys())}")
     print(f"[LAMBDA_HANDLER] Event: {event}")
     try:

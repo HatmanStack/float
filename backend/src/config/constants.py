@@ -2,20 +2,17 @@ from enum import Enum
 
 
 class InferenceType(Enum):
-    pass
     SUMMARY = "summary"
     MEDITATION = "meditation"
 
 
 class TTSProvider(Enum):
-    pass
     OPENAI = "openai"
     GOOGLE = "google"
     ELEVENLABS = "elevenlabs"
 
 
 class SentimentLabel(Enum):
-    pass
     ANGRY = "Angry"
     DISGUSTED = "Disgusted"
     FEARFUL = "Fearful"
