@@ -1,5 +1,7 @@
 <div align="center">
-<h1>Float</h1>
+<h1 align="center">
+  <img width="600" src="banner.png" alt="savorswipe-app icon">
+</h1>
 
 <h4>
 <a href="https://www.apache.org/licenses/LICENSE-2.0.html"><img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="Apache 2.0 license" /></a>
@@ -11,7 +13,7 @@
 
 <p><b>From Feelings to Flow - Personalized Meditations<br><a href="https://float-app.fun/">FLOAT »</a></b></p>
 
-<p>Record emotional moments, get AI-powered sentiment analysis, and generate personalized meditation audio with background music.</p>
+<p>AI turns your most stressful moments into personalized guided meditations</p>
 </div>
 
 ## Structure
