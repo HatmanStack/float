@@ -1,26 +1,48 @@
+# Dependencies
 node_modules/
+
+# Expo
 .expo/
-.git/
-.vscode/
-android/
+web-build/
 dist/
-npm-debug.*
+expo-env.d.ts
+
+# IDE
+.vscode/
+.claude/
+
+# OS
+.DS_Store
+
+# Secrets
+.env
+*.env.deploy
+
+# Build artifacts
+android/
+ios/
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
 *.orig.*
-web-build/
-.env
-expo-env.d.ts
+npm-debug.*
 yarn.lock
-# Python build artifacts
-*.egg-info/
-# macOS
-.DS_Store
-.vscode
-.claude/
-coverage/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv*/
+*.so
+
+# Coverage
+coverage/
+
+# Logs
+*.log
