@@ -76,7 +76,8 @@ describe('IncidentItem', () => {
       />
     );
 
-    expect(screen.getByText('Short summary - 12/20/2023, 6:00:00 AM')).toBeTruthy();
+    // Use regex to match date format regardless of timezone
+    expect(screen.getByText(/Short summary - 12\/20\/2023,/)).toBeTruthy();
   });
 
   it('renders correctly with selected state', () => {
@@ -109,7 +110,8 @@ describe('IncidentItem', () => {
       />
     );
 
-    fireEvent.press(screen.getByText('Short summary - 12/20/2023, 6:00:00 AM'));
+    // Use regex to match date format regardless of timezone
+    fireEvent.press(screen.getByText(/Short summary - 12\/20\/2023,/));
     // Component calls handlePress(index)() so handlePress is called with index
     expect(mockHandlePress).toHaveBeenCalledWith(0);
     // And the returned function is called
