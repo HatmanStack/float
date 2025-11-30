@@ -21,6 +21,10 @@
       "<rootDir>/tests/frontend",
       "<rootDir>/frontend"
     ],
+    "testMatch": [
+      "**/*-test.tsx",
+      "**/*-test.ts"
+    ],
     "setupFiles": [
       "./jest.setup.js"
     ],

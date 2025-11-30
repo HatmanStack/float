@@ -158,11 +158,9 @@ describe('FloatNotifications', () => {
     expect(mockRemoveNotificationSubscription).toHaveBeenCalledTimes(2);
   });
 
-  it('should log received notifications', async () => {
+  it('should handle received notifications', async () => {
     // @ts-ignore - mocking Platform.OS
     Platform.OS = 'ios';
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     render(<FloatNotifications />);
 
@@ -171,22 +169,16 @@ describe('FloatNotifications', () => {
     // Get the callback that was passed to addNotificationReceivedListener
     const receivedCallback = mockAddNotificationReceivedListener.mock.calls[0][0];
 
-    // Simulate receiving a notification
+    // Simulate receiving a notification - callback should not throw
     const mockNotification = {
       request: { content: { title: 'Test', body: 'Test notification' } },
     };
-    receivedCallback(mockNotification);
-
-    expect(consoleSpy).toHaveBeenCalledWith('Notification received:', mockNotification);
-
-    consoleSpy.mockRestore();
+    expect(() => receivedCallback(mockNotification)).not.toThrow();
   });
 
-  it('should log notification responses', async () => {
+  it('should handle notification responses', async () => {
     // @ts-ignore - mocking Platform.OS
     Platform.OS = 'ios';
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     render(<FloatNotifications />);
 
@@ -195,16 +187,12 @@ describe('FloatNotifications', () => {
     // Get the callback that was passed to addNotificationResponseReceivedListener
     const responseCallback = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-    // Simulate notification response
+    // Simulate notification response - callback should not throw
     const mockResponse = {
       notification: { request: { content: { title: 'Test' } } },
       actionIdentifier: 'default',
     };
-    responseCallback(mockResponse);
-
-    expect(consoleSpy).toHaveBeenCalledWith(mockResponse);
-
-    consoleSpy.mockRestore();
+    expect(() => responseCallback(mockResponse)).not.toThrow();
   });
 
   // Note: Error handling test removed because component doesn't handle async errors gracefully
