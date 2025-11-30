@@ -1,4 +1,18 @@
-# Float Documentation
+<div align="center">
+<h1 align="center">
+  <img width="600" src="../banner.png" alt="float-app icon">
+</h1>
+
+<h4>
+<a href="https://www.apache.org/licenses/LICENSE-2.0.html"><img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="Apache 2.0 license" /></a>
+<a href="https://expo.dev"><img src="https://img.shields.io/badge/Expo-52+-orange" alt="Expo Version" /></a>
+<a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/Google-Gemini-violet" alt="Google Gemini" /></a>
+<a href="https://platform.openai.com/docs/guides/text-to-speech"><img src="https://img.shields.io/badge/OpenAI-TTS-yellow" alt="OpenAI TTS" /></a>
+<a href="https://docs.aws.amazon.com/lambda/"><img src="https://img.shields.io/badge/AWS-Lambda-green" alt="AWS Lambda" /></a>
+</h4>
+
+<p><br><a href="https://float-app.fun/">FLOAT »</a></b></p>
+</div>
 
 ## Overview
 
