@@ -5,8 +5,8 @@ This is the main entry point for AWS Lambda. It delegates all processing
 to the new modular architecture in the src/ directory.
 """
 
-import sys
 import os
+import sys
 
 # Add src directory to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))

@@ -1,21 +1,18 @@
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import Guidance from '../../frontend/components/ScreenComponents/Guidance'; // Adjust the path if needed
-import { ThemedText } from '../../frontend/components/ThemedText'; // Adjust the path if needed
-import { Collapsible } from '../../frontend/components/Collapsible'; // Adjust the path if needed
+import Guidance from '@/components/ScreenComponents/Guidance'; // Adjust the path if needed
+import { ThemedText } from '@/components/ThemedText'; // Adjust the path if needed
+import { Collapsible } from '@/components/Collapsible'; // Adjust the path if needed
 
-// Mock the Collapsible component to avoid unnecessary rendering and logic
-jest.mock('@/components/Collapsible', () => {
-  return {
-    Collapsible: ({ children, ...props }) => (
-      <MockCollapsible {...props}>{children}</MockCollapsible>
-    ),
-  };
-});
+interface MockCollapsibleProps {
+  children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+}
 
 // Mock component to simulate behavior
-const MockCollapsible = ({ children, isOpen, onToggle }) => (
+const MockCollapsible = ({ children, isOpen, onToggle }: MockCollapsibleProps) => (
   <View>
     <TouchableOpacity onPress={onToggle}>
       <Text>Mock Collapsible - {isOpen ? 'Open' : 'Closed'}</Text>
@@ -23,6 +20,15 @@ const MockCollapsible = ({ children, isOpen, onToggle }) => (
     {isOpen && <View>{children}</View>}
   </View>
 );
+
+// Mock the Collapsible component to avoid unnecessary rendering and logic
+jest.mock('@/components/Collapsible', () => {
+  return {
+    Collapsible: ({ children, ...props }: { children: React.ReactNode; isOpen: boolean; onToggle: () => void }) => (
+      <MockCollapsible {...props}>{children}</MockCollapsible>
+    ),
+  };
+});
 
 describe('Guidance', () => {
   it('renders correctly', () => {

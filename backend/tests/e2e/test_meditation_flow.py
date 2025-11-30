@@ -5,8 +5,6 @@ import time
 
 import pytest
 
-from tests.integration.test_config import test_config
-
 
 @pytest.mark.e2e
 @pytest.mark.slow
@@ -125,7 +123,7 @@ class TestMeditationFlowHappyPath:
         assert response, "Response should not be None"
         assert "base64_audio" in response, "Should return audio"
 
-        print(f"\n✓ Complete meditation flow (anxious) completed")
+        print("\n✓ Complete meditation flow (anxious) completed")
 
     def test_meditation_with_various_intensities(
         self,
@@ -186,7 +184,7 @@ class TestMeditationFlowHappyPath:
         assert isinstance(response["base64_audio"], str), "base64_audio should be string"
         assert isinstance(response["music_list"], list), "music_list should be list"
 
-        print(f"\n✓ Meditation response format complete with all required fields")
+        print("\n✓ Meditation response format complete with all required fields")
 
 
 @pytest.mark.e2e
@@ -252,7 +250,7 @@ class TestMeditationFlowWithMusic:
         assert "base64_audio" in response, "Should return voice-only audio"
         assert len(response["base64_audio"]) > 1000, "Voice audio should have content"
 
-        print(f"\n✓ Meditation without music completed successfully")
+        print("\n✓ Meditation without music completed successfully")
 
 
 @pytest.mark.e2e
@@ -364,7 +362,7 @@ class TestMeditationFlowErrorHandling:
             )
             lambda_handler_real.handle_meditation_request(request)
 
-        print(f"\n✓ Missing input_data handled with validation error")
+        print("\n✓ Missing input_data handled with validation error")
 
     def test_invalid_request_missing_user_id(self):
         """Test meditation flow with missing user_id."""
@@ -373,14 +371,14 @@ class TestMeditationFlowErrorHandling:
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            request = MeditationRequest(
+            MeditationRequest(
                 type="meditation",
                 user_id=None,  # Invalid - user_id required
                 input_data={"sentiment_label": ["Sad"]},
                 music_list=[],
             )
 
-        print(f"\n✓ Missing user_id handled with validation error")
+        print("\n✓ Missing user_id handled with validation error")
 
 
 @pytest.mark.e2e
@@ -446,7 +444,7 @@ class TestMeditationFlowPerformance:
         # Decode to get actual byte size
         decoded_size = len(base64.b64decode(response["base64_audio"]))
 
-        print(f"\n✓ Audio size reasonable:")
+        print("\n✓ Audio size reasonable:")
         print(f"  Base64: {audio_size:,} characters")
         print(f"  Decoded: {decoded_size:,} bytes ({decoded_size/1024/1024:.2f} MB)")
 

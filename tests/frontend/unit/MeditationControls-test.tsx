@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 
-import MeditationControls from '../../frontend/components/ScreenComponents/MeditationControls';
+import MeditationControls from '@/components/ScreenComponents/MeditationControls';
 import { Audio } from 'expo-av';
 
 // Mock Expo Audio to control playback behavior

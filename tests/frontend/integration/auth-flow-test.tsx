@@ -23,7 +23,7 @@ import {
   act,
   INTEGRATION_TIMEOUTS,
 } from './test-utils';
-import { useAuth } from '../../frontend/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Use mocked AsyncStorage from test-utils

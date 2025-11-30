@@ -1,7 +1,8 @@
 """Unit tests for Lambda handler."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from src.config.constants import InferenceType
 from src.handlers.lambda_handler import LambdaHandler
@@ -106,7 +107,7 @@ class TestSummaryRequestRouting:
         self, mock_ai_service, mock_storage_service, mock_tts_provider, monkeypatch
     ):
         """Test summary request routes to handle_summary_request."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
 
@@ -356,7 +357,6 @@ class TestErrorHandling:
         self, mock_ai_service, mock_storage_service
     ):
         """Test handler catches and formats exceptions properly."""
-        from unittest.mock import patch
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
@@ -391,7 +391,6 @@ class TestErrorHandling:
 
     def test_unsupported_request_type_returns_error(self, mock_ai_service):
         """Test unsupported request type returns appropriate error."""
-        from src.handlers.middleware import create_error_response
         from src.config.constants import HTTP_BAD_REQUEST
 
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)

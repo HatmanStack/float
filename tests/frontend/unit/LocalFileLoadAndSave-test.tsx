@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderHook } from '@testing-library/react-native';
-import { IncidentSave } from '../../frontend/components/LocalFileLoadAndSave';
+import { IncidentSave } from '@/components/LocalFileLoadAndSave';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock AsyncStorage

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import CustomAuth from '../../frontend/components/AuthScreen';
+import CustomAuth from '@/components/AuthScreen';
 import { Platform } from 'react-native';
 
 // Mock AuthContext

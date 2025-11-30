@@ -3,22 +3,24 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from ..config.constants import SentimentLabel, TTSProvider
+
+
 @dataclass
 class SentimentAnalysis:
-    """Domain model for sentiment analysis results."""
-
     sentiment_label: SentimentLabel
     intensity: int  # 1-5 scale
     confidence: Optional[float] = None
     summary: Optional[str] = None
 
     def validate(self) -> bool:
-        """Validate sentiment analysis data."""
-        return isinstance(self.sentiment_label, SentimentLabel) and 1 <= self.intensity <= 5
+        return (
+            isinstance(self.sentiment_label, SentimentLabel)
+            and 1 <= self.intensity <= 5
+        )
+
+
 @dataclass
 class AudioTrack:
-    """Domain model for audio track information."""
-
     key: str
     duration: Optional[float] = None
     format: Optional[str] = None
@@ -27,10 +29,10 @@ class AudioTrack:
     def __post_init__(self):
         if self.format is None and "." in self.key:
             self.format = self.key.split(".")[-1].lower()
+
+
 @dataclass
 class UserIncident:
-    """Domain model for user incident data."""
-
     user_id: str
     timestamp: datetime
     sentiment: SentimentAnalysis
@@ -40,7 +42,6 @@ class UserIncident:
     short_summary: Optional[str] = None
 
     def to_meditation_data(self) -> Dict[str, Any]:
-        """Convert incident to meditation generation format."""
         return {
             "user_id": self.user_id,
             "sentiment_label": [self.sentiment.sentiment_label.value],
@@ -51,10 +52,10 @@ class UserIncident:
             "user_summary": [self.user_summary or ""],
             "user_short_summary": [self.short_summary or ""],
         }
+
+
 @dataclass
 class MeditationSession:
-    """Domain model for meditation session."""
-
     user_id: str
     transcript: str
     audio_path: Optional[str] = None
@@ -63,12 +64,11 @@ class MeditationSession:
     tts_provider: Optional[TTSProvider] = None
 
     def validate(self) -> bool:
-        """Validate meditation session data."""
         return bool(self.user_id and self.transcript)
+
+
 @dataclass
 class ProcessingJob:
-    """Domain model for background processing job."""
-
     job_id: str
     user_id: str
     job_type: str  # 'summary', 'meditation', etc.
@@ -79,13 +79,11 @@ class ProcessingJob:
     result_data: Optional[Dict[str, Any]] = None
 
     def mark_completed(self, result: Dict[str, Any]):
-        """Mark job as completed with results."""
         self.status = "completed"
         self.completed_at = datetime.now()
         self.result_data = result
 
     def mark_failed(self, error: str):
-        """Mark job as failed with error message."""
         self.status = "failed"
         self.completed_at = datetime.now()
         self.error_message = error

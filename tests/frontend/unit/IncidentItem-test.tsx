@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import IncidentItem from '../../frontend/components/ScreenComponents/IncidentItem';
-import { useIncident } from '../../frontend/context/IncidentContext';
-import { ThemedText } from '../../frontend/components/ThemedText';
-import { Collapsible } from '../../frontend/components/Collapsible';
+import IncidentItem from '@/components/ScreenComponents/IncidentItem';
+import { useIncident } from '@/context/IncidentContext';
+import { ThemedText } from '@/components/ThemedText';
+import { Collapsible } from '@/components/Collapsible';
 
 // Mock the useIncident hook and its return values
 jest.mock('@/context/IncidentContext', () => ({
@@ -15,8 +15,15 @@ jest.mock('@/context/IncidentContext', () => ({
   }),
 }));
 
+interface MockCollapsibleProps {
+  children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  [key: string]: unknown;
+}
+
 // Define mock component BEFORE jest.mock to avoid hoisting issues
-function MockCollapsible({ children, isOpen, onToggle, ...props }) {
+function MockCollapsible({ children, isOpen, onToggle, ...props }: MockCollapsibleProps) {
   return (
     <View {...props}>
       <TouchableOpacity onPress={onToggle}>
@@ -30,7 +37,7 @@ function MockCollapsible({ children, isOpen, onToggle, ...props }) {
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 jest.mock('@/components/Collapsible', () => {
   return {
-    Collapsible: ({ children, ...props }) => (
+    Collapsible: ({ children, ...props }: MockCollapsibleProps) => (
       <MockCollapsible {...props}>{children}</MockCollapsible>
     ),
   };

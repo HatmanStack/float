@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import FloatNotifications from '../../frontend/components/Notifications';
+import FloatNotifications from '@/components/Notifications';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
 import { Platform } from 'react-native';

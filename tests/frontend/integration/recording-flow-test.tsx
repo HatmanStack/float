@@ -24,7 +24,7 @@ import {
   act,
   INTEGRATION_TIMEOUTS,
 } from './test-utils';
-import { useIncident } from '../../frontend/context/IncidentContext';
+import { useIncident } from '@/context/IncidentContext';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 

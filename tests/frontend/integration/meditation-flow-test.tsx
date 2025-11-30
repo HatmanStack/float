@@ -22,7 +22,7 @@ import {
   act,
   INTEGRATION_TIMEOUTS,
 } from './test-utils';
-import { useIncident } from '../../frontend/context/IncidentContext';
+import { useIncident, Incident } from '@/context/IncidentContext';
 
 // Mock meditation response
 const mockMeditationResponse = {
@@ -65,7 +65,7 @@ function MeditationGeneratorComponent() {
 
       // Add to music list
       if (data.audio_url) {
-        setMusicList((prev) => [...prev, data.audio_url]);
+        setMusicList((prev: string[]) => [...prev, data.audio_url]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -125,7 +125,7 @@ function MeditationPlayerComponent() {
       <Text testID="playback-status">{isPlaying ? 'Playing' : 'Stopped'}</Text>
       <Text testID="track-count">{musicList.length} tracks</Text>
       {currentTrack && <Text testID="current-track">{currentTrack}</Text>}
-      {musicList.map((track, index) => (
+      {musicList.map((track: string, index: number) => (
         <Button
           key={index}
           title={`Play Track ${index + 1}`}
@@ -161,16 +161,16 @@ function SummaryToMeditationComponent() {
     setMeditation(data);
 
     // Update both incident history and music list
-    setIncidentList((prev) => [
+    setIncidentList((prev: Incident[]) => [
       ...prev,
       {
         ...summary,
         meditation: data.meditation_text,
         timestamp: new Date(),
-      },
+      } as Incident,
     ]);
 
-    setMusicList((prev) => [...prev, data.audio_url]);
+    setMusicList((prev: string[]) => [...prev, data.audio_url]);
   };
 
   return (
@@ -294,15 +294,9 @@ describe('Meditation Flow Integration Tests', () => {
     });
 
     it('should pause and stop playback', () => {
-      const { getByTestId, setIncidentContext } = renderWithIncidentContext(
+      const { getByTestId } = renderWithIncidentContext(
         <MeditationPlayerComponent />
       );
-
-      // Manually add a track to context
-      act(() => {
-        const component = getByTestId('meditation-player');
-        // Simulate having tracks in context by generating one first
-      });
 
       // For this test, we'll just verify the controls work
       expect(getByTestId('playback-status')).toHaveTextContent('Stopped');

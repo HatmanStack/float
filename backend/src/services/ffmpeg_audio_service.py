@@ -9,8 +9,9 @@ from ..config.constants import DEFAULT_MUSIC_VOLUME_REDUCTION, DEFAULT_SILENCE_D
 from ..config.settings import settings
 from .audio_service import AudioService
 from .storage_service import StorageService
+
+
 class FFmpegAudioService(AudioService):
-    """FFmpeg-based audio processing service implementation."""
 
     def __init__(self, storage_service: StorageService):
         self.storage_service = storage_service
@@ -18,24 +19,28 @@ class FFmpegAudioService(AudioService):
         self._verify_ffmpeg()
 
     def _verify_ffmpeg(self):
-        """Verify FFmpeg installation and permissions."""
-if not os.path.exists(self.ffmpeg_executable):
-return
-try:
+        print("--- STARTING FFMPEG DIAGNOSTICS ---", flush=True)
+        if not os.path.exists(self.ffmpeg_executable):
+            print(
+                f"CRITICAL ERROR: ffmpeg executable NOT FOUND at {self.ffmpeg_executable}",
+                flush=True,
+            )
+            return
+        print(
+            f"SUCCESS: ffmpeg executable FOUND at {self.ffmpeg_executable}", flush=True
+        )
+        try:
             size = os.path.getsize(self.ffmpeg_executable)
-if size < 100000:
-", flush=True)
+            print(f"INFO: ffmpeg size: {size} bytes.", flush=True)
+            if size < 100000:
+                print(f"WARNING: ffmpeg size is very small ({size} bytes)", flush=True)
         except Exception as e:
-def get_audio_duration(self, file_path: str) -> float:
-        """
-        Get duration of audio file in seconds using FFmpeg.
+            print(
+                f"ERROR: Could not get size of {self.ffmpeg_executable}: {e}",
+                flush=True,
+            )
 
-        Args:
-            file_path: Path to audio file
-
-        Returns:
-            Duration in seconds
-        """
+    def get_audio_duration(self, file_path: str) -> float:
         try:
             result = subprocess.run(
                 [self.ffmpeg_executable, "-i", file_path, "-f", "null", "-"],
@@ -43,40 +48,30 @@ def get_audio_duration(self, file_path: str) -> float:
                 text=True,
                 check=True,
             )
-
-            duration_line = [line for line in result.stderr.split("\n") if "Duration" in line][0]
+            duration_line = [
+                line for line in result.stderr.split("\n") if "Duration" in line
+            ][0]
             duration_str = duration_line.split(",")[0].split("Duration:")[1].strip()
             h, m, s = map(float, duration_str.split(":"))
             duration = h * 3600 + m * 60 + s
-
             return duration
-
         except Exception as e:
-return 0.0
+            print(f"Error getting audio duration: {e}")
+            return 0.0
 
     def combine_voice_and_music(
         self, voice_path: str, music_list: List[str], timestamp: str, output_path: str
     ) -> List[str]:
-        """
-        Combine voice recording with background music using FFmpeg.
-
-        Args:
-            voice_path: Path to voice audio file
-            music_list: List of previously used music tracks
-            timestamp: Timestamp for temporary file naming
-            output_path: Path for combined output file
-
-        Returns:
-            Updated list of used music tracks
-        """
-# Setup temporary file paths
+        print("Combining Audio")
         music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
         music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
-        music_length_reduced_path = f"{settings.TEMP_DIR}/music_length_reduced_{timestamp}.mp3"
+        music_length_reduced_path = (
+            f"{settings.TEMP_DIR}/music_length_reduced_{timestamp}.mp3"
+        )
         silence_path = f"{settings.TEMP_DIR}/silence_{timestamp}.mp3"
-        voice_with_silence_path = f"{settings.TEMP_DIR}/voice_with_silence_{timestamp}.mp3"
-
-        # Clean up existing temporary files
+        voice_with_silence_path = (
+            f"{settings.TEMP_DIR}/voice_with_silence_{timestamp}.mp3"
+        )
         temp_paths = [
             music_path,
             music_volume_reduced_path,
@@ -88,13 +83,14 @@ return 0.0
         for path in temp_paths:
             if os.path.exists(path):
                 os.remove(path)
-
-        # Get audio duration and select music
         voice_duration = self.get_audio_duration(voice_path)
-total_duration = voice_duration + 30  # Add 30 seconds buffer
+        print(f"Voice duration: {voice_duration}")
+        total_duration = voice_duration + 30  # Add 30 seconds buffer
         new_music = self.select_background_music(music_list, total_duration, music_path)
-try:
-            # Step 1: Reduce the volume of the music
+        print(f"Music: {new_music}")
+        print(f"MUSIC_PATH: {music_path}")
+        print(f"VOICE_PATH: {voice_path}")
+        try:
             subprocess.run(
                 [
                     self.ffmpeg_executable,
@@ -106,7 +102,7 @@ try:
                 ],
                 check=True,
             )
-# Step 2: Create silence
+            print("Step 1 Complete: Music volume reduced")
             subprocess.run(
                 [
                     self.ffmpeg_executable,
@@ -120,7 +116,7 @@ try:
                 ],
                 check=True,
             )
-# Step 3: Concatenate silence and voice
+            print("Step 2 Complete: Silence created")
             subprocess.run(
                 [
                     self.ffmpeg_executable,
@@ -132,7 +128,7 @@ try:
                 ],
                 check=True,
             )
-# Step 4: Trim music to match total duration
+            print("Step 3 Complete: Voice with silence")
             subprocess.run(
                 [
                     self.ffmpeg_executable,
@@ -144,7 +140,7 @@ try:
                 ],
                 check=True,
             )
-# Step 5: Overlay voice with silence on the music
+            print("Step 4 Complete: Music length adjusted")
             subprocess.run(
                 [
                     self.ffmpeg_executable,
@@ -158,33 +154,23 @@ try:
                 ],
                 check=True,
             )
-# Clean up temporary files
+            print("Step 5 Complete: Audio combined")
             for path in temp_paths[:-1]:  # Keep output_path
                 if os.path.exists(path):
                     os.remove(path)
-
             return new_music
-
         except subprocess.CalledProcessError as e:
-raise
+            print(f"FFmpeg command failed: {e}")
+            print(f"Command: {e.cmd}")
+            print(f"Return code: {e.returncode}")
+            raise
         except Exception as e:
-raise
+            print(f"Error in audio combination: {e}")
+            raise
 
     def select_background_music(
         self, used_music: List[str], duration: float, output_path: str
     ) -> List[str]:
-        """
-        Select and download appropriate background music from S3.
-
-        Args:
-            used_music: List of previously used music tracks
-            duration: Required duration in seconds
-            output_path: Path to save selected music
-
-        Returns:
-            Updated list of used music tracks
-        """
-        # Normalize used_music to list
         if used_music is None:
             used_music = []
         else:
@@ -197,44 +183,36 @@ raise
                     used_music = [used_music]
             elif not isinstance(used_music, list):
                 used_music = [used_music]
-
-        # Get available music files
         bucket_name = settings.AWS_AUDIO_BUCKET
         existing_keys = self.storage_service.list_objects(bucket_name)
-
-        # Filter music by duration
         filtered_keys = set()
         for key in existing_keys:
             track_duration = self._extract_last_numeric_value(key)
             if track_duration is not None:
                 if duration <= track_duration <= duration + 30:
                     filtered_keys.add(key)
-
-        # Fallback to 300-second tracks if no suitable duration found
         if not filtered_keys:
             for key in existing_keys:
                 track_duration = self._extract_last_numeric_value(key)
                 if track_duration == 300:
                     filtered_keys.add(key)
-
-        # Select from unused tracks
         available_keys = list(filtered_keys - set(used_music))
         if not available_keys:
-available_keys = (
-                list(filtered_keys) if filtered_keys else ["Hopeful-Elegant-LaidBack_120.wav"]
+            print("No new music tracks available.")
+            available_keys = (
+                list(filtered_keys)
+                if filtered_keys
+                else ["Hopeful-Elegant-LaidBack_120.wav"]
             )
-
         file_key = random.choice(available_keys)
-
-        # Download selected music
         if self.storage_service.download_file(bucket_name, file_key, output_path):
             used_music.append(file_key)
-return used_music
+            print(f"USED_MUSIC: {used_music}")
+            return used_music
         else:
             raise Exception(f"Failed to download music file: {file_key}")
 
     def _extract_last_numeric_value(self, filename: str) -> Optional[int]:
-        """Extract the last numeric value from filename (usually duration)."""
         matches = re.findall(r"(\d+)(?=\D*$)", filename)
         if matches:
             return int(matches[-1])
