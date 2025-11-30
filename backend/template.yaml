@@ -2,17 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Float Backend - Meditation & Sentiment Analysis API
 
-Globals:
-  Function:
-    Timeout: 30
-    MemorySize: 512
-    Runtime: python3.13
-    Architectures:
-      - x86_64
-    Environment:
-      Variables:
-        PYTHONPATH: /var/task/src
-
 Parameters:
   Environment:
     Type: String
@@ -42,14 +31,46 @@ Parameters:
     Default: audio-er-lambda
     Description: S3 bucket containing background music files
 
+  IncludeDevOrigins:
+    Type: String
+    Description: Whether to include wildcard (*) origins in CORS for local development
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+
+  ProductionOrigins:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of production origins for CORS (e.g., https://float-app.fun)
+    Default: ''
+
+Conditions:
+  IsDevMode: !Equals [!Ref IncludeDevOrigins, 'true']
+  HasProductionOrigins: !Not [!Equals [!Select [0, !Ref ProductionOrigins], '']]
+  CreateDataBucket: !Equals [!Ref Environment, 'production']
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        PYTHONPATH: /var/task/src
+
 Resources:
   FloatApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Environment
       CorsConfiguration:
-        AllowOrigins:
-          - "*"
+        AllowOrigins: !If
+          - IsDevMode
+          - ['*']
+          - !If
+            - HasProductionOrigins
+            - !Ref ProductionOrigins
+            - ['https://localhost']
         AllowMethods:
           - POST
           - OPTIONS
@@ -126,9 +147,6 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-
-Conditions:
-  CreateDataBucket: !Equals [!Ref Environment, 'production']
 
 Outputs:
   ApiUrl:

@@ -47,9 +47,11 @@ npm run deploy
 
 Deploys the backend Lambda using AWS SAM. Configuration in `backend/samconfig.toml`.
 
-Required environment variables (set in AWS console or via parameter overrides):
-- `G_KEY` - Google Gemini API key
-- `OPENAI_API_KEY` - OpenAI API key
+| Parameter | Description |
+|-----------|-------------|
+| `GeminiApiKey` | Google Gemini API key |
+| `OpenAIApiKey` | OpenAI API key |
+| `ProductionOrigins` | Comma-separated allowed origins for CORS (e.g., `https://float-app.fun`) |
 
 See [docs/README.md](docs/README.md) for full documentation.
 

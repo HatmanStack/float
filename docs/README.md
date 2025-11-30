@@ -83,18 +83,20 @@ resolve_s3 = true
 
 ### Environment Variables
 
-Set these in AWS Lambda console or via SAM parameter overrides:
+Set these via SAM parameter overrides during deployment:
 
 | Variable | Description |
 |----------|-------------|
-| `G_KEY` | Google Gemini API key |
-| `OPENAI_API_KEY` | OpenAI API key for TTS |
-| `AWS_S3_BUCKET` | S3 bucket for user data |
-| `AWS_AUDIO_BUCKET` | S3 bucket for background music |
+| `GeminiApiKey` | Google Gemini API key |
+| `OpenAIApiKey` | OpenAI API key for TTS |
+| `S3DataBucket` | S3 bucket for user data |
+| `S3AudioBucket` | S3 bucket for background music |
+| `IncludeDevOrigins` | Set to `true` for local dev (CORS wildcard) |
+| `ProductionOrigins` | Comma-separated production origins for CORS |
 
 ## Project Structure
 
-```
+```text
 float/
 ├── frontend/           # Expo/React Native app
 │   ├── app/           # Expo Router pages
