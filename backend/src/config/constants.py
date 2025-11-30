@@ -1,23 +1,17 @@
 """Application constants and enums."""
 
 from enum import Enum
-
-
 class InferenceType(Enum):
     """Types of inference operations supported."""
 
     SUMMARY = "summary"
     MEDITATION = "meditation"
-
-
 class TTSProvider(Enum):
     """Text-to-speech service providers."""
 
     OPENAI = "openai"
     GOOGLE = "google"
     ELEVENLABS = "elevenlabs"
-
-
 class SentimentLabel(Enum):
     """Supported sentiment labels for analysis."""
 
@@ -28,8 +22,6 @@ class SentimentLabel(Enum):
     NEUTRAL = "Neutral"
     SAD = "Sad"
     SURPRISED = "Surprised"
-
-
 # Audio processing constants
 CHUNK_SIZE = 1024
 MAX_AUDIO_DURATION = 600  # 10 minutes

@@ -5,8 +5,6 @@ import boto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from .storage_service import StorageService
-
-
 class S3StorageService(StorageService):
     """AWS S3 storage service implementation."""
 
@@ -28,15 +26,12 @@ class S3StorageService(StorageService):
         try:
             json_data = json.dumps(data)
             self.s3_client.put_object(Bucket=bucket, Key=key, Body=json_data)
-            print(f"Successfully uploaded {key} to {bucket}")
-            return True
+return True
 
         except ClientError as e:
-            print(f"Error uploading to S3: {e}")
-            return False
+return False
         except Exception as e:
-            print(f"Unexpected error uploading to S3: {e}")
-            return False
+return False
 
     def download_file(self, bucket: str, key: str, local_path: str) -> bool:
         """
@@ -52,15 +47,12 @@ class S3StorageService(StorageService):
         """
         try:
             self.s3_client.download_file(bucket, key, local_path)
-            print(f"File downloaded successfully: {key} -> {local_path}")
-            return True
+return True
 
         except ClientError as e:
-            print(f"Error downloading file {key}: {e}")
-            return False
+return False
         except Exception as e:
-            print(f"Unexpected error downloading file {key}: {e}")
-            return False
+return False
 
     def list_objects(self, bucket: str, prefix: Optional[str] = None) -> List[str]:
         """
@@ -86,8 +78,6 @@ class S3StorageService(StorageService):
                 return []
 
         except ClientError as e:
-            print(f"Error listing objects in bucket {bucket}: {e}")
-            return []
+return []
         except Exception as e:
-            print(f"Unexpected error listing objects in bucket {bucket}: {e}")
-            return []
+return []

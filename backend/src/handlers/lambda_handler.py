@@ -25,8 +25,6 @@ from .middleware import (
     method_validation_middleware,
     request_validation_middleware,
 )
-
-
 class LambdaHandler:
     """Main Lambda request handler with dependency injection."""
 
@@ -57,9 +55,7 @@ class LambdaHandler:
 
     def handle_summary_request(self, request: SummaryRequest) -> Dict[str, Any]:
         """Handle sentiment analysis/summary request."""
-        print(f"Processing summary request for user: {request.user_id}")
-
-        # Prepare audio file if provided
+# Prepare audio file if provided
         audio_file = None
         if request.audio and request.audio != "NotAvailable":
             audio_file = decode_audio_base64(request.audio)
@@ -119,10 +115,7 @@ class LambdaHandler:
 
         if not success:
             raise Exception("Failed to generate speech audio")
-
-        print("Voice generation completed")
-
-        return voice_path, combined_path
+return voice_path, combined_path
 
     def handle_meditation_request(self, request: MeditationRequest) -> Dict[str, Any]:
         """Handle meditation generation request.
@@ -136,16 +129,12 @@ class LambdaHandler:
         Returns:
             Dictionary containing meditation response data
         """
-        print(f"Processing meditation request for user: {request.user_id}")
-
-        # Ensure input_data is a dict (convert list to dict if needed)
+# Ensure input_data is a dict (convert list to dict if needed)
         input_data = self._ensure_input_data_is_dict(request.input_data)
 
         # Generate meditation transcript
         meditation_text = self.ai_service.generate_meditation(input_data)
-        print(f"Meditation text result: {meditation_text}")
-
-        # Generate timestamp for file naming
+# Generate timestamp for file naming
         timestamp = generate_timestamp()
 
         try:
@@ -159,10 +148,7 @@ class LambdaHandler:
                 timestamp=timestamp,
                 output_path=combined_path,
             )
-
-            print(f"Audio combination completed: {new_music_list}")
-
-            # Encode combined audio to base64
+# Encode combined audio to base64
             base64_audio = encode_audio_to_base64(combined_path)
             if not base64_audio:
                 raise Exception("Failed to encode combined audio")
@@ -244,31 +230,21 @@ class LambdaHandler:
             return create_success_response(result)
 
         except Exception as e:
-            print(f"Error in handle_request: {e}")
-            raise
-
-
+raise
 # Global handler instance (lazy initialization)
 _handler: Optional[LambdaHandler] = None
-
-
 def _get_handler() -> LambdaHandler:
     """Get or create global handler instance (lazy initialization)."""
     global _handler
     if _handler is None:
         _handler = LambdaHandler()
     return _handler
-
-
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Lambda entry point."""
-    print(f"[LAMBDA_HANDLER] Function called with event keys: {list(event.keys())}")
-    print(f"[LAMBDA_HANDLER] Event: {event}")
-    try:
+)}")
+try:
         handler = _get_handler()
         result: Dict[str, Any] = handler.handle_request(event, context)
-        print(f"[LAMBDA_HANDLER] Handler returned: {result}")
-        return result
+return result
     except Exception as e:
-        print(f"[LAMBDA_HANDLER] Exception: {e}")
-        raise
+raise

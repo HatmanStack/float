@@ -3,16 +3,12 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from ..config.constants import InferenceType
-
-
 @dataclass
 class BaseRequest:
     """Base class for all API requests."""
 
     user_id: str
     inference_type: InferenceType
-
-
 @dataclass
 class SummaryRequest(BaseRequest):
     """Request model for sentiment analysis/summary.
@@ -37,8 +33,6 @@ class SummaryRequest(BaseRequest):
         audio_available: bool = bool(self.audio and self.audio != "NotAvailable")
         prompt_available: bool = bool(self.prompt and self.prompt != "NotAvailable")
         return audio_available or prompt_available
-
-
 @dataclass
 class MeditationRequest(BaseRequest):
     """Request model for meditation generation.
@@ -62,23 +56,12 @@ class MeditationRequest(BaseRequest):
         Returns:
             True if all fields are valid, False otherwise
         """
-        print(f"[MEDITATION_VALIDATION] input_data type: {type(self.input_data)}")
-        print(f"[MEDITATION_VALIDATION] input_data: {self.input_data}")
-        print(f"[MEDITATION_VALIDATION] music_list type: {type(self.music_list)}")
-        print(f"[MEDITATION_VALIDATION] music_list: {self.music_list}")
-
-        input_data_valid = isinstance(self.input_data, (dict, list)) and bool(self.input_data)
+}")
+input_data_valid = isinstance(self.input_data, (dict, list)) and bool(self.input_data)
         music_list_valid = isinstance(self.music_list, list)
 
-        print(f"[MEDITATION_VALIDATION] input_data_valid: {input_data_valid}")
-        print(f"[MEDITATION_VALIDATION] music_list_valid: {music_list_valid}")
-
         result = input_data_valid and music_list_valid
-        print(f"[MEDITATION_VALIDATION] validation result: {result}")
-
-        return result
-
-
+return result
 def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
     """
     Parse a field that might be a JSON string.
@@ -95,11 +78,8 @@ def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
         try:
             return json.loads(value)
         except json.JSONDecodeError:
-            print(f"[PARSE_REQUEST] Failed to parse {field_name} JSON: {value}")
-            return default if default is not None else {}
+return default if default is not None else {}
     return value
-
-
 def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
     """
     Validate and extract required request fields.
@@ -127,8 +107,6 @@ def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
         raise ValueError(f"Invalid inference_type: {inference_type}")
 
     return user_id, inference_enum
-
-
 def parse_request_body(body: Dict[str, Any]) -> BaseRequest:
     """
     Parse request body into appropriate request model.

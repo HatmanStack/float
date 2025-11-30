@@ -1,0 +1,243 @@
+.
+├── backend
+│   ├── .claude
+│   │   └── settings.local.json
+│   ├── src
+│   │   ├── config
+│   │   │   ├── constants.py
+│   │   │   ├── __init__.py
+│   │   │   └── settings.py
+│   │   ├── handlers
+│   │   │   ├── __init__.py
+│   │   │   ├── lambda_handler.py
+│   │   │   └── middleware.py
+│   │   ├── models
+│   │   │   ├── domain.py
+│   │   │   ├── __init__.py
+│   │   │   ├── requests.py
+│   │   │   └── responses.py
+│   │   ├── providers
+│   │   │   ├── __init__.py
+│   │   │   └── openai_tts.py
+│   │   ├── services
+│   │   │   ├── ai_service.py
+│   │   │   ├── audio_service.py
+│   │   │   ├── ffmpeg_audio_service.py
+│   │   │   ├── gemini_service.py
+│   │   │   ├── __init__.py
+│   │   │   ├── s3_storage_service.py
+│   │   │   ├── service_factory.py
+│   │   │   ├── storage_service.py
+│   │   │   └── tts_service.py
+│   │   ├── utils
+│   │   │   ├── audio_utils.py
+│   │   │   ├── color_utils.py
+│   │   │   ├── file_utils.py
+│   │   │   └── __init__.py
+│   │   └── __init__.py
+│   ├── tests
+│   │   ├── e2e
+│   │   │   ├── conftest.py
+│   │   │   ├── __init__.py
+│   │   │   ├── test_meditation_flow.py
+│   │   │   └── test_summary_flow.py
+│   │   ├── fixtures
+│   │   │   ├── __init__.py
+│   │   │   └── sample_data.py
+│   │   ├── integration
+│   │   │   ├── conftest.py
+│   │   │   ├── __init__.py
+│   │   │   ├── test_config.py
+│   │   │   ├── test_gemini_integration.py
+│   │   │   ├── test_lambda_initialization.py
+│   │   │   ├── test_s3_integration.py
+│   │   │   └── test_tts_integration.py
+│   │   ├── mocks
+│   │   │   ├── external_apis.py
+│   │   │   └── __init__.py
+│   │   ├── unit
+│   │   │   ├── __init__.py
+│   │   │   ├── test_lambda_handler.py
+│   │   │   ├── test_middleware.py
+│   │   │   ├── test_models.py
+│   │   │   ├── test_services.py
+│   │   │   └── test_utils.py
+│   │   ├── conftest.py
+│   │   └── __init__.py
+│   ├── check_quality.sh
+│   ├── lambda_function.py
+│   ├── Makefile
+│   ├── pyproject.toml
+│   ├── pytest.ini
+│   ├── requirements-dev.txt
+│   ├── requirements.txt
+│   └── uv.lock
+├── .claude
+│   └── settings.local.json
+├── docs
+│   ├── adr
+│   │   ├── 0006-sam-infrastructure-as-code.md
+│   │   ├── 0007-http-api-gateway.md
+│   │   ├── 0008-environment-variables-secrets.md
+│   │   ├── 0009-comprehensive-testing-strategy.md
+│   │   ├── 0010-e2e-testing-framework.md
+│   │   └── README.md
+│   ├── backend
+│   │   ├── INTEGRATION_TESTING.md
+│   │   ├── PHASE_2_ITERATION_2_COMPLETE.md
+│   │   ├── PHASE_2_SUMMARY.md
+│   │   ├── PHASE_3_COMPLETE.md
+│   │   ├── QUALITY.md
+│   │   └── README.md
+│   ├── infrastructure
+│   │   ├── DEPLOYMENT.md
+│   │   ├── DEPLOYMENT_STATUS.md
+│   │   └── README.md
+│   ├── plans
+│   │   ├── Phase-0.md
+│   │   ├── Phase-1.md
+│   │   ├── Phase-2.md
+│   │   ├── Phase-3.md
+│   │   ├── Phase-4.md
+│   │   ├── Phase-5.md
+│   │   ├── Phase-6.md
+│   │   └── README.md
+│   ├── API.md
+│   ├── ARCHITECTURE.md
+│   ├── CI_CD.md
+│   ├── DEVELOPMENT.md
+│   ├── PHASE-4-REVIEW.md
+│   ├── PRODUCTION_READINESS.md
+│   └── QUICK_REFERENCE.md
+├── frontend
+│   ├── app
+│   │   ├── (tabs)
+│   │   │   ├── explore.tsx
+│   │   │   ├── index.tsx
+│   │   │   └── _layout.tsx
+│   │   ├── +html.tsx
+│   │   ├── _layout.tsx
+│   │   └── +not-found.tsx
+│   ├── assets
+│   │   ├── audio
+│   │   │   ├── music.mp3
+│   │   │   └── voice.mp3
+│   │   ├── fonts
+│   │   │   ├── Poppins-ExtraBold.ttf
+│   │   │   ├── SpaceMono-Regular.ttf
+│   │   │   └── testType-03.otf
+│   │   └── images
+│   │       ├── preview.gif
+│   │       ├── self_improvement_dark.svg
+│   │       ├── self_improvement_icon.png
+│   │       ├── self_improvement_light.svg
+│   │       ├── self_improvement_splash.png
+│   │       └── self_improvement_web.png
+│   ├── components
+│   │   ├── navigation
+│   │   │   └── TabBarIcon.tsx
+│   │   ├── ScreenComponents
+│   │   │   ├── Guidance.tsx
+│   │   │   ├── IncidentItem.tsx
+│   │   │   ├── MeditationControls.tsx
+│   │   │   ├── RecordButton.tsx
+│   │   │   └── SubmitButton.tsx
+│   │   ├── AudioRecording.tsx
+│   │   ├── AuthScreen.tsx
+│   │   ├── BackendMeditationCall.tsx
+│   │   ├── BackendSummaryCall.tsx
+│   │   ├── Collapsible.tsx
+│   │   ├── history.tsx
+│   │   ├── IncidentColoring.tsx
+│   │   ├── LocalFileLoadAndSave.tsx
+│   │   ├── Notifications.tsx
+│   │   ├── ParallaxScrollView.tsx
+│   │   ├── ThemedText.tsx
+│   │   └── ThemedView.tsx
+│   ├── constants
+│   │   ├── Colors.ts
+│   │   ├── StylesConstants.tsx
+│   │   └── util.ts
+│   ├── context
+│   │   ├── AuthContext.tsx
+│   │   └── IncidentContext.tsx
+│   ├── hooks
+│   │   ├── useColorScheme.ts
+│   │   ├── useColorScheme.web.ts
+│   │   └── useThemeColor.ts
+│   ├── scripts
+│   │   └── reset-project.js
+│   ├── app.config.js
+│   ├── babel.config.js
+│   ├── .detoxrc.js
+│   ├── eas.json
+│   ├── .eslintrc.json
+│   ├── expo-env.d.ts
+│   ├── .prettierrc.json
+│   └── tsconfig.test.json
+├── .github
+│   └── workflows
+│       ├── backend-tests.yml
+│       ├── ci.yml
+│       ├── deploy-backend-production.yml
+│       ├── deploy-backend-staging.yml
+│       └── frontend-tests.yml
+├── infrastructure
+│   ├── parameters
+│   │   ├── production-example.json
+│   │   └── staging-example.json
+│   ├── scripts
+│   │   ├── deploy-production.sh
+│   │   ├── deploy-staging.sh
+│   │   └── validate-template.sh
+│   ├── test-requests
+│   │   ├── meditation-request.json
+│   │   └── summary-request.json
+│   ├── .gitignore
+│   └── template.yaml
+├── tests
+│   └── frontend
+│       ├── e2e
+│       │   ├── complete-user-journey.e2e.ts
+│       │   ├── error-scenarios.e2e.ts
+│       │   ├── jest.config.js
+│       │   └── README.md
+│       ├── integration
+│       │   ├── auth-flow-test.tsx
+│       │   ├── example-test.tsx
+│       │   ├── meditation-flow-test.tsx
+│       │   ├── README.md
+│       │   ├── recording-flow-test.tsx
+│       │   ├── setup.ts
+│       │   └── test-utils.tsx
+│       └── unit
+│           ├── __snapshots__
+│           ├── utils
+│           ├── AudioRecording-test.tsx
+│           ├── AuthScreen-test.tsx
+│           ├── BackendMeditationCall-test.tsx
+│           ├── BackendSummaryCall-test.tsx
+│           ├── Collapsible-test.tsx
+│           ├── Guidance-test.tsx
+│           ├── history-test.tsx
+│           ├── IncidentColoring-test.tsx
+│           ├── IncidentItem-test.tsx
+│           ├── LocalFileLoadAndSave-test.tsx
+│           ├── MeditationControls-test.tsx
+│           ├── Notifications-test.tsx
+│           ├── ParallaxScrollView-test.tsx
+│           ├── ThemedText-test.tsx
+│           └── ThemedView-test.tsx
+├── cleanup-list.txt
+├── final-structure.txt
+├── .gitignore
+├── jest.setup.js
+├── package.json
+├── package-lock.json
+├── README.md
+├── refactor-monorepo.sh
+├── sanitization-changes.log
+├── strip-comments.sh
+└── tsconfig.json
+
+49 directories, 192 files

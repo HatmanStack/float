@@ -1,0 +1,122 @@
+import { Audio } from 'expo-av';
+import React, { useState, useCallback } from 'react';
+import { Pressable, ActivityIndicator } from 'react-native';
+import { Colors } from '@/constants/Colors';
+import useStyles from '@/constants/StylesConstants';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+
+/**
+ * Props for MeditationControls component
+ */
+interface MeditationControlsProps {
+  isCalling: boolean;
+  meditationURI: string;
+  setMeditationURI: (uri: string) => void;
+  handleMeditationCall: () => void;
+}
+
+/**
+ * Custom hook for audio playback logic
+ */
+function useAudioPlayback(meditationURI: string, setMeditationURI: (uri: string) => void) {
+  const [isPausing, setisPausing] = useState(false);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  const handlePlayMeditation = useCallback(async () => {
+    try {
+      let uri = meditationURI;
+      if (uri.startsWith('blob:')) {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        uri = blobUrl;
+      }
+
+      if (sound) {
+        if (isPausing) {
+          await sound.pauseAsync();
+          setisPausing(false);        } else {
+          await sound.playAsync();
+          setisPausing(true);        }
+      } else {
+        const { sound: newSound } = await Audio.Sound.createAsync({ uri });
+        setSound(newSound);
+        newSound.setOnPlaybackStatusUpdate(async (status) => {
+          if ('didJustFinish' in status && status.didJustFinish) {            try {
+              await newSound.unloadAsync();
+            } catch (error) {
+              console.error('Error unloading audio:', error);
+            }
+            setisPausing(false);
+            setSound(null);
+            setMeditationURI('');
+          }
+        });
+        await newSound.playAsync();
+        setisPausing(true);      }
+    } catch (error) {
+      console.error('Error handling the audio file:', error);
+    }
+  }, [meditationURI, sound, isPausing, setMeditationURI]);
+
+  return {
+    isPausing,
+    handlePlayMeditation,
+  };
+}
+
+/**
+ * Meditation controls component for playing/pausing meditation audio
+ */
+const MeditationControls: React.FC<MeditationControlsProps> = ({
+  isCalling,
+  meditationURI,
+  setMeditationURI,
+  handleMeditationCall,
+}: MeditationControlsProps): React.JSX.Element => {
+  const styles = useStyles();
+  const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
+
+  return isCalling ? (
+    <ThemedView style={{ padding: 50 }}>
+      <ActivityIndicator
+        size="large"
+        color={Colors['activityIndicator']}
+        testID="activity-indicator"
+      />
+    </ThemedView>
+  ) : meditationURI ? (
+    <Pressable
+      onPress={handlePlayMeditation}
+      style={({ pressed }) => [
+        {
+          backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+        },
+        styles.button,
+      ]}
+    >
+      {({ pressed }) => (
+        <ThemedText type="generate">
+          {isPausing ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
+        </ThemedText>
+      )}
+    </Pressable>
+  ) : (
+    <Pressable
+      onPress={handleMeditationCall}
+      style={({ pressed }) => [
+        {
+          backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+        },
+        styles.button,
+      ]}
+    >
+      {({ pressed }) => (
+        <ThemedText type="generate">{pressed ? 'GENERATING!' : 'Generate Meditation'}</ThemedText>
+      )}
+    </Pressable>
+  );
+};
+
+export default MeditationControls;

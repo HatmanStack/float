@@ -2,10 +2,18 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./frontend/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["**/__tests__/**", "components/__tests__/**"]
+  "include": [
+    "frontend/**/*.ts",
+    "frontend/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    ".expo/types/**/*.ts",
+    "frontend/expo-env.d.ts"
+  ],
+  "exclude": ["node_modules", "backend"]
 }

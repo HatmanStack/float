@@ -3,8 +3,6 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from ..config.constants import SentimentLabel, TTSProvider
-
-
 @dataclass
 class SentimentAnalysis:
     """Domain model for sentiment analysis results."""
@@ -17,8 +15,6 @@ class SentimentAnalysis:
     def validate(self) -> bool:
         """Validate sentiment analysis data."""
         return isinstance(self.sentiment_label, SentimentLabel) and 1 <= self.intensity <= 5
-
-
 @dataclass
 class AudioTrack:
     """Domain model for audio track information."""
@@ -31,8 +27,6 @@ class AudioTrack:
     def __post_init__(self):
         if self.format is None and "." in self.key:
             self.format = self.key.split(".")[-1].lower()
-
-
 @dataclass
 class UserIncident:
     """Domain model for user incident data."""
@@ -57,8 +51,6 @@ class UserIncident:
             "user_summary": [self.user_summary or ""],
             "user_short_summary": [self.short_summary or ""],
         }
-
-
 @dataclass
 class MeditationSession:
     """Domain model for meditation session."""
@@ -73,8 +65,6 @@ class MeditationSession:
     def validate(self) -> bool:
         """Validate meditation session data."""
         return bool(self.user_id and self.transcript)
-
-
 @dataclass
 class ProcessingJob:
     """Domain model for background processing job."""

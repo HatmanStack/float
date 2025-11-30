@@ -11,8 +11,6 @@ from ..config.settings import settings
 from .ai_service import AIService
 
 logger = logging.getLogger(__name__)
-
-
 class GeminiAIService(AIService):
     """Google Gemini AI service implementation."""
 
