@@ -11,8 +11,6 @@ from .gemini_service import GeminiAIService
 from .s3_storage_service import S3StorageService
 from .storage_service import StorageService
 from .tts_service import TTSService
-
-
 class ServiceFactory:
     """Factory class for creating and managing service instances."""
 
@@ -63,14 +61,9 @@ class ServiceFactory:
 
             # Validate configuration
             settings.validate()
-
-            print("All services validated successfully")
-            return True
+return True
 
         except Exception as e:
-            print(f"Service validation failed: {e}")
-            return False
-
-
+return False
 # Global service factory instance
 service_factory = ServiceFactory()

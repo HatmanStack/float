@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Float Backend - Meditation & Sentiment Analysis API
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        PYTHONPATH: /var/task/src
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - staging
+      - production
+    Description: Deployment environment
+
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+    Description: Google Gemini API key for AI services
+
+  OpenAIApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenAI API key for text-to-speech
+
+  S3DataBucket:
+    Type: String
+    Default: float-cust-data
+    Description: S3 bucket for storing user data and results
+
+  S3AudioBucket:
+    Type: String
+    Default: audio-er-lambda
+    Description: S3 bucket containing background music files
+
+Resources:
+  FloatApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+        MaxAge: 600
+
+  FloatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub float-api-${Environment}
+      Handler: lambda_function.lambda_handler
+      CodeUri: .
+      Description: Float meditation and sentiment analysis handler
+      Timeout: 60
+      MemorySize: 1024
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:770693421928:layer:Klayers-p313-ffmpeg:1
+      Environment:
+        Variables:
+          G_KEY: !Ref GeminiApiKey
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          AWS_S3_BUCKET: !Ref S3DataBucket
+          AWS_AUDIO_BUCKET: !Ref S3AudioBucket
+          FFMPEG_PATH: /opt/bin/ffmpeg
+          ENVIRONMENT: !Ref Environment
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3DataBucket
+        - S3ReadPolicy:
+            BucketName: !Ref S3AudioBucket
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+      Events:
+        ApiPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /
+            Method: POST
+        ApiOptions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /
+            Method: OPTIONS
+
+  FloatFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/float-api-${Environment}
+      RetentionInDays: 14
+
+  S3DataBucketResource:
+    Type: AWS::S3::Bucket
+    Condition: CreateDataBucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref S3DataBucket
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Conditions:
+  CreateDataBucket: !Equals [!Ref Environment, 'production']
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${FloatApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiUrl
+
+  Region:
+    Description: AWS Region
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub ${AWS::StackName}-Region
+
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref FloatFunction
+    Export:
+      Name: !Sub ${AWS::StackName}-FunctionName
+
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt FloatFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-FunctionArn

@@ -3,8 +3,6 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
 class Settings:
     """Centralized configuration management for the application."""
 
@@ -45,7 +43,5 @@ class Settings:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
         return True
-
-
 # Global settings instance
 settings = Settings()

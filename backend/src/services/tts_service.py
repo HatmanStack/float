@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-
-
 class TTSService(ABC):
     """Abstract base class for Text-to-Speech services."""
 

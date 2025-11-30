@@ -3,8 +3,6 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
 from ..config.constants import InferenceType
-
-
 @dataclass
 class BaseResponse:
     """Base class for all API responses."""
@@ -23,8 +21,6 @@ class BaseResponse:
     def to_json(self) -> str:
         """Convert response to JSON string."""
         return json.dumps(self.to_dict())
-
-
 @dataclass
 class SummaryResponse(BaseResponse):
     """Response model for sentiment analysis/summary."""
@@ -39,8 +35,6 @@ class SummaryResponse(BaseResponse):
 
     def __post_init__(self):
         self.inference_type = InferenceType.SUMMARY
-
-
 @dataclass
 class MeditationResponse(BaseResponse):
     """Response model for meditation generation."""
@@ -50,8 +44,6 @@ class MeditationResponse(BaseResponse):
 
     def __post_init__(self):
         self.inference_type = InferenceType.MEDITATION
-
-
 @dataclass
 class ErrorResponse:
     """Response model for errors."""
@@ -66,8 +58,6 @@ class ErrorResponse:
     def to_json(self) -> str:
         """Convert error response to JSON string."""
         return json.dumps(self.to_dict())
-
-
 def create_summary_response(request_id: int, user_id: str, summary_result: str) -> SummaryResponse:
     """
     Create summary response from AI service result.
@@ -109,8 +99,6 @@ def create_summary_response(request_id: int, user_id: str, summary_result: str) 
 
     except (json.JSONDecodeError, KeyError, IndexError) as e:
         raise ValueError(f"Failed to parse summary result: {e}")
-
-
 def create_meditation_response(
     request_id: int, user_id: str, music_list: List[str], base64_audio: str
 ) -> MeditationResponse:

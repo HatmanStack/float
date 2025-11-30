@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-
-
 class StorageService(ABC):
     """Abstract base class for storage services."""
 

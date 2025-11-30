@@ -2,18 +2,12 @@ import os
 import random
 from datetime import datetime
 from typing import Optional
-
-
 def generate_timestamp() -> str:
     """Generate timestamp string for file naming."""
     return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-
 def generate_request_id() -> int:
     """Generate random request ID."""
     return random.randint(1, 10000000)
-
-
 def ensure_directory_exists(directory_path: str) -> bool:
     """
     Ensure directory exists, create if it doesn't.
@@ -28,10 +22,7 @@ def ensure_directory_exists(directory_path: str) -> bool:
         os.makedirs(directory_path, exist_ok=True)
         return True
     except Exception as e:
-        print(f"Error creating directory {directory_path}: {e}")
-        return False
-
-
+return False
 def get_file_extension(filename: str) -> str:
     """
     Get file extension from filename.
@@ -43,8 +34,6 @@ def get_file_extension(filename: str) -> str:
         File extension including dot (e.g., '.mp3')
     """
     return os.path.splitext(filename)[1].lower()
-
-
 def is_audio_file(filename: str) -> bool:
     """
     Check if filename has audio file extension.
@@ -57,8 +46,6 @@ def is_audio_file(filename: str) -> bool:
     """
     audio_extensions = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
     return get_file_extension(filename) in audio_extensions
-
-
 def safe_filename(filename: str) -> str:
     """
     Create safe filename by removing/replacing unsafe characters.
@@ -83,8 +70,6 @@ def safe_filename(filename: str) -> str:
         safe_name = "untitled"
 
     return safe_name
-
-
 def get_temp_file_path(prefix: str = "", suffix: str = "", directory: Optional[str] = None) -> str:
     """
     Generate temporary file path.

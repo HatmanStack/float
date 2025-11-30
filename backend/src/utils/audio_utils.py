@@ -2,8 +2,6 @@ import base64
 import os
 import tempfile
 from typing import Optional
-
-
 def decode_audio_base64(audio_base64: str, suffix: str = ".mp3") -> str:
     """
     Decode base64 audio data and save to temporary file.
@@ -19,8 +17,6 @@ def decode_audio_base64(audio_base64: str, suffix: str = ".mp3") -> str:
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
         temp_file.write(audio_bytes)
         return temp_file.name
-
-
 def cleanup_temp_file(file_path: str) -> bool:
     """
     Remove temporary file if it exists.
@@ -37,10 +33,7 @@ def cleanup_temp_file(file_path: str) -> bool:
             return True
         return True
     except Exception as e:
-        print(f"Error removing temporary file {file_path}: {e}")
-        return False
-
-
+return False
 def encode_audio_to_base64(file_path: str) -> Optional[str]:
     """
     Encode audio file to base64 string.
@@ -56,10 +49,7 @@ def encode_audio_to_base64(file_path: str) -> Optional[str]:
             encoded_string = base64.b64encode(audio_file.read()).decode("utf-8")
             return encoded_string
     except Exception as e:
-        print(f"Error encoding audio file {file_path}: {e}")
-        return None
-
-
+return None
 def validate_audio_file(file_path: str) -> bool:
     """
     Validate that audio file exists and is accessible.
