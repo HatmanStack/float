@@ -1,10 +1,7 @@
 """Integration tests for Lambda initialization and cold start behavior."""
 
-import importlib
-import os
 import sys
 import time
-from unittest.mock import patch
 
 import pytest
 
@@ -53,7 +50,7 @@ class TestLambdaHandlerInitialization:
         assert handler.ai_service is mock_ai_service, "Should use injected AI service"
         assert handler.storage_service is not None, "Other services should still initialize"
 
-        print(f"\n✓ Dependency injection works correctly")
+        print("\n✓ Dependency injection works correctly")
 
     def test_handler_services_ready_after_init(self):
         """Test that all services are ready to use after initialization."""
@@ -77,7 +74,7 @@ class TestLambdaHandlerInitialization:
         assert hasattr(handler.tts_provider, "synthesize_speech"), \
             "TTS provider should have synthesize_speech method"
 
-        print(f"\n✓ All services ready and have expected methods")
+        print("\n✓ All services ready and have expected methods")
 
     def test_multiple_handler_instances(self):
         """Test creating multiple handler instances."""
@@ -92,7 +89,7 @@ class TestLambdaHandlerInitialization:
         assert handler1.ai_service is not handler2.ai_service, \
             "Each handler should have its own AI service"
 
-        print(f"\n✓ Multiple handler instances created independently")
+        print("\n✓ Multiple handler instances created independently")
 
 
 @pytest.mark.integration
@@ -118,7 +115,7 @@ class TestConfigurationValidation:
             assert "Missing required environment variables" in error_message, \
                 "Error should mention missing variables"
 
-            print(f"\n✓ Missing API keys detected correctly")
+            print("\n✓ Missing API keys detected correctly")
 
         finally:
             # Restore original values
@@ -133,7 +130,7 @@ class TestConfigurationValidation:
         # Assert
         assert result is True, "Should return True when validation skipped"
 
-        print(f"\n✓ Validation can be skipped for testing")
+        print("\n✓ Validation can be skipped for testing")
 
     def test_settings_has_all_required_config(self):
         """Test that settings has all required configuration."""
@@ -145,7 +142,7 @@ class TestConfigurationValidation:
         assert hasattr(settings, "FFMPEG_PATH"), "Should have FFMPEG_PATH"
         assert hasattr(settings, "TEMP_DIR"), "Should have TEMP_DIR"
 
-        print(f"\n✓ All required configuration settings present")
+        print("\n✓ All required configuration settings present")
 
     def test_settings_default_values(self):
         """Test that settings have appropriate default values."""
@@ -154,7 +151,7 @@ class TestConfigurationValidation:
         assert settings.GEMINI_SAFETY_LEVEL == 4, "Safety level should default to 4"
         assert settings.AUDIO_SAMPLE_RATE == 44100, "Sample rate should be 44100"
 
-        print(f"\n✓ Default values are correct")
+        print("\n✓ Default values are correct")
 
 
 @pytest.mark.integration
@@ -245,7 +242,7 @@ class TestColdStartPerformance:
         module_name = "src.handlers.lambda_handler"
         if module_name in sys.modules:
             # Save reference to reload later
-            original_module = sys.modules[module_name]
+            sys.modules[module_name]
 
         try:
             # Remove from cache
@@ -312,7 +309,7 @@ class TestColdStartPerformance:
         times["ffmpeg_audio"] = time.time() - start
 
         # Print breakdown
-        print(f"\n✓ Initialization time breakdown:")
+        print("\n✓ Initialization time breakdown:")
         for component, duration in times.items():
             if duration is not None:
                 print(f"  {component}: {duration:.3f}s")
@@ -343,7 +340,7 @@ class TestErrorRecovery:
             assert handler is not None, "Handler should initialize despite invalid key"
             assert handler.ai_service is not None, "AI service should be created"
 
-            print(f"\n✓ Handler initializes with invalid API key (validation disabled)")
+            print("\n✓ Handler initializes with invalid API key (validation disabled)")
 
         finally:
             # Restore original key
@@ -366,7 +363,7 @@ class TestErrorRecovery:
             # Assert
             assert handler is not None, "Handler should initialize with custom TEMP_DIR"
 
-            print(f"\n✓ Handler handles custom environment variables")
+            print("\n✓ Handler handles custom environment variables")
 
         finally:
             # Restore original value

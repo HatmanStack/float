@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Collapsible } from '../../frontend/components/Collapsible';
+import { Collapsible } from '@/components/Collapsible';
 import { Text } from 'react-native';
 
 // Mock ThemedView and ThemedText

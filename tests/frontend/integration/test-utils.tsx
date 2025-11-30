@@ -1,7 +1,7 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions, waitFor as rtlWaitFor } from '@testing-library/react-native';
-import { AuthProvider } from '../../frontend/context/AuthContext';
-import { IncidentProvider } from '../../frontend/context/IncidentContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { IncidentProvider } from '@/context/IncidentContext';
 
 /**
  * Integration Test Utilities
@@ -195,51 +195,53 @@ export async function waitForIntegration<T>(
 /**
  * Mock AsyncStorage for integration tests
  */
+const asyncStorageStore = new Map<string, string>();
+
 export const mockAsyncStorage = {
-  store: new Map<string, string>(),
+  store: asyncStorageStore,
 
   getItem: jest.fn((key: string) => {
-    return Promise.resolve(mockAsyncStorage.store.get(key) || null);
+    return Promise.resolve(asyncStorageStore.get(key) || null);
   }),
 
   setItem: jest.fn((key: string, value: string) => {
-    mockAsyncStorage.store.set(key, value);
+    asyncStorageStore.set(key, value);
     return Promise.resolve();
   }),
 
   removeItem: jest.fn((key: string) => {
-    mockAsyncStorage.store.delete(key);
+    asyncStorageStore.delete(key);
     return Promise.resolve();
   }),
 
   clear: jest.fn(() => {
-    mockAsyncStorage.store.clear();
+    asyncStorageStore.clear();
     return Promise.resolve();
   }),
 
   getAllKeys: jest.fn(() => {
-    return Promise.resolve(Array.from(mockAsyncStorage.store.keys()));
+    return Promise.resolve(Array.from(asyncStorageStore.keys()));
   }),
 
   multiGet: jest.fn((keys: string[]) => {
     return Promise.resolve(
-      keys.map((key) => [key, mockAsyncStorage.store.get(key) || null])
+      keys.map((key) => [key, asyncStorageStore.get(key) || null])
     );
   }),
 
   multiSet: jest.fn((pairs: [string, string][]) => {
-    pairs.forEach(([key, value]) => mockAsyncStorage.store.set(key, value));
+    pairs.forEach(([key, value]) => asyncStorageStore.set(key, value));
     return Promise.resolve();
   }),
 
   multiRemove: jest.fn((keys: string[]) => {
-    keys.forEach((key) => mockAsyncStorage.store.delete(key));
+    keys.forEach((key) => asyncStorageStore.delete(key));
     return Promise.resolve();
   }),
 
   // Helper to reset the mock store
   reset: () => {
-    mockAsyncStorage.store.clear();
+    asyncStorageStore.clear();
     jest.clearAllMocks();
   },
 };

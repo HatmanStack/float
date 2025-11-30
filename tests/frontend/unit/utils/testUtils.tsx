@@ -1,7 +1,7 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react-native';
-import { AuthProvider } from '../../frontend/context/AuthContext';
-import { IncidentProvider } from '../../frontend/context/IncidentContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { IncidentProvider } from '@/context/IncidentContext';
 
 /**
  * Mock user data for testing

@@ -371,6 +371,3 @@ Currently no rate limiting. Future versions may add:
 - [ ] Meditation history retrieval
 - [ ] User preferences/settings
 
----
-
-**Questions?** See [CONTRIBUTING.md](../CONTRIBUTING.md) or check [ARCHITECTURE.md](./ARCHITECTURE.md) for system design.

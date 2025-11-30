@@ -56,7 +56,7 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
 
 const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 
-if (!LAMBDA_FUNCTION_URL) {}
+// LAMBDA_FUNCTION_URL validated at runtime in BackendMeditationCall
 
 /**
  * Makes a backend call to generate meditation content based on selected incidents

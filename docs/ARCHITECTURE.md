@@ -27,7 +27,7 @@ Float is a serverless meditation app with clear separation between frontend and 
 
 ## Frontend (React Native/Expo)
 
-- **Location**: `app/`, `components/`, `context/`
+- **Location**: `frontend/`
 - **Routing**: Expo Router (file-based)
 - **State**: React Context API
 - **Testing**: Jest
@@ -47,9 +47,9 @@ Float is a serverless meditation app with clear separation between frontend and 
 
 ## Backend (AWS Lambda)
 
-- **Location**: `backend/src/`
-- **Entry**: `lambda_handler.py`
-- **Language**: Python 3.12
+- **Location**: `backend/`
+- **Entry**: `lambda_function.py`
+- **Language**: Python 3.13
 
 **Layers**:
 
@@ -76,15 +76,15 @@ Float is a serverless meditation app with clear separation between frontend and 
 | Layer    | Technology                             |
 | -------- | -------------------------------------- |
 | Frontend | React Native 0.74, Expo 52, TypeScript |
-| Backend  | Python 3.12, AWS Lambda, Pydantic      |
+| Backend  | Python 3.13, AWS Lambda, Pydantic      |
 | AI       | Google Gemini                          |
-| TTS      | OpenAI/ElevenLabs                      |
+| TTS      | OpenAI                                 |
 | Storage  | AWS S3                                 |
 
-## API Contract
+## Deployment
 
-See [docs/API.md](API.md) for endpoint specifications, request/response formats, and examples.
+```bash
+cd backend && sam build && sam deploy
+```
 
-## Configuration
-
-See `.env.example` for required environment variables and their purposes.
+See `backend/samconfig.toml` for configuration.

@@ -1,7 +1,7 @@
 import { render, waitFor } from '@testing-library/react-native';
-import { IncidentColoring } from '../../frontend/components/IncidentColoring';
-import { getCurrentTime } from '../../frontend/constants/util';
-import { IncidentContext, IncidentProvider } from '../../frontend/context/IncidentContext';
+import { IncidentColoring } from '@/components/IncidentColoring';
+import { getCurrentTime } from '@/constants/util';
+import { IncidentContext, IncidentProvider, IncidentContextType } from '@/context/IncidentContext';
 import React from 'react';
 
 jest.useFakeTimers();
@@ -32,7 +32,7 @@ describe('IncidentColoring', () => {
     },
   ];
 
-  const wrapper = ({ children }) => <IncidentProvider>{children}</IncidentProvider>;
+  const wrapper = ({ children }: { children: React.ReactNode }) => <IncidentProvider>{children}</IncidentProvider>;
 
   beforeEach(() => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => mockDateNow.getTime());
@@ -51,8 +51,17 @@ describe('IncidentColoring', () => {
     const setColorChangeArrayOfArrays = jest.fn();
     const incidentList = mockIncidentList;
 
+    const mockContext: IncidentContextType = {
+      incidentList,
+      setIncidentList: jest.fn(),
+      colorChangeArrayOfArrays: '',
+      setColorChangeArrayOfArrays,
+      musicList: [],
+      setMusicList: jest.fn(),
+    };
+
     render(
-      <IncidentContext.Provider value={{ incidentList, setColorChangeArrayOfArrays }}>
+      <IncidentContext.Provider value={mockContext}>
         <IncidentColoring />
       </IncidentContext.Provider>,
       { wrapper }

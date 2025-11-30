@@ -10,7 +10,7 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { BackendSummaryCall } from '../../frontend/components/BackendSummaryCall';
+import { BackendSummaryCall } from '@/components/BackendSummaryCall';
 
 const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';
 

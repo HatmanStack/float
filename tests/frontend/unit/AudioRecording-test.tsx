@@ -29,7 +29,7 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { StartRecording, StopRecording } from '../../frontend/components/AudioRecording';
+import { StartRecording, StopRecording } from '@/components/AudioRecording';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 

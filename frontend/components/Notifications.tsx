@@ -11,13 +11,17 @@ export default function FloatNotifications() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    registerForPushNotificationsAsync().then((token) => {
-      // TODO: Store or display the push token    });
+    registerForPushNotificationsAsync().then(() => {
+      // Token registered
+    });
 
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      // TODO: Handle and display notification    });
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+      // Notification received
+    });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {    });
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
+      // Response received
+    });
 
     return () => {
       if (notificationListener.current) {
@@ -52,5 +56,6 @@ async function registerForPushNotificationsAsync() {
     alert('Failed to get push token for push notification!');
     return;
   }
-  const token = (await Notifications.getExpoPushTokenAsync()).data;  return token;
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  return token;
 }

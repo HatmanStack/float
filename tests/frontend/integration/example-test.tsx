@@ -17,8 +17,8 @@ import {
   fireEvent,
   within,
 } from './test-utils';
-import { useAuth } from '../../frontend/context/AuthContext';
-import { useIncident } from '../../frontend/context/IncidentContext';
+import { useAuth } from '@/context/AuthContext';
+import { useIncident } from '@/context/IncidentContext';
 
 /**
  * Test component that uses AuthContext

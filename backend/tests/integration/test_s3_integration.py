@@ -83,7 +83,7 @@ class TestS3UploadIntegration:
         # Assert
         assert result is True, "Sentiment result upload should succeed"
 
-        print(f"\n✓ Sentiment result uploaded successfully")
+        print("\n✓ Sentiment result uploaded successfully")
 
     def test_upload_meditation_metadata(
         self, real_s3_storage_service, test_user_id, test_s3_keys_to_cleanup
@@ -113,7 +113,7 @@ class TestS3UploadIntegration:
         # Assert
         assert result is True, "Meditation metadata upload should succeed"
 
-        print(f"\n✓ Meditation metadata uploaded successfully")
+        print("\n✓ Meditation metadata uploaded successfully")
 
     def test_upload_with_user_id_path_structure(
         self, real_s3_storage_service, test_user_id, test_s3_keys_to_cleanup
@@ -136,7 +136,7 @@ class TestS3UploadIntegration:
         # Verify key contains user_id
         assert test_user_id in key, f"Key should contain user_id: {key}"
 
-        print(f"\n✓ Upload with correct user_id path structure")
+        print("\n✓ Upload with correct user_id path structure")
 
     def test_upload_complex_nested_data(
         self, real_s3_storage_service, test_user_id, test_s3_keys_to_cleanup
@@ -164,7 +164,7 @@ class TestS3UploadIntegration:
         # Assert
         assert result is True, "Complex data upload should succeed"
 
-        print(f"\n✓ Complex nested data uploaded successfully")
+        print("\n✓ Complex nested data uploaded successfully")
 
 
 @pytest.mark.integration
@@ -209,7 +209,7 @@ class TestS3DownloadIntegration:
                 downloaded_data = json.load(f)
             assert downloaded_data == original_data, "Downloaded data should match original"
 
-            print(f"\n✓ File downloaded and verified successfully")
+            print("\n✓ File downloaded and verified successfully")
 
         finally:
             # Cleanup local file
@@ -234,7 +234,7 @@ class TestS3DownloadIntegration:
             # Assert - should fail gracefully
             assert result is False, "Download of nonexistent file should return False"
 
-            print(f"\n✓ Nonexistent file handled gracefully")
+            print("\n✓ Nonexistent file handled gracefully")
 
         finally:
             # Cleanup
@@ -312,7 +312,7 @@ class TestS3ListIntegration:
         assert isinstance(objects, list), "Should return a list"
         assert len(objects) == 0, "Should return empty list for nonexistent prefix"
 
-        print(f"\n✓ Nonexistent prefix returns empty list")
+        print("\n✓ Nonexistent prefix returns empty list")
 
 
 @pytest.mark.integration
@@ -333,7 +333,7 @@ class TestS3ErrorHandling:
         # Assert - should handle gracefully
         assert result is False, "Should return False for invalid bucket"
 
-        print(f"\n✓ Invalid bucket handled gracefully")
+        print("\n✓ Invalid bucket handled gracefully")
 
     def test_upload_with_invalid_key_characters(
         self, real_s3_storage_service, test_user_id, test_s3_keys_to_cleanup
@@ -356,7 +356,7 @@ class TestS3ErrorHandling:
         # Assert
         assert result is True, "Should handle various characters in key"
 
-        print(f"\n✓ Various key characters handled successfully")
+        print("\n✓ Various key characters handled successfully")
 
 
 @pytest.mark.integration

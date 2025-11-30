@@ -13,7 +13,7 @@ export interface Incident {
   [key: string]: string | number | boolean | Date | undefined;
 }
 
-interface IncidentContextType {
+export interface IncidentContextType {
   incidentList: Incident[];
   setIncidentList: React.Dispatch<React.SetStateAction<Incident[]>>;
   colorChangeArrayOfArrays: string | string[][];

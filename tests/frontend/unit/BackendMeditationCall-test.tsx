@@ -14,7 +14,7 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { BackendMeditationCall } from '../../frontend/components/BackendMeditationCall';
+import { BackendMeditationCall } from '@/components/BackendMeditationCall';
 import * as FileSystem from 'expo-file-system';
 
 const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';

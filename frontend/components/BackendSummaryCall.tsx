@@ -77,44 +77,41 @@ export async function BackendSummaryCall(
   };
 
   const serializedData = JSON.stringify(payload);
-  try {    const httpResponse = await fetch(lambdaUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: serializedData,
-    });
+  const httpResponse = await fetch(lambdaUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: serializedData,
+  });
 
-    if (!httpResponse.ok) {
-      const errorText = await httpResponse.text();
-      const errorMessage = `Request to Summary Lambda URL failed with status ${httpResponse.status}: ${errorText}`;
-      console.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const lambdaPrimaryResponse = await httpResponse.json();
-    if (!lambdaPrimaryResponse || typeof lambdaPrimaryResponse !== 'object') {
-      const errorMessage = `Invalid response structure from Lambda. Expected a 'body' string. Received: ${JSON.stringify(lambdaPrimaryResponse)}`;
-      console.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const finalResponsePayload: SummaryResponse = lambdaPrimaryResponse;
-    // Apply post-processing logic
-    if (Platform.OS !== 'web') {
-      if (finalResponsePayload.sentiment_label && finalResponsePayload.intensity !== undefined) {
-        finalResponsePayload.notification_id = await schedulePushNotification(
-          finalResponsePayload.sentiment_label,
-          finalResponsePayload.intensity
-        );
-      }
-    }
-
-    finalResponsePayload.timestamp = new Date().toISOString();
-    finalResponsePayload.color_key = 0;
-
-    return finalResponsePayload;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);    throw error;
+  if (!httpResponse.ok) {
+    const errorText = await httpResponse.text();
+    const errorMessage = `Request to Summary Lambda URL failed with status ${httpResponse.status}: ${errorText}`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
   }
+
+  const lambdaPrimaryResponse = await httpResponse.json();
+  if (!lambdaPrimaryResponse || typeof lambdaPrimaryResponse !== 'object') {
+    const errorMessage = `Invalid response structure from Lambda. Expected a 'body' string. Received: ${JSON.stringify(lambdaPrimaryResponse)}`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  const finalResponsePayload: SummaryResponse = lambdaPrimaryResponse;
+  // Apply post-processing logic
+  if (Platform.OS !== 'web') {
+    if (finalResponsePayload.sentiment_label && finalResponsePayload.intensity !== undefined) {
+      finalResponsePayload.notification_id = await schedulePushNotification(
+        finalResponsePayload.sentiment_label,
+        finalResponsePayload.intensity
+      );
+    }
+  }
+
+  finalResponsePayload.timestamp = new Date().toISOString();
+  finalResponsePayload.color_key = 0;
+
+  return finalResponsePayload;
 }
