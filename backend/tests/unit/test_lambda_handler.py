@@ -1,7 +1,7 @@
 """Unit tests for Lambda handler."""
 
 import shutil
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -111,8 +111,6 @@ class TestSummaryRequestRouting:
         self, mock_ai_service, mock_storage_service, mock_tts_provider, monkeypatch
     ):
         """Test summary request routes to handle_summary_request."""
-        from unittest.mock import patch
-
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
 
         # Mock services
@@ -205,8 +203,6 @@ class TestMeditationRequestRouting:
         self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
     ):
         """Test meditation request routes to handle_meditation_request."""
-        from unittest.mock import patch
-
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.audio_service = mock_audio_service
@@ -233,8 +229,6 @@ class TestMeditationRequestRouting:
         self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
     ):
         """Test meditation request with all required input_data fields."""
-        from unittest.mock import MagicMock
-
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.audio_service = mock_audio_service
@@ -259,7 +253,6 @@ class TestMeditationRequestRouting:
         )
 
         # Mock file operations to avoid actual file I/O
-        from unittest.mock import patch
         with patch('src.handlers.lambda_handler.encode_audio_to_base64') as mock_encode:
             mock_encode.return_value = "base64_encoded_audio"
             result = handler.handle_meditation_request(request)
@@ -273,8 +266,6 @@ class TestMeditationRequestRouting:
         self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
     ):
         """Test meditation request with music list processes correctly."""
-        from unittest.mock import MagicMock, patch
-
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.audio_service = mock_audio_service
