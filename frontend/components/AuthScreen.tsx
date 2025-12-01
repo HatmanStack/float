@@ -9,12 +9,17 @@ import { useAuth } from '@/context/AuthContext';
 import useStyles from '@/constants/StylesConstants';
 import { Colors } from '@/constants/Colors';
 import * as WebBrowser from 'expo-web-browser';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import axios from 'axios';
 
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
-});
+// Only import and configure GoogleSignin on native platforms
+let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
+if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+  GoogleSignin?.configure({
+    webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
+  });
+}
 WebBrowser.maybeCompleteAuthSession();
 
 /**
@@ -79,7 +84,8 @@ function useAuthentication() {
       }
     } else if (Platform.OS === 'ios' || Platform.OS === 'android') {
       try {
-        const userInfo = await GoogleSignin.signIn();        const user = (userInfo as any).user as User;
+        const userInfo = await GoogleSignin?.signIn();
+        const user = (userInfo as any)?.user as User;
         await AsyncStorage.setItem('user', JSON.stringify(user));
         setUser(user);
       } catch (error) {

@@ -57,14 +57,25 @@ Float is a serverless meditation app with clear separation between frontend and 
 - **Handler**: Routes requests to services
 - **Services**:
   - AI: Google Gemini for sentiment & meditation generation
-  - TTS: OpenAI/ElevenLabs for speech synthesis
-  - Audio: FFmpeg processing
+  - TTS: OpenAI for speech synthesis
+  - Audio: FFmpeg processing (via Lambda layer)
   - Storage: AWS S3 upload/download
+  - Jobs: Async job tracking for long-running tasks
 
 **Endpoints**:
 
 - `POST /` - Summary inference (emotion analysis)
-- `POST /` - Meditation generation
+- `POST /` - Meditation generation (async, returns job_id)
+- `GET /job/{job_id}` - Poll job status
+
+**Async Meditation Flow**:
+
+1. Client submits meditation request
+2. Lambda creates job in S3, invokes itself asynchronously
+3. Returns job_id immediately (~1 second)
+4. Async Lambda processes meditation (1-2 minutes)
+5. Client polls `/job/{job_id}` until `status: completed`
+6. Result includes base64 audio
 
 ## Database & Storage
 

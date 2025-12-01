@@ -30,6 +30,10 @@ ios/
 npm-debug.*
 yarn.lock
 
+# AWS SAM
+.aws-sam/
+.deploy-config.json
+
 # Python
 __pycache__/
 *.pyc

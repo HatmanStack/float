@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { PropsWithChildren, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { Animated, StyleSheet, TouchableOpacity, useColorScheme, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,6 +12,7 @@ import { Colors } from '@/constants/Colors';
 interface CollapsibleProps extends PropsWithChildren {
   title: string;
   incidentColor?: string;
+  animatedColor?: Animated.AnimatedInterpolation<string | number>;
   textType?: 'subtitle' | 'incidentSubtitle';
   isOpen: boolean;
   onToggle: () => void;
@@ -34,6 +35,7 @@ export function Collapsible({
   children,
   title,
   incidentColor,
+  animatedColor,
   textType,
   isOpen,
   onToggle,
@@ -41,8 +43,15 @@ export function Collapsible({
   const theme = useColorScheme() ?? 'light';
   const iconColor = useCollapsibleIconColor(textType, theme);
 
+  // Use animated color if provided, otherwise fall back to static color
+  const useAnimated = !!animatedColor;
+  const ContainerComponent = useAnimated ? Animated.View : ThemedView;
+  const backgroundStyle = useAnimated
+    ? { backgroundColor: animatedColor }
+    : { backgroundColor: incidentColor };
+
   return (
-    <ThemedView style={{ backgroundColor: incidentColor }}>
+    <ContainerComponent style={backgroundStyle}>
       <TouchableOpacity style={styles.heading} onPress={onToggle} activeOpacity={0.8}>
         <Ionicons
           name={isOpen ? 'chevron-down' : 'chevron-forward-outline'}
@@ -52,11 +61,11 @@ export function Collapsible({
         <ThemedText type={textType ? textType : 'subtitle'}>{title}</ThemedText>
       </TouchableOpacity>
       {isOpen && (
-        <ThemedView style={[styles.content, { backgroundColor: incidentColor }]}>
+        <ContainerComponent style={[styles.content, backgroundStyle]}>
           {children}
-        </ThemedView>
+        </ContainerComponent>
       )}
-    </ThemedView>
+    </ContainerComponent>
   );
 }
 

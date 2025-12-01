@@ -53,6 +53,14 @@ class MeditationRequest(BaseRequest):
         print(f"[MEDITATION_VALIDATION] validation result: {result}")
         return result
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "inference_type": self.inference_type.value,
+            "input_data": self.input_data,
+            "music_list": self.music_list,
+        }
+
 
 def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
     if isinstance(value, str):

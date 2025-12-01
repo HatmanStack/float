@@ -31,6 +31,23 @@ interface MeditationResponse {
   responseMusicList: string[];
 }
 
+/**
+ * Job status response from backend
+ */
+interface JobStatusResponse {
+  job_id: string;
+  user_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  result?: {
+    base64: string;
+    music_list: string[];
+  };
+  error?: string;
+}
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 100; // ~5 minutes max
+
 const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): TransformedDict => {
   const transformedDict: TransformedDict = {
     sentiment_label: [],
@@ -59,9 +76,46 @@ const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 // LAMBDA_FUNCTION_URL validated at runtime in BackendMeditationCall
 
 /**
- * Makes a backend call to generate meditation content based on selected incidents
- * @param lambdaUrl - Optional override for the Lambda URL (mainly for testing)
+ * Poll for job status until completed or failed
  */
+async function pollJobStatus(
+  jobId: string,
+  userId: string,
+  lambdaUrl: string
+): Promise<JobStatusResponse> {
+  const baseUrl = lambdaUrl.replace(/\/$/, '');
+  const statusUrl = `${baseUrl}/job/${jobId}?user_id=${encodeURIComponent(userId)}`;
+
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+    console.log(`Polling job ${jobId}, attempt ${attempt + 1}/${MAX_POLL_ATTEMPTS}`);
+
+    const response = await fetch(statusUrl, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Job status check failed with status ${response.status}`);
+    }
+
+    const jobData: JobStatusResponse = await response.json();
+    console.log(`Job ${jobId} status: ${jobData.status}`);
+
+    if (jobData.status === 'completed') {
+      return jobData;
+    }
+
+    if (jobData.status === 'failed') {
+      throw new Error(jobData.error || 'Meditation generation failed');
+    }
+
+    // Wait before next poll
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+
+  throw new Error('Meditation generation timed out');
+}
+
 export async function BackendMeditationCall(
   selectedIndexes: number[],
   resolvedIncidents: IncidentData[],
@@ -69,7 +123,6 @@ export async function BackendMeditationCall(
   userId: string,
   lambdaUrl: string = LAMBDA_FUNCTION_URL
 ): Promise<MeditationResponse> {
-  // Always filter to only send selected incidents
   const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
 
   const payload = {
@@ -77,16 +130,15 @@ export async function BackendMeditationCall(
     audio: 'NotAvailable',
     prompt: 'NotAvailable',
     music_list: musicList,
-    transformed_dict: dict,
+    input_data: dict,
     user_id: userId,
   };
 
   try {
+    // Step 1: Submit the meditation request (returns job_id immediately)
     const httpResponse = await fetch(lambdaUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
@@ -96,22 +148,28 @@ export async function BackendMeditationCall(
       throw new Error(`Meditation request failed with status ${httpResponse.status}`);
     }
 
-    // Assuming the Lambda's response (httpResponse.json()) is an object
-    // that itself contains a 'body' property which is a JSON string.
-    const lambdaResponseObject = await httpResponse.json();
+    const submitResponse = await httpResponse.json();
+    console.log('Meditation job submitted:', submitResponse);
 
-    if (!lambdaResponseObject || typeof lambdaResponseObject !== 'object') {
-      console.error(
-        "Invalid response structure from Lambda. Expected a 'body' string.",
-        lambdaResponseObject
-      );
-      throw new Error('Invalid response structure from Lambda.');
-    }    const uri = await saveResponseBase64(lambdaResponseObject.base64);
-    const responseMusicList = lambdaResponseObject.music_list || [];
-    return { responseMeditationURI: uri, responseMusicList: responseMusicList };
+    if (!submitResponse.job_id) {
+      throw new Error('No job_id returned from meditation request');
+    }
+
+    // Step 2: Poll for job completion
+    console.log('Polling for job completion:', submitResponse.job_id);
+    const jobResult = await pollJobStatus(submitResponse.job_id, userId, lambdaUrl);
+
+    // Step 3: Extract result and convert to URI
+    if (!jobResult.result?.base64) {
+      throw new Error('Job completed but no audio data returned');
+    }
+
+    const uri = await saveResponseBase64(jobResult.result.base64);
+    const responseMusicList = jobResult.result.music_list || [];
+    return { responseMeditationURI: uri, responseMusicList };
   } catch (error) {
     console.error(`An error occurred in BackendMeditationCall:`, error);
-    throw error; // Re-throw the error to be handled by the caller
+    throw error;
   }
 }
 

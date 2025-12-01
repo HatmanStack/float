@@ -41,6 +41,17 @@ npm start       # Start Expo dev server
 npm run check   # Run all lint and tests
 ```
 
+### Frontend Environment
+
+Create `frontend/.env` with:
+
+```
+EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<your-api-url>
+EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
+```
+
+The `EXPO_PUBLIC_WEB_CLIENT_ID` is required for Google Sign-in on web. Get it from [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → OAuth 2.0 Client IDs → Web application.
+
 ## Deployment
 
 ```bash

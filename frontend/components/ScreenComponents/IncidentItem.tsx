@@ -31,6 +31,7 @@ const IncidentItem = ({
   const colorAnim = useRef(new Animated.Value(0));
   const animValueRef = useRef<any>(null);
   const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
+  const [animReady, setAnimReady] = useState(false);
   const colorChangeDuration = 500;
 
   useEffect(() => {
@@ -42,6 +43,7 @@ const IncidentItem = ({
 
     // Set static color for non-animated components
     setStaticBackgroundColor(colors[0] || '#fff');
+    setAnimReady(true);
 
     const forwardAnimations = colors.map((_: any, i: any) =>
       Animated.timing(colorAnim.current, {
@@ -79,15 +81,14 @@ const IncidentItem = ({
   };
 
   // Create animated style outside of JSX to avoid ref access during render
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const animatedViewStyle = useMemo((): (ViewStyle | Animated.WithAnimatedObject<ViewStyle>)[] => {
-    // eslint-disable-next-line no-console
     const animValue = animValueRef.current;
-    if (animValue) {
+    if (animReady && animValue) {
       return [{ width: '100%' as const }, { backgroundColor: animValue }];
     }
-    return [{ width: '100%' as const }, { backgroundColor: '#fff' }];
-  }, []);
+    // Use the first color from the array as fallback
+    return [{ width: '100%' as const }, { backgroundColor: colors[0] || '#fff' }];
+  }, [colors, animReady]);
 
   return (
     <ThemedView style={styles.incidentContainer}>
@@ -111,6 +112,7 @@ const IncidentItem = ({
             <Collapsible
               title="Details"
               textType="incidentSubtitle"
+              animatedColor={animReady ? animValueRef.current : undefined}
               incidentColor={staticBackgroundColor}
               isOpen={isOpen}
               onToggle={toggleCollapsible}

@@ -4,7 +4,9 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./frontend/*"]
+      "@/*": [
+        "./frontend/*"
+      ]
     }
   },
   "include": [
@@ -12,8 +14,10 @@
     "frontend/**/*.tsx",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    ".expo/types/**/*.ts",
     "frontend/expo-env.d.ts"
   ],
-  "exclude": ["node_modules", "backend"]
+  "exclude": [
+    "node_modules",
+    "backend"
+  ]
 }

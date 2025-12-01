@@ -42,6 +42,10 @@ Parameters:
     Description: Comma-separated list of production origins for CORS (e.g., https://float-app.fun)
     Default: ''
 
+  FfmpegLayerArn:
+    Type: String
+    Description: ARN of the ffmpeg Lambda layer (auto-created by deploy script)
+
 Conditions:
   IsDevMode: !Equals [!Ref IncludeDevOrigins, 'true']
   HasProductionOrigins: !Not [!Equals [!Select [0, !Ref ProductionOrigins], '']]
@@ -87,10 +91,10 @@ Resources:
       Handler: lambda_function.lambda_handler
       CodeUri: .
       Description: Float meditation and sentiment analysis handler
-      Timeout: 60
+      Timeout: 300
       MemorySize: 1024
       Layers:
-        - !Sub arn:aws:lambda:${AWS::Region}:770693421928:layer:Klayers-p313-ffmpeg:1
+        - !Ref FfmpegLayerArn
       Environment:
         Variables:
           G_KEY: !Ref GeminiApiKey
@@ -112,6 +116,10 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:float-api-${Environment}
       Events:
         ApiPost:
           Type: HttpApi
@@ -124,6 +132,18 @@ Resources:
           Properties:
             ApiId: !Ref FloatApi
             Path: /
+            Method: OPTIONS
+        ApiJobStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /job/{job_id}
+            Method: GET
+        ApiJobStatusOptions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /job/{job_id}
             Method: OPTIONS
 
   FloatFunctionLogGroup:

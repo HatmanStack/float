@@ -38,6 +38,26 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Frontend Environment
+
+Create `frontend/.env` with:
+
+```
+EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<your-api-url>
+EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
+```
+
+| Variable | Description |
+|----------|-------------|
+| `EXPO_PUBLIC_LAMBDA_FUNCTION_URL` | API Gateway URL (set automatically by `npm run deploy`) |
+| `EXPO_PUBLIC_WEB_CLIENT_ID` | Google OAuth Web Client ID for Google Sign-in on web |
+
+To get `EXPO_PUBLIC_WEB_CLIENT_ID`:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create OAuth 2.0 Client ID → Web application
+3. Add authorized JavaScript origins (e.g., `http://localhost:8081` for dev)
+4. Copy the Client ID
+
 ### Running
 
 ```bash

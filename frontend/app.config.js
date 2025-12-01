@@ -36,7 +36,7 @@ export default ({ config }) => ({
     },
     web: {
       bundler: "metro",
-      output: "static",
+      output: "single",
       favicon: "./assets/images/self_improvement_web.png"
     },
     plugins: [

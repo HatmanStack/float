@@ -37,11 +37,14 @@ export function IncidentColoring() {
 
   useEffect(() => {
     const processIncidents = async () => {
+      console.log('[IncidentColoring] Processing incidents:', incidentList.length);
       const arrayHolder: string[][] = [];
       for (const incident of incidentList) {
         if (!incident) continue;
         try {
+          console.log('[IncidentColoring] Incident:', incident.sentiment_label, incident.intensity);
           const colorSets = getColorForIncident(incident);
+          console.log('[IncidentColoring] Color sets length:', colorSets.length);
           const incidentTimestamp = new Date(incident.timestamp);
           const currentTime = getCurrentTime();
           if (!currentTime) continue;
@@ -68,11 +71,13 @@ export function IncidentColoring() {
           const endIndex = Math.min(colorKey + numberOfColorsToTransitionThrough, colorSets.length);
           const incidentBackgroundColorArray = colorSets.slice(colorKey, endIndex);
 
+          console.log('[IncidentColoring] Colors for incident:', incidentBackgroundColorArray.slice(0, 3));
           arrayHolder.push(incidentBackgroundColorArray);
         } catch (error) {
           console.error('Invalid JSON:', error);
         }
       }
+      console.log('[IncidentColoring] Final arrayHolder length:', arrayHolder.length);
       setColorChangeArrayOfArrays(arrayHolder);
     };
 

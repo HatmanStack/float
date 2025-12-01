@@ -25,6 +25,20 @@ class S3StorageService(StorageService):
             print(f"Unexpected error uploading to S3: {e}")
             return False
 
+    def download_json(self, bucket: str, key: str) -> Optional[Dict[str, Any]]:
+        try:
+            response = self.s3_client.get_object(Bucket=bucket, Key=key)
+            content = response["Body"].read().decode("utf-8")
+            return json.loads(content)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchKey":
+                return None
+            print(f"Error downloading JSON {key}: {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error downloading JSON {key}: {e}")
+            return None
+
     def download_file(self, bucket: str, key: str, local_path: str) -> bool:
         try:
             self.s3_client.download_file(bucket, key, local_path)

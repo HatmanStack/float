@@ -123,9 +123,11 @@ Invalid request type:
 }
 ```
 
-### 2. Meditation Generation
+### 2. Meditation Generation (Async)
 
-Generate a personalized meditation from selected floats (emotions/incidents).
+Generate a personalized meditation from selected floats (emotions/incidents). Uses async processing pattern due to long generation times (1-2 minutes).
+
+**Step 1: Submit Request**
 
 **Endpoint**: `POST /`
 
@@ -162,56 +164,120 @@ Generate a personalized meditation from selected floats (emotions/incidents).
 | `input_data`     | object or array | Yes      | Float data (dict or list of dicts)  |
 | `music_list`     | array           | Yes      | List of background music file names |
 
-**input_data Structure**:
-
-- Can be a single object: `{"sentiment": "...", ...}`
-- Can be an array: `[{...}, {...}]`
-- Should contain emotion/incident data for AI to process
-
 **Constraints**:
 
 - `input_data` must not be empty
 - `music_list` must not be empty
-- Maximum 3 floats recommended (more may timeout)
-- Meditation generation can take 30-60 seconds
+- Maximum 3 floats recommended
+- Meditation generation takes 1-2 minutes
 
-**Response (200 OK)**:
+**Response (200 OK)** - Job Created:
 
 ```json
 {
   "statusCode": 200,
   "body": {
-    "request_id": "req_xyz789abc123",
-    "user_id": "user@example.com",
-    "base64_audio": "SUQzBAAAAAAAI1...(long base64 string)...==",
-    "duration": 1245,
-    "music_list": ["rain.mp3", "forest.mp3"],
-    "title": "Finding Calm in the Storm",
-    "timestamp": "2024-10-31T12:45:00Z"
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "status": "pending",
+    "message": "Meditation generation started. Poll /job/{job_id} for status."
   }
 }
 ```
 
-**Response Fields**:
+**Step 2: Poll for Status**
 
-| Field          | Type   | Description                                      |
-| -------------- | ------ | ------------------------------------------------ |
-| `request_id`   | string | Unique request identifier                        |
-| `user_id`      | string | Echo of user ID                                  |
-| `base64_audio` | string | Complete meditation audio in base64 (MP3 format) |
-| `duration`     | number | Audio duration in seconds                        |
-| `music_list`   | array  | Background music files used                      |
-| `title`        | string | AI-generated meditation title                    |
-| `timestamp`    | string | ISO 8601 timestamp of generation                 |
+**Endpoint**: `GET /job/{job_id}?user_id={user_id}`
+
+**Response (Job Pending/Processing)**:
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "user_id": "user@example.com",
+    "status": "processing",
+    "created_at": "2024-10-31T12:34:56Z",
+    "updated_at": "2024-10-31T12:35:00Z"
+  }
+}
+```
+
+**Response (Job Completed)**:
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "user_id": "user@example.com",
+    "status": "completed",
+    "result": {
+      "request_id": "req_xyz789abc123",
+      "user_id": "user@example.com",
+      "base64": "SUQzBAAAAAAAI1...(long base64 string)...==",
+      "music_list": ["rain.mp3", "forest.mp3"]
+    }
+  }
+}
+```
+
+**Response (Job Failed)**:
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "status": "failed",
+    "error": "Failed to generate speech audio"
+  }
+}
+```
+
+**Job Status Values**:
+
+| Status       | Description                           |
+| ------------ | ------------------------------------- |
+| `pending`    | Job created, not yet started          |
+| `processing` | AI/TTS generation in progress         |
+| `completed`  | Audio ready in `result.base64`        |
+| `failed`     | Generation failed, see `error` field  |
 
 **Client Usage**:
 
 ```typescript
-// Decode base64 and play
-const audioBuffer = base64Audio; // Already available
-const blob = Blob.from([Buffer.from(audioBuffer, 'base64')], { type: 'audio/mp3' });
-const audioUrl = URL.createObjectURL(blob);
-// Play in audio player
+async function generateMeditation(userId, floats, musicList) {
+  // Step 1: Submit job
+  const submitResponse = await fetch(LAMBDA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      inference_type: 'meditation',
+      input_data: { floats },
+      music_list: musicList,
+    }),
+  });
+  const { job_id } = await submitResponse.json();
+
+  // Step 2: Poll for completion
+  while (true) {
+    const statusResponse = await fetch(
+      `${LAMBDA_URL}/job/${job_id}?user_id=${userId}`
+    );
+    const job = await statusResponse.json();
+
+    if (job.status === 'completed') {
+      return job.result;
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Poll every 3s
+  }
+}
 ```
 
 **Error Examples**:
@@ -228,14 +294,13 @@ Invalid meditation data:
 }
 ```
 
-Processing timeout (meditation too complex):
+Job not found:
 
 ```json
 {
-  "statusCode": 500,
+  "statusCode": 404,
   "body": {
-    "error": "Meditation generation failed",
-    "details": "Processing took too long. Try with fewer floats."
+    "error": "Job 6723b3ea-a86f-4364-846e-69598adb82aa not found"
   }
 }
 ```
