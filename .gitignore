@@ -34,6 +34,12 @@ yarn.lock
 .aws-sam/
 .deploy-config.json
 
+# Large media files (use external storage)
+*.mp3
+*.wav
+*.mp4
+*.gif
+
 # Python
 __pycache__/
 *.pyc
