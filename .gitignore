@@ -33,6 +33,7 @@ yarn.lock
 # AWS SAM
 .aws-sam/
 .deploy-config.json
+samconfig.toml
 
 # Large media files (use external storage)
 *.mp3
