@@ -6,5 +6,7 @@ openai
 pydantic>=2.0
 pydub>=0.25.0
 python-dotenv>=1.0.0
-requests>=2.30.0
+requests>=2.32.0
+urllib3>=2.3.0
+protobuf>=5.29.4
 jinja2
