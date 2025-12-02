@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { PropsWithChildren, useMemo } from 'react';
-import { Animated, StyleSheet, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Animated, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,7 +12,8 @@ import { Colors } from '@/constants/Colors';
 interface CollapsibleProps extends PropsWithChildren {
   title: string;
   incidentColor?: string;
-  animatedColor?: Animated.AnimatedInterpolation<string | number>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  animatedColor?: Animated.AnimatedInterpolation<any>;
   textType?: 'subtitle' | 'incidentSubtitle';
   isOpen: boolean;
   onToggle: () => void;
@@ -43,15 +44,29 @@ export function Collapsible({
   const theme = useColorScheme() ?? 'light';
   const iconColor = useCollapsibleIconColor(textType, theme);
 
-  // Use animated color if provided, otherwise fall back to static color
-  const useAnimated = !!animatedColor;
-  const ContainerComponent = useAnimated ? Animated.View : ThemedView;
-  const backgroundStyle = useAnimated
-    ? { backgroundColor: animatedColor }
-    : { backgroundColor: incidentColor };
+  // Use animated view if animatedColor is provided
+  if (animatedColor) {
+    return (
+      <Animated.View style={{ backgroundColor: animatedColor }}>
+        <TouchableOpacity style={styles.heading} onPress={onToggle} activeOpacity={0.8}>
+          <Ionicons
+            name={isOpen ? 'chevron-down' : 'chevron-forward-outline'}
+            size={18}
+            color={iconColor}
+          />
+          <ThemedText type={textType ? textType : 'subtitle'}>{title}</ThemedText>
+        </TouchableOpacity>
+        {isOpen && (
+          <Animated.View style={[styles.content, { backgroundColor: animatedColor }]}>
+            {children}
+          </Animated.View>
+        )}
+      </Animated.View>
+    );
+  }
 
   return (
-    <ContainerComponent style={backgroundStyle}>
+    <ThemedView style={{ backgroundColor: incidentColor }}>
       <TouchableOpacity style={styles.heading} onPress={onToggle} activeOpacity={0.8}>
         <Ionicons
           name={isOpen ? 'chevron-down' : 'chevron-forward-outline'}
@@ -61,11 +76,11 @@ export function Collapsible({
         <ThemedText type={textType ? textType : 'subtitle'}>{title}</ThemedText>
       </TouchableOpacity>
       {isOpen && (
-        <ContainerComponent style={[styles.content, backgroundStyle]}>
+        <ThemedView style={[styles.content, { backgroundColor: incidentColor }]}>
           {children}
-        </ContainerComponent>
+        </ThemedView>
       )}
-    </ContainerComponent>
+    </ThemedView>
   );
 }
 

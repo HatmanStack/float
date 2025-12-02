@@ -1,5 +1,4 @@
 """Async job management for long-running tasks."""
-import json
 import uuid
 from datetime import datetime
 from enum import Enum
