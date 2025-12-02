@@ -1,10 +1,20 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Animated, Pressable, ViewStyle } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Animated, Pressable } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Collapsible } from '@/components/Collapsible';
 import { ThemedView } from '@/components/ThemedView';
-import { useIncident } from '@/context/IncidentContext';
+import { useIncident, Incident } from '@/context/IncidentContext';
 import useStyles from '@/constants/StylesConstants';
+
+interface IncidentItemProps {
+  renderKey: string;
+  incident: Incident;
+  index: number;
+  selectedIndexes: number[];
+  handlePress: (index: number) => () => void;
+  isOpen: boolean;
+  toggleCollapsible: () => void;
+}
 
 const IncidentItem = ({
   renderKey,
@@ -14,7 +24,7 @@ const IncidentItem = ({
   handlePress,
   isOpen,
   toggleCollapsible,
-}: any) => {
+}: IncidentItemProps) => {
   const timestamp = new Date(incident.timestamp).toLocaleString();
   const { colorChangeArrayOfArrays } = useIncident();
   const displayText = selectedIndexes.includes(index)
@@ -22,39 +32,39 @@ const IncidentItem = ({
     : `${incident.user_short_summary} - ${timestamp}`;
   const [isSwiping, setIsSwiping] = useState(false);
   const styles = useStyles();
+
   const colors = useMemo(() => {
     if (Array.isArray(colorChangeArrayOfArrays) && colorChangeArrayOfArrays[index]?.length >= 2) {
       return colorChangeArrayOfArrays[index];
     }
     return ['#fff', '#fff'];
   }, [colorChangeArrayOfArrays, index]);
-  const colorAnim = useRef(new Animated.Value(0));
-  const animValueRef = useRef<any>(null);
-  const [staticBackgroundColor, setStaticBackgroundColor] = useState(colors[0] || '#fff');
-  const [animReady, setAnimReady] = useState(false);
+
+  const colorAnim = useMemo(() => new Animated.Value(0), []);
+  const staticBackgroundColor = colors[0] || '#fff';
   const colorChangeDuration = 500;
 
+  // Create animated interpolation - useMemo is acceptable here since colorAnim is stable
+  const animatedColor = useMemo(
+    () =>
+      colorAnim.interpolate({
+        inputRange: colors.map((_, i) => i),
+        outputRange: colors,
+      }),
+    [colorAnim, colors]
+  );
+
   useEffect(() => {
-    // Create animated interpolation inside effect to avoid render-time interpolation
-    animValueRef.current = colorAnim.current.interpolate({
-      inputRange: colors.map((_: any, i: any) => i),
-      outputRange: colors,
-    });
-
-    // Set static color for non-animated components
-    setStaticBackgroundColor(colors[0] || '#fff');
-    setAnimReady(true);
-
-    const forwardAnimations = colors.map((_: any, i: any) =>
-      Animated.timing(colorAnim.current, {
+    const forwardAnimations = colors.map((_, i) =>
+      Animated.timing(colorAnim, {
         toValue: i,
         duration: colorChangeDuration,
         useNativeDriver: false,
       })
     );
 
-    const reverseAnimations = colors.map((_: any, i: any) =>
-      Animated.timing(colorAnim.current, {
+    const reverseAnimations = colors.map((_, i) =>
+      Animated.timing(colorAnim, {
         toValue: colors.length - 1 - i,
         duration: colorChangeDuration,
         useNativeDriver: false,
@@ -62,7 +72,6 @@ const IncidentItem = ({
     );
 
     const animationSequence = Animated.sequence([...forwardAnimations, ...reverseAnimations]);
-
     const animationLoop = Animated.loop(animationSequence);
 
     if (!isSwiping) {
@@ -74,25 +83,15 @@ const IncidentItem = ({
     return () => {
       animationLoop.stop();
     };
-  }, [colors, isSwiping, colorChangeDuration]);
+  }, [colors, isSwiping, colorChangeDuration, colorAnim]);
 
-  const onPressHandler = (index: any) => {
-    handlePress(index)(); // Call the returned function
+  const onPressHandler = (idx: number) => {
+    handlePress(idx)();
   };
-
-  // Create animated style outside of JSX to avoid ref access during render
-  const animatedViewStyle = useMemo((): (ViewStyle | Animated.WithAnimatedObject<ViewStyle>)[] => {
-    const animValue = animValueRef.current;
-    if (animReady && animValue) {
-      return [{ width: '100%' as const }, { backgroundColor: animValue }];
-    }
-    // Use the first color from the array as fallback
-    return [{ width: '100%' as const }, { backgroundColor: colors[0] || '#fff' }];
-  }, [colors, animReady]);
 
   return (
     <ThemedView style={styles.incidentContainer}>
-      <Animated.View style={animatedViewStyle}>
+      <Animated.View style={[{ width: '100%' }, { backgroundColor: animatedColor }]}>
         <Pressable
           onPress={() => onPressHandler(index)}
           onPressIn={() => setIsSwiping(true)}
@@ -112,7 +111,7 @@ const IncidentItem = ({
             <Collapsible
               title="Details"
               textType="incidentSubtitle"
-              animatedColor={animReady ? animValueRef.current : undefined}
+              animatedColor={animatedColor}
               incidentColor={staticBackgroundColor}
               isOpen={isOpen}
               onToggle={toggleCollapsible}

@@ -214,7 +214,6 @@ export default function TabTwoScreen(): React.ReactNode {
                 handlePress={handlePress}
                 isOpen={!!openIndexes[index]}
                 toggleCollapsible={() => toggleCollapsible(index)}
-                colorChangeArrayOfArrays={colorChangeArrayOfArrays}
               />
             </Swipeable>
           );
