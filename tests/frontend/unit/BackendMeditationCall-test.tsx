@@ -19,6 +19,7 @@ import * as FileSystem from 'expo-file-system';
 
 const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';
 const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA';
+const mockJobId = 'test-job-id-123';
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -27,14 +28,29 @@ afterEach(() => {
 describe('BackendMeditationCall', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Setup default successful fetch mock
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({
-        base64: mockBase64,
-        music_list: ['music1', 'music2'],
-      }),
-    }) as jest.Mock;
+    // Setup default successful fetch mock for async job pattern
+    // First call: submit job, returns job_id
+    // Second call: poll for status, returns completed with result
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+          message: 'Meditation generation started.',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'completed',
+          result: {
+            base64: mockBase64,
+            music_list: ['music1', 'music2'],
+          },
+        }),
+      }) as jest.Mock;
   });
 
   it('should successfully invoke Lambda function and return response', async () => {
@@ -135,7 +151,7 @@ describe('BackendMeditationCall', () => {
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const payload = JSON.parse(callArgs[1].body);
 
-    expect(payload.transformed_dict).toEqual({
+    expect(payload.input_data).toEqual({
       sentiment_label: ['Happy', 'Calm'],
       intensity: [3, 1],
       speech_to_text: ['Text 1', 'Text 3'],
@@ -208,7 +224,7 @@ describe('BackendMeditationCall', () => {
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const payload = JSON.parse(callArgs[1].body);
 
-    expect(payload.transformed_dict).toEqual({
+    expect(payload.input_data).toEqual({
       sentiment_label: [],
       intensity: [],
       speech_to_text: [],
