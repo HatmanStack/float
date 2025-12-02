@@ -186,7 +186,8 @@ export function generateSamConfig(config, s3Bucket, ffmpegLayerArn) {
   ];
 
   if (config.productionOrigins) {
-    overrides.push(`ProductionOrigins="${config.productionOrigins}"`);
+    // Escape quotes for TOML embedding
+    overrides.push(`ProductionOrigins=\\"${config.productionOrigins}\\"`);
   }
 
   const parameterOverrides = overrides.join(' ');

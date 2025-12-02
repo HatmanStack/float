@@ -49,7 +49,8 @@ Parameters:
 Conditions:
   IsDevMode: !Equals [!Ref IncludeDevOrigins, 'true']
   HasProductionOrigins: !Not [!Equals [!Select [0, !Ref ProductionOrigins], '']]
-  CreateDataBucket: !Equals [!Ref Environment, 'production']
+  # Disabled - bucket already exists outside CloudFormation
+  CreateDataBucket: !Equals ['never', 'true']
 
 Globals:
   Function:

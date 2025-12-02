@@ -11,7 +11,7 @@
 <a href="https://docs.aws.amazon.com/lambda/"><img src="https://img.shields.io/badge/AWS-Lambda-green" alt="AWS Lambda" /></a>
 </h4>
 
-<p><br><a href="https://float-app.fun/">FLOAT »</a></b></p>
+<p><br><a href="https://float.hatstack.fun/">FLOAT »</a></b></p>
 </div>
 
 ## Overview
