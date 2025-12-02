@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Collapsible } from '@/components/Collapsible';
@@ -40,23 +40,22 @@ const IncidentItem = ({
     return ['#fff', '#fff'];
   }, [colorChangeArrayOfArrays, index]);
 
-  const colorAnim = useMemo(() => new Animated.Value(0), []);
+  const colorAnimRef = useRef<Animated.Value>(new Animated.Value(0));
   const staticBackgroundColor = colors[0] || '#fff';
   const colorChangeDuration = 500;
 
-  // Create animated interpolation - useMemo is acceptable here since colorAnim is stable
   const animatedColor = useMemo(
     () =>
-      colorAnim.interpolate({
+      colorAnimRef.current.interpolate({
         inputRange: colors.map((_, i) => i),
         outputRange: colors,
       }),
-    [colorAnim, colors]
+    [colors]
   );
 
   useEffect(() => {
     const forwardAnimations = colors.map((_, i) =>
-      Animated.timing(colorAnim, {
+      Animated.timing(colorAnimRef.current, {
         toValue: i,
         duration: colorChangeDuration,
         useNativeDriver: false,
@@ -64,7 +63,7 @@ const IncidentItem = ({
     );
 
     const reverseAnimations = colors.map((_, i) =>
-      Animated.timing(colorAnim, {
+      Animated.timing(colorAnimRef.current, {
         toValue: colors.length - 1 - i,
         duration: colorChangeDuration,
         useNativeDriver: false,
@@ -83,7 +82,7 @@ const IncidentItem = ({
     return () => {
       animationLoop.stop();
     };
-  }, [colors, isSwiping, colorChangeDuration, colorAnim]);
+  }, [colors, isSwiping, colorChangeDuration]);
 
   const onPressHandler = (idx: number) => {
     handlePress(idx)();
