@@ -45,8 +45,12 @@ interface JobStatusResponse {
   error?: string;
 }
 
-const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 100; // ~5 minutes max
+// Polling configuration with exponential backoff
+const INITIAL_POLL_INTERVAL_MS = 1000; // Start with 1 second
+const MAX_POLL_INTERVAL_MS = 30000; // Cap at 30 seconds
+const BACKOFF_MULTIPLIER = 1.5; // Increase by 50% each time
+const JITTER_FACTOR = 0.2; // Add up to 20% random jitter
+const MAX_TOTAL_WAIT_MS = 5 * 60 * 1000; // 5 minutes max total wait
 
 const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): TransformedDict => {
   const transformedDict: TransformedDict = {
@@ -76,7 +80,19 @@ const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 // LAMBDA_FUNCTION_URL validated at runtime in BackendMeditationCall
 
 /**
- * Poll for job status until completed or failed
+ * Calculate next poll interval with exponential backoff and jitter.
+ * Jitter helps prevent thundering herd when multiple clients poll simultaneously.
+ */
+function getNextPollInterval(currentInterval: number): number {
+  const nextInterval = Math.min(currentInterval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL_MS);
+  // Add random jitter: interval * (1 + random(-JITTER_FACTOR, +JITTER_FACTOR))
+  const jitter = nextInterval * JITTER_FACTOR * (Math.random() * 2 - 1);
+  return Math.round(nextInterval + jitter);
+}
+
+/**
+ * Poll for job status until completed or failed.
+ * Uses exponential backoff to reduce server load and battery drain.
  */
 async function pollJobStatus(
   jobId: string,
@@ -86,8 +102,15 @@ async function pollJobStatus(
   const baseUrl = lambdaUrl.replace(/\/$/, '');
   const statusUrl = `${baseUrl}/job/${jobId}?user_id=${encodeURIComponent(userId)}`;
 
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    console.log(`Polling job ${jobId}, attempt ${attempt + 1}/${MAX_POLL_ATTEMPTS}`);
+  const startTime = Date.now();
+  let pollInterval = INITIAL_POLL_INTERVAL_MS;
+  let attempt = 0;
+
+  while (Date.now() - startTime < MAX_TOTAL_WAIT_MS) {
+    attempt++;
+    console.log(
+      `Polling job ${jobId}, attempt ${attempt}, interval ${Math.round(pollInterval)}ms`
+    );
 
     const response = await fetch(statusUrl, {
       method: 'GET',
@@ -109,8 +132,9 @@ async function pollJobStatus(
       throw new Error(jobData.error || 'Meditation generation failed');
     }
 
-    // Wait before next poll
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    // Wait with exponential backoff before next poll
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    pollInterval = getNextPollInterval(pollInterval);
   }
 
   throw new Error('Meditation generation timed out');

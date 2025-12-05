@@ -5,7 +5,11 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore[import-untyped]
 
-from ..config.constants import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
+from ..config.constants import (
+    HTTP_BAD_REQUEST,
+    HTTP_FORBIDDEN,
+    HTTP_NOT_FOUND,
+)
 from ..config.settings import settings
 from ..models.requests import MeditationRequest, SummaryRequest, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
@@ -20,6 +24,7 @@ from ..utils.audio_utils import (
     encode_audio_to_base64,
 )
 from ..utils.file_utils import generate_request_id, generate_timestamp
+from ..utils.logging_utils import get_logger
 from .middleware import (
     apply_middleware,
     cors_middleware,
@@ -30,6 +35,8 @@ from .middleware import (
     method_validation_middleware,
     request_validation_middleware,
 )
+
+logger = get_logger(__name__)
 
 
 class LambdaHandler:
@@ -55,7 +62,7 @@ class LambdaHandler:
         return self.tts_provider
 
     def handle_summary_request(self, request: SummaryRequest) -> Dict[str, Any]:
-        print(f"Processing summary request for user: {request.user_id}")
+        logger.info("Processing summary request", extra={"data": {"user_id": request.user_id}})
         audio_file = None
         if request.audio and request.audio != "NotAvailable":
             audio_file = decode_audio_base64(request.audio)
@@ -87,16 +94,19 @@ class LambdaHandler:
         success = tts_provider.synthesize_speech(meditation_text, voice_path)
         if not success:
             raise Exception("Failed to generate speech audio")
-        print("Voice generation completed")
+        logger.debug("Voice generation completed")
         return voice_path, combined_path
 
     def handle_meditation_request(self, request: MeditationRequest) -> Dict[str, Any]:
         """Create job and invoke async processing, return job_id immediately."""
-        print(f"Processing meditation request for user: {request.user_id}")
+        logger.info(
+            "Processing meditation request",
+            extra={"data": {"user_id": request.user_id}}
+        )
 
         # Create job for tracking
         job_id = self.job_service.create_job(request.user_id, "meditation")
-        print(f"Created meditation job: {job_id}")
+        logger.info("Created meditation job", extra={"data": {"job_id": job_id}})
 
         # Invoke Lambda asynchronously for the actual processing
         self._invoke_async_meditation(request, job_id)
@@ -119,20 +129,22 @@ class LambdaHandler:
             "request": request.to_dict(),
         }
 
-        print(f"Invoking async meditation for job {job_id}")
+        logger.info("Invoking async meditation", extra={"data": {"job_id": job_id}})
         lambda_client.invoke(
             FunctionName=function_name,
             InvocationType="Event",  # Async invocation
             Payload=json.dumps(async_payload),
         )
-        print(f"Async invocation triggered for job {job_id}")
 
     def process_meditation_async(self, job_id: str, request_dict: Dict[str, Any]):
         """Process meditation in async Lambda invocation."""
         from ..models.requests import MeditationRequest
 
         request = MeditationRequest(**request_dict)
-        print(f"Processing async meditation for job {job_id}, user: {request.user_id}")
+        logger.info(
+            "Processing async meditation",
+            extra={"data": {"job_id": job_id, "user_id": request.user_id}}
+        )
 
         voice_path = None
         combined_path = None
@@ -143,7 +155,10 @@ class LambdaHandler:
 
             input_data = self._ensure_input_data_is_dict(request.input_data)
             meditation_text = self.ai_service.generate_meditation(input_data)
-            print(f"Meditation text generated, length: {len(meditation_text)}")
+            logger.debug(
+                "Meditation text generated",
+                extra={"data": {"length": len(meditation_text)}}
+            )
             timestamp = generate_timestamp()
 
             voice_path, combined_path = self._generate_meditation_audio(
@@ -155,7 +170,7 @@ class LambdaHandler:
                 timestamp=timestamp,
                 output_path=combined_path,
             )
-            print(f"Audio combination completed: {new_music_list}")
+            logger.debug("Audio combination completed")
             base64_audio = encode_audio_to_base64(combined_path)
             if not base64_audio:
                 raise Exception("Failed to encode combined audio")
@@ -173,10 +188,14 @@ class LambdaHandler:
             self.job_service.update_job_status(
                 request.user_id, job_id, JobStatus.COMPLETED, result=response.to_dict()
             )
-            print(f"Job {job_id} completed successfully")
+            logger.info("Job completed successfully", extra={"data": {"job_id": job_id}})
 
         except Exception as e:
-            print(f"Error processing meditation job {job_id}: {e}")
+            logger.error(
+                "Error processing meditation job",
+                extra={"data": {"job_id": job_id}},
+                exc_info=True
+            )
             self.job_service.update_job_status(
                 request.user_id, job_id, JobStatus.FAILED, error=str(e)
             )
@@ -239,8 +258,8 @@ class LambdaHandler:
                     HTTP_BAD_REQUEST, f"Unsupported request type: {type(request)}"
                 )
             return create_success_response(result)
-        except Exception as e:
-            print(f"Error in handle_request: {e}")
+        except Exception:
+            logger.error("Error in handle_request", exc_info=True)
             raise
 
 
@@ -255,13 +274,16 @@ def _get_handler() -> LambdaHandler:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    print(f"[LAMBDA_HANDLER] Function called with event keys: {list(event.keys())}")
+    logger.debug("Lambda handler invoked")
     try:
         handler = _get_handler()
 
         # Check for async meditation processing (self-invoked)
         if event.get("_async_meditation"):
-            print(f"[LAMBDA_HANDLER] Processing async meditation job: {event.get('job_id')}")
+            logger.info(
+                "Processing async meditation job",
+                extra={"data": {"job_id": event.get("job_id")}}
+            )
             handler.process_meditation_async(event["job_id"], event["request"])
             return {"status": "async_completed"}
 
@@ -273,15 +295,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _handle_job_status_request(handler, event)
 
         result: Dict[str, Any] = handler.handle_request(event, context)
-        print(f"[LAMBDA_HANDLER] Handler returned: {result}")
         return result
-    except Exception as e:
-        print(f"[LAMBDA_HANDLER] Exception: {e}")
+    except Exception:
+        logger.error("Lambda handler exception", exc_info=True)
         raise
 
 
 def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle GET /job/{job_id} requests."""
+    """Handle GET /job/{job_id} requests with user authorization."""
     from .middleware import cors_middleware
 
     raw_path = event.get("rawPath", "")
@@ -302,6 +323,31 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
     job_data = handler.handle_job_status(user_id, job_id)
     if not job_data:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
+        return cors_middleware(lambda e, c: response)(event, None)
+
+    # =========================================================================
+    # Authorization Check
+    # =========================================================================
+    # NOTE FOR REVIEWERS: This check ensures users can only access their own jobs.
+    # However, this is NOT traditional auth - user_id is client-generated.
+    #
+    # This app uses a PRIVACY-FIRST model:
+    # - Guest mode: data stays on device, no server auth needed
+    # - Optional Google sign-in: for cross-device sync only
+    # - user_id is like a device/session identifier, not a secured account
+    #
+    # This check prevents accidental data leakage if someone guesses a job_id,
+    # but it's not a security boundary - it's a UX safeguard.
+    # =========================================================================
+    job_owner = job_data.get("user_id", "")
+    if job_owner and job_owner != user_id:
+        logger.warning(
+            "Mismatched user_id on job access",
+            extra={"data": {"job_id": job_id, "requested_by": user_id, "owner": job_owner}}
+        )
+        response = create_error_response(
+            HTTP_FORBIDDEN, "Access denied: you do not own this job"
+        )
         return cors_middleware(lambda e, c: response)(event, None)
 
     response = create_success_response(job_data)

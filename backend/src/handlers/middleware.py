@@ -10,6 +10,9 @@ from ..config.constants import (
     HTTP_OK,
 )
 from ..models.responses import ErrorResponse
+from ..utils.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def cors_middleware(
@@ -18,6 +21,7 @@ def cors_middleware(
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         method = event.get("requestContext", {}).get("http", {}).get("method", "")
+
         if method == "OPTIONS":
             return {
                 "statusCode": HTTP_OK,
@@ -43,14 +47,13 @@ def json_middleware(
             if method == "OPTIONS":
                 event["parsed_body"] = {}
                 return handler(event, context)
-            print(f"[JSON_MIDDLEWARE] Raw event: {event}")
-            print(f"[JSON_MIDDLEWARE] Event keys: {list(event.keys())}")
+
             if "body" in event and event["body"]:
                 try:
                     event["parsed_body"] = json.loads(event["body"])
-                    print(f"[JSON_MIDDLEWARE] Parsed from body: {event['parsed_body']}")
+                    logger.debug("Parsed JSON body successfully")
                 except json.JSONDecodeError as e:
-                    print(f"[JSON_MIDDLEWARE] JSON decode error: {e}")
+                    logger.warning("JSON decode error", extra={"data": {"error": str(e)}})
                     return create_error_response(
                         HTTP_BAD_REQUEST, f"Invalid JSON: {str(e)}"
                     )
@@ -66,18 +69,15 @@ def json_middleware(
                         "queryStringParameters",
                     ]
                 }
-                print(
-                    f"[JSON_MIDDLEWARE] Direct invocation, using event data: {event['parsed_body']}"
-                )
+                logger.debug("Direct Lambda invocation detected")
             else:
-                print("[JSON_MIDDLEWARE] No body or direct data found in event")
                 event["parsed_body"] = {}
             return handler(event, context)
-        except Exception as e:
-            print(f"Unexpected error in json_middleware: {e}")
+        except Exception:
+            logger.error("Unexpected error in json_middleware", exc_info=True)
             return create_error_response(
                 HTTP_INTERNAL_SERVER_ERROR,
-                f"Internal server error: {str(e)}",
+                "Internal server error",
             )
 
     return wrapper
@@ -93,19 +93,17 @@ def method_validation_middleware(
         def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             method = event.get("requestContext", {}).get("http", {}).get("method", "")
             if not event.get("requestContext"):
-                print(
-                    "[METHOD_VALIDATION] Direct Lambda invocation - skipping method validation"
-                )
+                # Direct Lambda invocation - skip method validation
                 return handler(event, context)
             if method not in allowed_methods and method != "OPTIONS":
-                print(
-                    f"[METHOD_VALIDATION] Method {method} not allowed. Allowed: {allowed_methods}"
+                logger.info(
+                    "Method not allowed",
+                    extra={"data": {"method": method, "allowed": allowed_methods}}
                 )
                 return create_error_response(
                     HTTP_METHOD_NOT_ALLOWED,
                     f"Method {method} not allowed. Allowed methods: {', '.join(allowed_methods)}",
                 )
-            print(f"[METHOD_VALIDATION] Method {method} allowed")
             return handler(event, context)
 
         return wrapper
@@ -123,26 +121,23 @@ def request_validation_middleware(
             if method == "OPTIONS":
                 return handler(event, context)
             parsed_body = event.get("parsed_body", {})
-            print(f"[REQUEST_VALIDATION] Event keys: {list(event.keys())}")
-            print(f"[REQUEST_VALIDATION] Parsed body: {parsed_body}")
-            print(
-                f"[REQUEST_VALIDATION] user_id in parsed_body: {parsed_body.get('user_id')}"
-            )
+
             if not parsed_body.get("user_id"):
-                print("[REQUEST_VALIDATION] FAILED - user_id not found in parsed_body")
+                logger.info("Request validation failed: missing user_id")
                 return create_error_response(
                     HTTP_BAD_REQUEST, "Missing required field: user_id"
                 )
             if not parsed_body.get("inference_type"):
+                logger.info("Request validation failed: missing inference_type")
                 return create_error_response(
                     HTTP_BAD_REQUEST, "Missing required field: inference_type"
                 )
             return handler(event, context)
-        except Exception as e:
-            print(f"Error in request validation: {e}")
+        except Exception:
+            logger.error("Request validation error", exc_info=True)
             return create_error_response(
                 HTTP_INTERNAL_SERVER_ERROR,
-                f"Request validation error: {str(e)}",
+                "Request validation error",
             )
 
     return wrapper
@@ -156,10 +151,10 @@ def error_handling_middleware(
         try:
             return handler(event, context)
         except ValueError as e:
-            print(f"ValueError in handler: {e}")
+            logger.warning("ValueError in handler", extra={"data": {"error": str(e)}})
             return create_error_response(HTTP_BAD_REQUEST, str(e))
-        except Exception as e:
-            print(f"Unexpected error in handler: {e}")
+        except Exception:
+            logger.error("Unexpected error in handler", exc_info=True)
             return create_error_response(
                 HTTP_INTERNAL_SERVER_ERROR, "An unexpected error occurred"
             )
@@ -168,7 +163,9 @@ def error_handling_middleware(
 
 
 def create_error_response(
-    status_code: int, error_message: str, details: Optional[str] = None
+    status_code: int,
+    error_message: str,
+    details: Optional[str] = None,
 ) -> Dict[str, Any]:
     error_response = ErrorResponse(error=error_message, details=details)
     return {
@@ -179,7 +176,11 @@ def create_error_response(
 
 
 def create_success_response(data: Dict[str, Any]) -> Dict[str, Any]:
-    return {"statusCode": HTTP_OK, "headers": CORS_HEADERS, "body": json.dumps(data)}
+    return {
+        "statusCode": HTTP_OK,
+        "headers": CORS_HEADERS,
+        "body": json.dumps(data),
+    }
 
 
 def apply_middleware(*middleware_functions):
@@ -187,22 +188,12 @@ def apply_middleware(*middleware_functions):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, event, context, *args, **kwargs):
-            print(
-                f"[APPLY_MIDDLEWARE] Starting middleware chain with {len(middleware_functions)} middleware"
-            )
-
             def bound_handler(evt, ctx):
-                print("[APPLY_MIDDLEWARE] Calling final handler")
                 return func(self, evt, ctx, *args, **kwargs)
 
             wrapped = bound_handler
-            for i, middleware in enumerate(reversed(middleware_functions)):
-                middleware_name = getattr(middleware, "__name__", str(middleware))
-                print(
-                    f"[APPLY_MIDDLEWARE] Applying middleware {i+1}: {middleware_name}"
-                )
+            for middleware in reversed(middleware_functions):
                 wrapped = middleware(wrapped)
-            print("[APPLY_MIDDLEWARE] Executing middleware chain")
             return wrapped(event, context)
 
         return wrapper

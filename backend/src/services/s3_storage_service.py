@@ -4,7 +4,10 @@ from typing import Any, Dict, List, Optional
 import boto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
+from ..utils.logging_utils import get_logger
 from .storage_service import StorageService
+
+logger = get_logger(__name__)
 
 
 class S3StorageService(StorageService):
@@ -16,13 +19,13 @@ class S3StorageService(StorageService):
         try:
             json_data = json.dumps(data)
             self.s3_client.put_object(Bucket=bucket, Key=key, Body=json_data)
-            print(f"Successfully uploaded {key} to {bucket}")
+            logger.debug("Uploaded to S3", extra={"data": {"bucket": bucket, "key": key}})
             return True
         except ClientError as e:
-            print(f"Error uploading to S3: {e}")
+            logger.error("Error uploading to S3", extra={"data": {"error": str(e)}})
             return False
-        except Exception as e:
-            print(f"Unexpected error uploading to S3: {e}")
+        except Exception:
+            logger.error("Unexpected error uploading to S3", exc_info=True)
             return False
 
     def download_json(self, bucket: str, key: str) -> Optional[Dict[str, Any]]:
@@ -33,22 +36,47 @@ class S3StorageService(StorageService):
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
                 return None
-            print(f"Error downloading JSON {key}: {e}")
+            logger.error(
+                "Error downloading JSON",
+                extra={"data": {"key": key, "error": str(e)}}
+            )
             return None
-        except Exception as e:
-            print(f"Unexpected error downloading JSON {key}: {e}")
+        except Exception:
+            logger.error("Unexpected error downloading JSON", exc_info=True)
             return None
 
     def download_file(self, bucket: str, key: str, local_path: str) -> bool:
         try:
             self.s3_client.download_file(bucket, key, local_path)
-            print(f"File downloaded successfully: {key} -> {local_path}")
+            logger.debug(
+                "File downloaded",
+                extra={"data": {"key": key, "local_path": local_path}}
+            )
             return True
         except ClientError as e:
-            print(f"Error downloading file {key}: {e}")
+            logger.error(
+                "Error downloading file",
+                extra={"data": {"key": key, "error": str(e)}}
+            )
             return False
-        except Exception as e:
-            print(f"Unexpected error downloading file {key}: {e}")
+        except Exception:
+            logger.error("Unexpected error downloading file", exc_info=True)
+            return False
+
+    def delete_object(self, bucket: str, key: str) -> bool:
+        """Delete an object from S3."""
+        try:
+            self.s3_client.delete_object(Bucket=bucket, Key=key)
+            logger.debug("Deleted from S3", extra={"data": {"bucket": bucket, "key": key}})
+            return True
+        except ClientError as e:
+            logger.error(
+                "Error deleting from S3",
+                extra={"data": {"key": key, "error": str(e)}}
+            )
+            return False
+        except Exception:
+            logger.error("Unexpected error deleting from S3", exc_info=True)
             return False
 
     def list_objects(self, bucket: str, prefix: Optional[str] = None) -> List[str]:
@@ -62,8 +90,11 @@ class S3StorageService(StorageService):
             else:
                 return []
         except ClientError as e:
-            print(f"Error listing objects in bucket {bucket}: {e}")
+            logger.error(
+                "Error listing objects",
+                extra={"data": {"bucket": bucket, "error": str(e)}}
+            )
             return []
-        except Exception as e:
-            print(f"Unexpected error listing objects in bucket {bucket}: {e}")
+        except Exception:
+            logger.error("Unexpected error listing objects", exc_info=True)
             return []

@@ -4,6 +4,25 @@ import { Platform } from 'react-native';
 const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 
 /**
+ * Notification timing configuration.
+ *
+ * Formula: (BASE_HOURS * intensity) / DIVISOR * SECONDS_PER_HOUR
+ *
+ * With BASE_HOURS=38, DIVISOR=4:
+ * - Intensity 1: ~9.5 hours
+ * - Intensity 2: ~19 hours
+ * - Intensity 3: ~28.5 hours
+ * - Intensity 4: ~38 hours
+ * - Intensity 5: ~47.5 hours
+ *
+ * Rationale: Higher intensity emotions take longer to process,
+ * so we delay the follow-up notification accordingly.
+ */
+const NOTIFICATION_BASE_HOURS = 38;
+const NOTIFICATION_DIVISOR = 4;
+const SECONDS_PER_HOUR = 60 * 60;
+
+/**
  * Summary response structure from backend
  */
 interface SummaryResponse {
@@ -29,16 +48,20 @@ interface SummaryPayload {
 }
 
 /**
- * Schedules a push notification based on sentiment and intensity
+ * Schedules a push notification based on sentiment and intensity.
+ *
+ * The notification timing scales with intensity - higher intensity emotions
+ * get longer delays before we check back in with the user.
  */
 async function schedulePushNotification(sentiment: string, intensity: number): Promise<string> {
-  const timeToWait = ((38 * intensity) / 4) * 60 * 60;
+  const timeToWait =
+    ((NOTIFICATION_BASE_HOURS * intensity) / NOTIFICATION_DIVISOR) * SECONDS_PER_HOUR;
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: `Are you still ${sentiment}?`,
       body: 'Float',
-      data: { data: 'goes here' },
+      data: { sentiment, intensity },
     },
     trigger: { type: 'time' as const, seconds: Math.ceil(timeToWait) } as any,
   });
