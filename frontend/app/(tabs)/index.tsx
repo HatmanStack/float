@@ -8,8 +8,8 @@ import RecordButton from '@/components/ScreenComponents/RecordButton';
 import SubmitButton from '@/components/ScreenComponents/SubmitButton';
 import { StartRecording, StopRecording } from '@/components/AudioRecording';
 import FloatNotifications from '@/components/Notifications';
-import { BackendSummaryCall } from '@/components/BackendSummaryCall';
-import { useIncident } from '@/context/IncidentContext';
+import { BackendSummaryCall, SummaryResponse } from '@/components/BackendSummaryCall';
+import { useIncident, Incident } from '@/context/IncidentContext';
 import { Audio } from 'expo-av';
 import useStyles from '@/constants/StylesConstants';
 import { Platform, useWindowDimensions } from 'react-native';
@@ -95,7 +95,7 @@ function useSummarySubmission(
           return;
         }
         try {
-          let response: any;
+          let response: SummaryResponse;
           if (recording) {
             const base64_file = await StopRecording(recording);
             response = await BackendSummaryCall(
@@ -105,13 +105,14 @@ function useSummarySubmission(
             );
           } else {
             response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
-          }          setIncidentList((prevList) => [response, ...prevList]);
+          }
+          setIncidentList((prevList) => [response as Incident, ...prevList]);
           onSubmitSuccess();
         } catch (error) {
           console.error('Failed to call summary lambda:', error);
         } finally {
           setSubmitActivity(false);
-          router.push('/explore' as any);
+          router.push('/explore');
         }
       };
 

@@ -10,6 +10,15 @@ jest.mock('expo-av', () => ({
     Recording: {
       createAsync: jest.fn(),
     },
+    AndroidOutputFormat: {
+      MPEG_4: 2,
+    },
+    AndroidAudioEncoder: {
+      AAC: 3,
+    },
+    IOSAudioQuality: {
+      HIGH: 127,
+    },
   },
 }));
 
@@ -83,7 +92,7 @@ describe('AudioRecording', () => {
         expect.objectContaining({
           ios: expect.objectContaining({
             extension: '.wav',
-            audioQuality: 'high',
+            audioQuality: Audio.IOSAudioQuality.HIGH,
             sampleRate: 44100,
             numberOfChannels: 2,
             bitRate: 128000,
@@ -102,8 +111,8 @@ describe('AudioRecording', () => {
         expect.objectContaining({
           android: expect.objectContaining({
             extension: '.m4a',
-            outputFormat: 'mpeg4',
-            audioEncoder: 'aac',
+            outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+            audioEncoder: Audio.AndroidAudioEncoder.AAC,
             sampleRate: 44100,
             numberOfChannels: 2,
             bitRate: 128000,

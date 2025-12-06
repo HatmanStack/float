@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
  */
 interface IncidentData {
   sentiment_label?: string;
-  intensity?: number;
+  intensity?: number | string;
   speech_to_text?: string;
   added_text?: string;
   summary?: string;
@@ -67,7 +67,10 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
     }
 
     if (d.sentiment_label) transformedDict.sentiment_label.push(d.sentiment_label);
-    if (d.intensity !== undefined) transformedDict.intensity.push(d.intensity);
+    if (d.intensity !== undefined) {
+      const intensityNum = typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
+      transformedDict.intensity.push(intensityNum);
+    }
     if (d.speech_to_text) transformedDict.speech_to_text.push(d.speech_to_text);
     if (d.added_text) transformedDict.added_text.push(d.added_text);
     if (d.summary) transformedDict.summary.push(d.summary);
@@ -104,13 +107,8 @@ async function pollJobStatus(
 
   const startTime = Date.now();
   let pollInterval = INITIAL_POLL_INTERVAL_MS;
-  let attempt = 0;
 
   while (Date.now() - startTime < MAX_TOTAL_WAIT_MS) {
-    attempt++;
-    console.log(
-      `Polling job ${jobId}, attempt ${attempt}, interval ${Math.round(pollInterval)}ms`
-    );
 
     const response = await fetch(statusUrl, {
       method: 'GET',
@@ -122,7 +120,6 @@ async function pollJobStatus(
     }
 
     const jobData: JobStatusResponse = await response.json();
-    console.log(`Job ${jobId} status: ${jobData.status}`);
 
     if (jobData.status === 'completed') {
       return jobData;
@@ -173,14 +170,12 @@ export async function BackendMeditationCall(
     }
 
     const submitResponse = await httpResponse.json();
-    console.log('Meditation job submitted:', submitResponse);
 
     if (!submitResponse.job_id) {
       throw new Error('No job_id returned from meditation request');
     }
 
     // Step 2: Poll for job completion
-    console.log('Polling for job completion:', submitResponse.job_id);
     const jobResult = await pollJobStatus(submitResponse.job_id, userId, lambdaUrl);
 
     // Step 3: Extract result and convert to URI

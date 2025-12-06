@@ -2,6 +2,33 @@ import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 
+// Custom recording options for high quality audio
+const RECORDING_OPTIONS: Audio.RecordingOptions = {
+  isMeteringEnabled: true,
+  android: {
+    extension: '.m4a',
+    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+    audioEncoder: Audio.AndroidAudioEncoder.AAC,
+    sampleRate: 44100,
+    numberOfChannels: 2,
+    bitRate: 128000,
+  },
+  ios: {
+    extension: '.wav',
+    audioQuality: Audio.IOSAudioQuality.HIGH,
+    sampleRate: 44100,
+    numberOfChannels: 2,
+    bitRate: 128000,
+    linearPCMIsFloat: false,
+    linearPCMIsBigEndian: false,
+    linearPCMBitDepth: 16,
+  },
+  web: {
+    mimeType: 'audio/webm',
+    bitsPerSecond: 128000,
+  },
+};
+
 export async function StartRecording() {
   try {
     // Request permissions if needed
@@ -12,26 +39,8 @@ export async function StartRecording() {
     }
 
     // Create a new recording instance
-    const { recording } = await Audio.Recording.createAsync({
-      isMeteringEnabled: true,
-      android: {
-        extension: '.m4a' as any,
-        outputFormat: 'mpeg4' as any,
-        audioEncoder: 'aac' as any,
-        sampleRate: 44100,
-        numberOfChannels: 2,
-        bitRate: 128000,
-      },
-      ios: {
-        extension: '.wav' as any,
-        audioQuality: 'high' as any,
-        sampleRate: 44100,
-        numberOfChannels: 2,
-        bitRate: 128000,
-        linearPCMIsFloat: false,
-      },
-      web: {} as any,
-    });    return recording;
+    const { recording } = await Audio.Recording.createAsync(RECORDING_OPTIONS);
+    return recording;
   } catch (error) {
     console.error('Failed to start recording:', error);
   }

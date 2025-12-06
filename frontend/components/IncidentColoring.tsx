@@ -3,48 +3,46 @@ import { useEffect } from 'react';
 import { useIncident, Incident } from '@/context/IncidentContext';
 import { getCurrentTime } from '@/constants/util';
 
+const numberOfColorsToTransitionThrough = 10;
+
+const intensityMapping: Record<number | string, string> = {
+  1: 'one',
+  2: 'two',
+  3: 'three',
+  4: 'four',
+  5: 'five',
+};
+
+const intensityTotalTimes: Record<number, [number, number]> = {
+  1: [40, 600],
+  2: [70, 1050],
+  3: [110, 1650],
+  4: [150, 2250],
+  5: [190, 2850],
+};
+
+function getColorForIncident(incident: Incident): string[] {
+  const colorSet =
+    Colors[incident.sentiment_label.toLowerCase() as keyof typeof Colors] || Colors.neutral;
+  const intensityNum =
+    typeof incident.intensity === 'string'
+      ? parseInt(incident.intensity, 10)
+      : incident.intensity;
+  const colorSetKey = intensityMapping[intensityNum] || 'one';
+  const result = colorSet[colorSetKey as keyof typeof colorSet];
+  return Array.isArray(result) ? result : [];
+}
+
 export function IncidentColoring() {
   const { incidentList, setColorChangeArrayOfArrays } = useIncident();
 
-  const numberOfColorsToTransitionThrough = 10;
-
-  const intensityMapping: Record<number | string, string> = {
-    1: 'one',
-    2: 'two',
-    3: 'three',
-    4: 'four',
-    5: 'five',
-  };
-  const intensityTotalTimes: Record<number, [number, number]> = {
-    1: [40, 600],
-    2: [70, 1050],
-    3: [110, 1650],
-    4: [150, 2250],
-    5: [190, 2850],
-  };
-
-  const getColorForIncident = (incident: Incident): string[] => {
-    const colorSet =
-      Colors[incident.sentiment_label.toLowerCase() as keyof typeof Colors] || Colors.neutral;
-    const intensityNum =
-      typeof incident.intensity === 'string'
-        ? parseInt(incident.intensity, 10)
-        : incident.intensity;
-    const colorSetKey = intensityMapping[intensityNum] || 'one';
-    const result = colorSet[colorSetKey as keyof typeof colorSet];
-    return Array.isArray(result) ? result : [];
-  };
-
   useEffect(() => {
     const processIncidents = async () => {
-      console.log('[IncidentColoring] Processing incidents:', incidentList.length);
       const arrayHolder: string[][] = [];
       for (const incident of incidentList) {
         if (!incident) continue;
         try {
-          console.log('[IncidentColoring] Incident:', incident.sentiment_label, incident.intensity);
           const colorSets = getColorForIncident(incident);
-          console.log('[IncidentColoring] Color sets length:', colorSets.length);
           const incidentTimestamp = new Date(incident.timestamp);
           const currentTime = getCurrentTime();
           if (!currentTime) continue;
@@ -71,13 +69,11 @@ export function IncidentColoring() {
           const endIndex = Math.min(colorKey + numberOfColorsToTransitionThrough, colorSets.length);
           const incidentBackgroundColorArray = colorSets.slice(colorKey, endIndex);
 
-          console.log('[IncidentColoring] Colors for incident:', incidentBackgroundColorArray.slice(0, 3));
           arrayHolder.push(incidentBackgroundColorArray);
         } catch (error) {
-          console.error('Invalid JSON:', error);
+          console.error('Error processing incident colors:', error);
         }
       }
-      console.log('[IncidentColoring] Final arrayHolder length:', arrayHolder.length);
       setColorChangeArrayOfArrays(arrayHolder);
     };
 

@@ -7,7 +7,7 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { BackendMeditationCall } from '@/components/BackendMeditationCall';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useIncident } from '@/context/IncidentContext';
+import { useIncident, Incident } from '@/context/IncidentContext';
 import { useAuth } from '@/context/AuthContext';
 import Guidance from '@/components/ScreenComponents/Guidance';
 import IncidentItem from '@/components/ScreenComponents/IncidentItem';
@@ -61,7 +61,7 @@ function useCollapsibleState() {
 /**
  * Custom hook for meditation functionality
  */
-function useMeditation(selectedIndexes: number[], incidentList: any[], musicList: any[]) {
+function useMeditation(selectedIndexes: number[], incidentList: Incident[], musicList: string[]) {
   const [meditationURI, setMeditationURI] = useState('');
   const [isCalling, setIsCalling] = useState(false);
   const { setMusicList } = useIncident();

@@ -85,9 +85,14 @@ function useAuthentication() {
     } else if (Platform.OS === 'ios' || Platform.OS === 'android') {
       try {
         const userInfo = await GoogleSignin?.signIn();
-        const user = (userInfo as any)?.user as User;
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        setUser(user);
+        if (userInfo?.data?.user) {
+          const googleUser: User = {
+            id: userInfo.data.user.email ?? userInfo.data.user.id,
+            name: userInfo.data.user.name ?? 'User',
+          };
+          await AsyncStorage.setItem('user', JSON.stringify(googleUser));
+          setUser(googleUser);
+        }
       } catch (error) {
         console.error('Google sign-in error', error);
       }

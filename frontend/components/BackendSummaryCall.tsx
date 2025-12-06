@@ -25,14 +25,14 @@ const SECONDS_PER_HOUR = 60 * 60;
 /**
  * Summary response structure from backend
  */
-interface SummaryResponse {
-  sentiment_label?: string;
-  intensity?: number;
+export interface SummaryResponse {
+  sentiment_label: string;
+  intensity: number;
   speech_to_text?: string;
   added_text?: string;
   summary?: string;
   notification_id?: string;
-  timestamp?: string;
+  timestamp: string;
   color_key?: number;
 }
 
@@ -63,7 +63,7 @@ async function schedulePushNotification(sentiment: string, intensity: number): P
       body: 'Float',
       data: { sentiment, intensity },
     },
-    trigger: { type: 'time' as const, seconds: Math.ceil(timeToWait) } as any,
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.ceil(timeToWait) },
   });
   return notificationId;
 }

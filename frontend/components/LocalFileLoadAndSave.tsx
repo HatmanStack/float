@@ -24,7 +24,7 @@ export function IncidentSave() {
     };
 
     loadIncidentList();
-  }, []);
+  }, [setIncidentList, setMusicList]);
 
   useEffect(() => {
     const saveIncidentList = async () => {
