@@ -66,11 +66,11 @@ Implement server-side HLS streaming infrastructure. The Lambda function will gen
    - Existing job polling logic should not break
 
 **Verification Checklist**:
-- [ ] New job created with streaming fields initialized to null/false
-- [ ] `update_streaming_progress` correctly increments segment count
-- [ ] Job status transitions work correctly
-- [ ] Serialization to/from JSON works for all new fields
-- [ ] Existing tests still pass
+- [x] New job created with streaming fields initialized to null/false
+- [x] `update_streaming_progress` correctly increments segment count
+- [x] Job status transitions work correctly
+- [x] Serialization to/from JSON works for all new fields
+- [x] Existing tests still pass
 
 **Testing Instructions**:
 
