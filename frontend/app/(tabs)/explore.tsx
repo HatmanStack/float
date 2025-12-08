@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { BackendMeditationCall } from '@/components/BackendMeditationCall';
+import { BackendMeditationCallStreaming, StreamingMeditationResponse } from '@/components/BackendMeditationCall';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useIncident, Incident } from '@/context/IncidentContext';
@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import Guidance from '@/components/ScreenComponents/Guidance';
 import IncidentItem from '@/components/ScreenComponents/IncidentItem';
 import MeditationControls from '@/components/ScreenComponents/MeditationControls';
+import { DownloadButton } from '@/components/DownloadButton';
 import useStyles from '@/constants/StylesConstants';
 
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
@@ -23,7 +24,8 @@ function useIncidentSelection() {
   const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
 
   const handlePress = useCallback(
-    (index: number) => () => {      setSelectedIndexes((prevIndexes) => {
+    (index: number) => () => {
+      setSelectedIndexes((prevIndexes) => {
         if (prevIndexes.includes(index)) {
           return prevIndexes.filter((i) => i !== index);
         }
@@ -59,7 +61,7 @@ function useCollapsibleState() {
 }
 
 /**
- * Custom hook for meditation functionality
+ * Custom hook for meditation functionality with streaming support
  */
 function useMeditation(selectedIndexes: number[], incidentList: Incident[], musicList: string[]) {
   const [meditationURI, setMeditationURI] = useState('');
@@ -67,18 +69,62 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
   const { setMusicList } = useIncident();
   const { user } = useAuth();
 
+  // Streaming state
+  const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingResponse, setStreamingResponse] = useState<StreamingMeditationResponse | null>(null);
+  const [downloadAvailable, setDownloadAvailable] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       if (isCalling) {
         try {
-          const response = await BackendMeditationCall(
+          const response = await BackendMeditationCallStreaming(
             selectedIndexes,
             incidentList,
             musicList,
-            user?.id ?? ''
+            user?.id ?? '',
+            undefined, // Use default Lambda URL
+            (status) => {
+              // Handle status updates during polling
+              if (status.streaming?.playlist_url) {
+                setPlaylistUrl(status.streaming.playlist_url);
+                setIsStreaming(true);
+              }
+              if (status.download?.available) {
+                setDownloadAvailable(true);
+              }
+            }
           );
-          setMeditationURI(response.responseMeditationURI ?? '');
-          setMusicList(response.responseMusicList);
+
+          // Store response for download functionality
+          setStreamingResponse(response);
+
+          if (response.isStreaming) {
+            // Streaming mode: playlist URL already set via callback
+            setPlaylistUrl(response.playlistUrl);
+            setIsStreaming(true);
+            // Update music list if available
+            if (response.responseMusicList?.length) {
+              setMusicList(response.responseMusicList);
+            }
+          } else {
+            // Legacy base64 mode
+            setMeditationURI(response.responseMeditationURI ?? '');
+            setMusicList(response.responseMusicList);
+            setIsStreaming(false);
+          }
+
+          // Check if download is already available
+          try {
+            const completionResult = await response.waitForCompletion();
+            if (completionResult.downloadAvailable) {
+              setDownloadAvailable(true);
+            }
+          } catch (err) {
+            // Silent fail - download might not be available yet
+            console.debug('Completion check error:', err);
+          }
         } catch (error) {
           console.error('Error fetching data:', error);
         } finally {
@@ -94,14 +140,45 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     if (selectedIndexes.length === 0) {
       return;
     }
+    // Reset state for new meditation
+    setMeditationURI('');
+    setPlaylistUrl(null);
+    setIsStreaming(false);
+    setDownloadAvailable(false);
+    setStreamingResponse(null);
     setIsCalling(true);
   }, [selectedIndexes]);
+
+  const handleStreamComplete = useCallback(() => {
+    // Stream has finished generating
+    setDownloadAvailable(true);
+  }, []);
+
+  const handleStreamError = useCallback((error: Error) => {
+    console.error('Stream error:', error);
+    // Optionally fall back to non-streaming mode or show error UI
+  }, []);
+
+  const getDownloadUrl = useCallback(async (): Promise<string> => {
+    if (!streamingResponse) {
+      throw new Error('No streaming response available');
+    }
+    return streamingResponse.getDownloadUrl();
+  }, [streamingResponse]);
 
   return {
     meditationURI,
     setMeditationURI,
     isCalling,
     handleMeditationCall,
+    // Streaming props
+    playlistUrl,
+    isStreaming,
+    onStreamComplete: handleStreamComplete,
+    onStreamError: handleStreamError,
+    // Download props
+    downloadAvailable,
+    getDownloadUrl,
   };
 }
 
@@ -113,7 +190,8 @@ function useIncidentDeletion() {
   const { incidentList, setIncidentList } = useIncident();
 
   const cancelScheduledNotification = useCallback(async (notificationId: string) => {
-    await Notifications.cancelScheduledNotificationAsync(notificationId);  }, []);
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+  }, []);
 
   useEffect(() => {
     if (asyncDeleteIncident !== null) {
@@ -151,11 +229,18 @@ export default function TabTwoScreen(): React.ReactNode {
   const { selectedIndexes, handlePress } = useIncidentSelection();
   const { openIndexes, toggleCollapsible } = useCollapsibleState();
   const { handleDeleteIncident, setAsyncDeleteIncident } = useIncidentDeletion();
-  const { meditationURI, setMeditationURI, isCalling, handleMeditationCall } = useMeditation(
-    selectedIndexes,
-    incidentList,
-    musicList
-  );
+  const {
+    meditationURI,
+    setMeditationURI,
+    isCalling,
+    handleMeditationCall,
+    playlistUrl,
+    isStreaming,
+    onStreamComplete,
+    onStreamError,
+    downloadAvailable,
+    getDownloadUrl,
+  } = useMeditation(selectedIndexes, incidentList, musicList);
 
   useEffect(() => {
     // This effect is intentionally empty to track width/height changes
@@ -223,6 +308,15 @@ export default function TabTwoScreen(): React.ReactNode {
           meditationURI={meditationURI}
           setMeditationURI={setMeditationURI}
           handleMeditationCall={handleMeditationCall}
+          playlistUrl={playlistUrl}
+          isStreaming={isStreaming}
+          onStreamComplete={onStreamComplete}
+          onStreamError={onStreamError}
+        />
+        <DownloadButton
+          downloadAvailable={downloadAvailable}
+          onGetDownloadUrl={getDownloadUrl}
+          fileName="float-meditation.mp3"
         />
       </ParallaxScrollView>
     </GestureHandlerRootView>
