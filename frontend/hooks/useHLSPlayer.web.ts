@@ -142,18 +142,9 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
   // Initialize HLS when playlist URL changes
   useEffect(() => {
     const audio = audioRef.current;
+
+    // Handle no URL case
     if (!audio || !playlistUrl) {
-      // Reset state when no URL
-      if (!playlistUrl && playlistUrlRef.current) {
-        setState({
-          isLoading: false,
-          isPlaying: false,
-          isComplete: false,
-          error: null,
-          duration: null,
-          currentTime: 0,
-        });
-      }
       playlistUrlRef.current = playlistUrl;
       return;
     }
@@ -161,16 +152,6 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
     // Skip if URL hasn't changed
     if (playlistUrl === playlistUrlRef.current) return;
     playlistUrlRef.current = playlistUrl;
-
-    // Reset state for new playlist
-    setState({
-      isLoading: true,
-      isPlaying: false,
-      isComplete: false,
-      error: null,
-      duration: null,
-      currentTime: 0,
-    });
 
     // Cleanup previous HLS instance
     if (hlsRef.current) {
@@ -193,11 +174,14 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
 
     // Use HLS.js for other browsers
     if (!Hls.isSupported()) {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: new Error('HLS is not supported in this browser'),
-      }));
+      // Schedule state update via microtask to avoid sync setState in effect
+      queueMicrotask(() => {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: new Error('HLS is not supported in this browser'),
+        }));
+      });
       return;
     }
 
@@ -243,18 +227,14 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
     });
 
     hls.on(Events.ERROR, (_, data) => {
-      console.error('HLS error:', data);
-
       if (data.fatal) {
         switch (data.type) {
           case ErrorTypes.NETWORK_ERROR:
             // Try to recover from network errors
-            console.log('Fatal network error, attempting recovery...');
             hls.startLoad();
             break;
           case ErrorTypes.MEDIA_ERROR:
             // Try to recover from media errors
-            console.log('Fatal media error, attempting recovery...');
             hls.recoverMediaError();
             break;
           default:
@@ -382,5 +362,7 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
     retry,
   };
 
-  return [state, controls, audioRef.current];
+  // Return null for audioElement - the ref is managed internally
+  // External callers should use the controls interface instead
+  return [state, controls, null];
 }

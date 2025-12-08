@@ -3,7 +3,7 @@
  * Provides the same interface as the mobile WebView version.
  */
 
-import React, { forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import { useHLSPlayer } from '@/hooks/useHLSPlayer.web';
 
 export interface HLSPlayerProps {

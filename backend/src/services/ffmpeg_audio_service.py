@@ -6,8 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-import time
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from ..config.constants import DEFAULT_MUSIC_VOLUME_REDUCTION, DEFAULT_SILENCE_DURATION
 from ..config.settings import settings

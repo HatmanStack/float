@@ -121,9 +121,8 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
             if (completionResult.downloadAvailable) {
               setDownloadAvailable(true);
             }
-          } catch (err) {
+          } catch {
             // Silent fail - download might not be available yet
-            console.debug('Completion check error:', err);
           }
         } catch (error) {
           console.error('Error fetching data:', error);

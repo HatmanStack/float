@@ -1,5 +1,5 @@
 """Unit tests for HLS streaming service."""
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -347,12 +347,12 @@ class TestHLSService:
 
     def test_url_expiry_configuration(self, mock_storage_service):
         """Test that URL expiry is configured correctly."""
-        from src.services.hls_service import HLSService, URL_EXPIRY
+        from src.services.hls_service import URL_EXPIRY
 
         assert URL_EXPIRY == 3600  # 1 hour
 
     def test_segment_duration_configuration(self, mock_storage_service):
         """Test that segment duration is configured correctly."""
-        from src.services.hls_service import HLSService, SEGMENT_DURATION
+        from src.services.hls_service import SEGMENT_DURATION
 
         assert SEGMENT_DURATION == 5  # 5 seconds

@@ -4,9 +4,7 @@ These tests verify the end-to-end HLS streaming functionality when
 ENABLE_HLS_STREAMING is enabled. They require AWS credentials and
 network access to run.
 """
-import json
 import os
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -86,7 +84,7 @@ class TestHLSIntegration:
         from src.services.hls_service import HLSService
 
         mock_storage_service.s3_client.generate_presigned_url.side_effect = lambda *args, **kwargs: (
-            f"https://s3.../segment.ts?sig=abc"
+            "https://s3.../segment.ts?sig=abc"
         )
 
         service = HLSService(mock_storage_service)
@@ -151,8 +149,8 @@ class TestHLSIntegration:
 
     def test_download_service_mp3_generation(self, mock_storage_service):
         """Test download service checks for segments when generating."""
-        from src.services.hls_service import HLSService
         from src.services.download_service import DownloadService
+        from src.services.hls_service import HLSService
 
         # Setup HLS service with no segments (so we don't need FFmpeg)
         mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
@@ -213,6 +211,7 @@ class TestFeatureFlag:
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "true"}):
             # Re-import to pick up new env var
             import importlib
+
             from src.handlers import lambda_handler
             importlib.reload(lambda_handler)
 
@@ -223,6 +222,7 @@ class TestFeatureFlag:
         """Test feature flag is parsed as false."""
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "false"}):
             import importlib
+
             from src.handlers import lambda_handler
             importlib.reload(lambda_handler)
 
@@ -234,6 +234,7 @@ class TestFeatureFlag:
         env_without_flag = {k: v for k, v in os.environ.items() if k != "ENABLE_HLS_STREAMING"}
         with patch.dict(os.environ, env_without_flag, clear=True):
             import importlib
+
             from src.handlers import lambda_handler
             importlib.reload(lambda_handler)
 
@@ -247,8 +248,9 @@ class TestEndToEndFlow:
 
     def test_meditation_request_returns_job_with_streaming(self, mock_storage_service):
         """Test meditation request returns job with streaming info."""
-        from src.handlers.lambda_handler import LambdaHandler
         from unittest.mock import MagicMock, patch
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "true"}):
             with patch("src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service):
@@ -258,8 +260,8 @@ class TestEndToEndFlow:
 
                     handler = LambdaHandler(validate_config=False)
 
-                    from src.models.requests import MeditationRequest
                     from src.config.constants import InferenceType
+                    from src.models.requests import MeditationRequest
                     request = MeditationRequest(
                         user_id="test-user",
                         inference_type=InferenceType.MEDITATION,
@@ -275,10 +277,9 @@ class TestEndToEndFlow:
 
     def test_job_status_refreshes_playlist_url(self, mock_storage_service):
         """Test job status returns fresh pre-signed playlist URL."""
-        from src.services.job_service import JobService
-        from src.services.hls_service import HLSService
-        from src.handlers.lambda_handler import LambdaHandler
         from unittest.mock import patch
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         # Setup job with streaming
         mock_storage_service.download_json.return_value = {
@@ -306,8 +307,9 @@ class TestEndToEndFlow:
 
     def test_download_request_validates_job_state(self, mock_storage_service):
         """Test download request validates job is completed."""
-        from src.handlers.lambda_handler import LambdaHandler
         from unittest.mock import patch
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         # Job not completed
         mock_storage_service.download_json.return_value = {
@@ -326,8 +328,9 @@ class TestEndToEndFlow:
 
     def test_download_request_validates_availability(self, mock_storage_service):
         """Test download request validates download is available."""
-        from src.handlers.lambda_handler import LambdaHandler
         from unittest.mock import patch
+
+        from src.handlers.lambda_handler import LambdaHandler
 
         # Job completed but download not available
         mock_storage_service.download_json.return_value = {

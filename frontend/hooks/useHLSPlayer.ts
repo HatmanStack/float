@@ -39,9 +39,9 @@ const noopControls: HLSPlayerControls = {
 /**
  * Native stub for useHLSPlayer hook.
  * On mobile, HLS playback uses WebView component instead.
- * @param _playlistUrl - Ignored on native platforms
  * @returns Tuple of [state, controls] with no-op values
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useHLSPlayer(_playlistUrl: string | null): [HLSPlayerState, HLSPlayerControls, HTMLAudioElement | null] {
   return [noopState, noopControls, null];
 }

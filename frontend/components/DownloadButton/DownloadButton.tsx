@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Pressable, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
+import { Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/Colors';
 import useStyles from '@/constants/StylesConstants';
@@ -39,7 +39,6 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
   const styles = useStyles();
   const [downloadState, setDownloadState] = useState<DownloadState>('idle');
   const [progress, setProgress] = useState(0);
-  const [localFilePath, setLocalFilePath] = useState<string | null>(null);
 
   const handleDownload = useCallback(async () => {
     if (!downloadAvailable || downloadState === 'downloading' || downloadState === 'fetching_url') {
@@ -79,7 +78,6 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
       const result = await downloadResumable.downloadAsync();
 
       if (result?.uri) {
-        setLocalFilePath(result.uri);
         setDownloadState('completed');
         onDownloadComplete?.(result.uri);
 
@@ -147,7 +145,7 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
       ]}
       testID="download-button"
     >
-      {({ pressed }) => (
+      {() => (
         <ThemedView style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'transparent' }}>
           {(downloadState === 'fetching_url' || downloadState === 'downloading') && (
             <ActivityIndicator

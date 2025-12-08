@@ -1,6 +1,6 @@
 import { Audio } from 'expo-av';
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Pressable, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { Pressable, ActivityIndicator } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import useStyles from '@/constants/StylesConstants';
 import { ThemedText } from '@/components/ThemedText';
@@ -99,15 +99,6 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   const [hlsError, setHlsError] = useState<Error | null>(null);
   const [streamEnded, setStreamEnded] = useState(false);
 
-  // Reset HLS state when playlistUrl changes
-  useEffect(() => {
-    if (playlistUrl) {
-      setIsHLSPlaying(false);
-      setHlsError(null);
-      setStreamEnded(false);
-    }
-  }, [playlistUrl]);
-
   // HLS playback controls
   const handleHLSPlay = useCallback(() => {
     if (isHLSPlaying) {
@@ -119,10 +110,11 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
     }
   }, [isHLSPlaying]);
 
-  // HLS event handlers
+  // HLS event handlers - also reset state on new playback
   const handlePlaybackStart = useCallback(() => {
     setIsHLSPlaying(true);
     setHlsError(null);
+    setStreamEnded(false);
   }, []);
 
   const handlePlaybackComplete = useCallback(() => {
@@ -142,7 +134,6 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
 
   // Determine which mode we're in
   const useStreamingMode = isStreaming && playlistUrl;
-  const hasContent = useStreamingMode || meditationURI;
 
   // Show loading indicator while generating
   if (isCalling) {
