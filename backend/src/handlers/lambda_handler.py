@@ -15,7 +15,9 @@ from ..models.requests import MeditationRequest, SummaryRequest, parse_request_b
 from ..models.responses import create_meditation_response, create_summary_response
 from ..providers.openai_tts import OpenAITTSProvider
 from ..services.ai_service import AIService
+from ..services.download_service import DownloadService
 from ..services.ffmpeg_audio_service import FFmpegAudioService
+from ..services.hls_service import HLSService
 from ..services.job_service import JobService, JobStatus
 from ..services.s3_storage_service import S3StorageService
 from ..utils.audio_utils import (
@@ -38,6 +40,12 @@ from .middleware import (
 
 logger = get_logger(__name__)
 
+# Feature flag for HLS streaming
+ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
+
+# Maximum retry attempts for HLS generation
+MAX_GENERATION_ATTEMPTS = 3
+
 
 class LambdaHandler:
 
@@ -46,7 +54,11 @@ class LambdaHandler:
     ):
         self.ai_service = ai_service or self._create_ai_service()
         self.storage_service = S3StorageService()
-        self.audio_service = FFmpegAudioService(self.storage_service)
+        self.hls_service = HLSService(self.storage_service)
+        self.download_service = DownloadService(self.storage_service, self.hls_service)
+        self.audio_service = FFmpegAudioService(
+            self.storage_service, hls_service=self.hls_service
+        )
         self.tts_provider = OpenAITTSProvider()
         self.job_service = JobService(self.storage_service)
         if validate_config:
@@ -104,19 +116,33 @@ class LambdaHandler:
             extra={"data": {"user_id": request.user_id}}
         )
 
-        # Create job for tracking
-        job_id = self.job_service.create_job(request.user_id, "meditation")
-        logger.info("Created meditation job", extra={"data": {"job_id": job_id}})
+        # Create job for tracking (with HLS streaming if enabled)
+        job_id = self.job_service.create_job(
+            request.user_id, "meditation", enable_streaming=ENABLE_HLS_STREAMING
+        )
+        logger.info(
+            "Created meditation job",
+            extra={"data": {"job_id": job_id, "hls_enabled": ENABLE_HLS_STREAMING}}
+        )
 
         # Invoke Lambda asynchronously for the actual processing
         self._invoke_async_meditation(request, job_id)
 
         # Return job_id immediately
-        return {
+        response = {
             "job_id": job_id,
             "status": "pending",
             "message": "Meditation generation started. Poll /job/{job_id} for status."
         }
+
+        # Include streaming info if HLS is enabled
+        if ENABLE_HLS_STREAMING:
+            response["streaming"] = {
+                "enabled": True,
+                "playlist_url": None,  # Will be available once streaming starts
+            }
+
+        return response
 
     def _invoke_async_meditation(self, request: MeditationRequest, job_id: str):
         """Invoke this Lambda asynchronously to process meditation."""
@@ -146,6 +172,21 @@ class LambdaHandler:
             extra={"data": {"job_id": job_id, "user_id": request.user_id}}
         )
 
+        # Check if HLS is enabled for this job
+        job_data = self.job_service.get_job(request.user_id, job_id)
+        use_hls = (
+            ENABLE_HLS_STREAMING
+            and job_data
+            and job_data.get("streaming", {}).get("enabled", False)
+        )
+
+        if use_hls:
+            self._process_meditation_hls(job_id, request)
+        else:
+            self._process_meditation_base64(job_id, request)
+
+    def _process_meditation_base64(self, job_id: str, request: MeditationRequest):
+        """Process meditation with base64 output (legacy mode)."""
         voice_path = None
         combined_path = None
         try:
@@ -205,12 +246,181 @@ class LambdaHandler:
             if combined_path:
                 cleanup_temp_file(combined_path)
 
+    def _process_meditation_hls(self, job_id: str, request: MeditationRequest):
+        """Process meditation with HLS streaming output."""
+        voice_path = None
+        try:
+            self.job_service.update_job_status(
+                request.user_id, job_id, JobStatus.PROCESSING
+            )
+
+            # Check for TTS cache (for retry scenarios)
+            tts_cache_key = self.hls_service.get_tts_cache_key(request.user_id, job_id)
+            job_data = self.job_service.get_job(request.user_id, job_id)
+            generation_attempt = job_data.get("generation_attempt", 1) if job_data else 1
+
+            timestamp = generate_timestamp()
+            voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
+
+            # Check if we have cached TTS audio
+            if self.hls_service.tts_cache_exists(request.user_id, job_id):
+                logger.info(
+                    "Using cached TTS audio",
+                    extra={"data": {"job_id": job_id, "attempt": generation_attempt}}
+                )
+                if not self.hls_service.download_tts_cache(request.user_id, job_id, voice_path):
+                    raise Exception("Failed to download cached TTS audio")
+            else:
+                # Generate new TTS audio
+                input_data = self._ensure_input_data_is_dict(request.input_data)
+                meditation_text = self.ai_service.generate_meditation(input_data)
+                logger.debug(
+                    "Meditation text generated",
+                    extra={"data": {"length": len(meditation_text)}}
+                )
+
+                tts_provider = self.get_tts_provider()
+                success = tts_provider.synthesize_speech(meditation_text, voice_path)
+                if not success:
+                    raise Exception("Failed to generate speech audio")
+
+                # Cache the TTS audio for retry
+                self.hls_service.upload_tts_cache(request.user_id, job_id, voice_path)
+                self.job_service.set_tts_cache_key(request.user_id, job_id, tts_cache_key)
+
+            # Generate playlist URL
+            playlist_url = self.hls_service.generate_playlist_url(request.user_id, job_id)
+
+            # Mark job as streaming
+            self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+
+            # Progress callback to update job status
+            def progress_callback(segments_completed: int, segments_total: Optional[int]):
+                self.job_service.update_streaming_progress(
+                    request.user_id, job_id,
+                    segments_completed=segments_completed,
+                    segments_total=segments_total,
+                    playlist_url=playlist_url,
+                )
+
+            # Generate HLS segments
+            music_list, total_segments, segment_durations = self.audio_service.combine_voice_and_music_hls(
+                voice_path=voice_path,
+                music_list=request.music_list,
+                timestamp=timestamp,
+                user_id=request.user_id,
+                job_id=job_id,
+                progress_callback=progress_callback,
+            )
+
+            # Mark streaming complete
+            self.job_service.mark_streaming_complete(request.user_id, job_id, total_segments)
+
+            logger.info(
+                "HLS job completed successfully",
+                extra={"data": {"job_id": job_id, "segments": total_segments}}
+            )
+
+        except Exception as e:
+            logger.error(
+                "Error processing HLS meditation job",
+                extra={"data": {"job_id": job_id}},
+                exc_info=True
+            )
+
+            # Check if we should retry
+            job_data = self.job_service.get_job(request.user_id, job_id)
+            current_attempt = job_data.get("generation_attempt", 1) if job_data else 1
+
+            if current_attempt < MAX_GENERATION_ATTEMPTS:
+                # Increment attempt and let the next poll trigger retry
+                self.job_service.increment_generation_attempt(request.user_id, job_id)
+                logger.info(
+                    "Will retry HLS generation",
+                    extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}}
+                )
+                # Re-raise to trigger retry via another async invocation
+                raise
+
+            # Max retries exceeded
+            self.job_service.update_job_status(
+                request.user_id, job_id, JobStatus.FAILED,
+                error=f"Failed after {MAX_GENERATION_ATTEMPTS} attempts: {str(e)}"
+            )
+        finally:
+            if voice_path:
+                cleanup_temp_file(voice_path)
+
     def handle_job_status(self, user_id: str, job_id: str) -> Dict[str, Any]:
-        """Get job status."""
+        """Get job status with fresh pre-signed URLs."""
         job_data = self.job_service.get_job(user_id, job_id)
         if not job_data:
             return None
+
+        # Refresh pre-signed playlist URL if streaming
+        if job_data.get("streaming", {}).get("enabled"):
+            fresh_playlist_url = self.hls_service.generate_playlist_url(user_id, job_id)
+            if fresh_playlist_url:
+                job_data["streaming"]["playlist_url"] = fresh_playlist_url
+
         return job_data
+
+    def handle_download_request(self, user_id: str, job_id: str) -> Dict[str, Any]:
+        """Handle download request - generate MP3 and return URL."""
+        job_data = self.job_service.get_job(user_id, job_id)
+        if not job_data:
+            return None
+
+        # Check job is completed
+        if job_data.get("status") != JobStatus.COMPLETED.value:
+            return {
+                "error": {
+                    "code": "JOB_NOT_COMPLETED",
+                    "message": "Job must be completed before download is available",
+                }
+            }
+
+        # Check download is available
+        if not job_data.get("download", {}).get("available", False):
+            return {
+                "error": {
+                    "code": "DOWNLOAD_NOT_AVAILABLE",
+                    "message": "Download is not available for this job",
+                }
+            }
+
+        # Generate MP3 and get download URL
+        download_url = self.download_service.generate_mp3_and_get_url(user_id, job_id)
+        if not download_url:
+            return {
+                "error": {
+                    "code": "GENERATION_FAILED",
+                    "message": "Failed to generate downloadable MP3",
+                }
+            }
+
+        # Update job with download URL
+        self.job_service.mark_download_ready(user_id, job_id, download_url)
+
+        return {
+            "job_id": job_id,
+            "download_url": download_url,
+            "expires_in": 3600,  # 1 hour
+        }
+
+    def handle_download_complete(self, user_id: str, job_id: str) -> Dict[str, Any]:
+        """Mark download as completed and trigger cleanup."""
+        job_data = self.job_service.get_job(user_id, job_id)
+        if not job_data:
+            return None
+
+        # Mark download completed
+        self.job_service.mark_download_completed(user_id, job_id)
+
+        # Cleanup HLS artifacts
+        self.hls_service.cleanup_hls_artifacts(user_id, job_id)
+
+        return {"status": "cleanup_completed"}
 
     def _store_summary_results(
         self, request: SummaryRequest, response, has_audio: bool
@@ -294,6 +504,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == "GET" and "/job/" in raw_path:
             return _handle_job_status_request(handler, event)
 
+        # Check for download request (POST /job/{job_id}/download)
+        if http_method == "POST" and "/download" in raw_path:
+            return _handle_download_request(handler, event)
+
         result: Dict[str, Any] = handler.handle_request(event, context)
         return result
     except Exception:
@@ -351,4 +565,56 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
         return cors_middleware(lambda e, c: response)(event, None)
 
     response = create_success_response(job_data)
+    return cors_middleware(lambda e, c: response)(event, None)
+
+
+def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle POST /job/{job_id}/download requests."""
+    from .middleware import cors_middleware
+
+    raw_path = event.get("rawPath", "")
+    # Extract job_id from path like /production/job/{job_id}/download
+    path_parts = raw_path.strip("/").split("/")
+
+    # Find job_id (the part before "download")
+    job_id = None
+    for i, part in enumerate(path_parts):
+        if part == "download" and i > 0:
+            job_id = path_parts[i - 1]
+            break
+
+    # Get user_id from query params
+    query_params = event.get("queryStringParameters", {}) or {}
+    user_id = query_params.get("user_id", "")
+
+    if not job_id or not user_id:
+        response = create_error_response(
+            HTTP_BAD_REQUEST, "Missing job_id or user_id parameter"
+        )
+        return cors_middleware(lambda e, c: response)(event, None)
+
+    # Authorization check
+    job_data = handler.job_service.get_job(user_id, job_id)
+    if not job_data:
+        response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
+        return cors_middleware(lambda e, c: response)(event, None)
+
+    job_owner = job_data.get("user_id", "")
+    if job_owner and job_owner != user_id:
+        response = create_error_response(
+            HTTP_FORBIDDEN, "Access denied: you do not own this job"
+        )
+        return cors_middleware(lambda e, c: response)(event, None)
+
+    # Handle download
+    result = handler.handle_download_request(user_id, job_id)
+    if result is None:
+        response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
+        return cors_middleware(lambda e, c: response)(event, None)
+
+    if "error" in result:
+        response = create_error_response(HTTP_BAD_REQUEST, result["error"]["message"])
+        return cors_middleware(lambda e, c: response)(event, None)
+
+    response = create_success_response(result)
     return cors_middleware(lambda e, c: response)(event, None)
