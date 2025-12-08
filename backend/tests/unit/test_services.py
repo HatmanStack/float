@@ -1062,3 +1062,38 @@ class TestJobServiceHLS:
         assert job is not None
         assert job["status"] == "completed"
         assert "streaming" not in job
+
+
+@pytest.mark.unit
+class TestFFmpegAudioServiceHLS:
+    """Test FFmpeg audio service HLS functionality."""
+
+    def test_hls_service_optional_parameter(self, mock_storage_service):
+        """Test that HLS service is optional in constructor."""
+        service = FFmpegAudioService(mock_storage_service)
+        assert service.hls_service is None
+
+    def test_hls_service_injection(self, mock_storage_service):
+        """Test that HLS service can be injected."""
+        mock_hls_service = MagicMock()
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+        assert service.hls_service == mock_hls_service
+
+    def test_combine_voice_and_music_hls_requires_hls_service(self, mock_storage_service):
+        """Test that HLS method requires HLS service."""
+        service = FFmpegAudioService(mock_storage_service)
+
+        with pytest.raises(ValueError, match="HLS service required"):
+            service.combine_voice_and_music_hls(
+                voice_path="/tmp/voice.mp3",
+                music_list=[],
+                timestamp="20241101",
+                user_id="user123",
+                job_id="job456",
+            )
+
+    def test_hls_segment_duration_configuration(self, mock_storage_service):
+        """Test that HLS segment duration is configured correctly."""
+        from src.services.ffmpeg_audio_service import HLS_SEGMENT_DURATION
+
+        assert HLS_SEGMENT_DURATION == 5
