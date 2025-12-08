@@ -62,6 +62,7 @@ Globals:
     Environment:
       Variables:
         PYTHONPATH: /var/task/src
+        ENABLE_HLS_STREAMING: 'true'
 
 Resources:
   FloatApi:
@@ -77,6 +78,7 @@ Resources:
             - !Ref ProductionOrigins
             - ['https://localhost']
         AllowMethods:
+          - GET
           - POST
           - OPTIONS
         AllowHeaders:
@@ -145,6 +147,18 @@ Resources:
           Properties:
             ApiId: !Ref FloatApi
             Path: /job/{job_id}
+            Method: OPTIONS
+        ApiDownload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /job/{job_id}/download
+            Method: POST
+        ApiDownloadOptions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /job/{job_id}/download
             Method: OPTIONS
 
   FloatFunctionLogGroup:
