@@ -21,6 +21,7 @@ def _utcnow() -> datetime:
 class JobStatus(Enum):
     PENDING = "pending"
     PROCESSING = "processing"
+    STREAMING = "streaming"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -32,7 +33,7 @@ class JobService:
         self.storage_service = storage_service
         self.bucket = settings.AWS_S3_BUCKET
 
-    def create_job(self, user_id: str, job_type: str) -> str:
+    def create_job(self, user_id: str, job_type: str, enable_streaming: bool = False) -> str:
         """Create a new job and return job_id."""
         job_id = str(uuid.uuid4())
         now = _utcnow()
@@ -47,6 +48,24 @@ class JobService:
             "result": None,
             "error": None,
         }
+
+        # Add HLS streaming fields for meditation jobs
+        if job_type == "meditation" and enable_streaming:
+            job_data["streaming"] = {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            }
+            job_data["download"] = {
+                "available": False,
+                "url": None,
+                "downloaded": False,
+            }
+            job_data["tts_cache_key"] = None
+            job_data["generation_attempt"] = 1
+
         self._save_job(user_id, job_id, job_data)
         return job_id
 
@@ -69,9 +88,181 @@ class JobService:
                 job_data["error"] = error
             self._save_job(user_id, job_id, job_data)
 
+    def update_streaming_progress(
+        self,
+        user_id: str,
+        job_id: str,
+        segments_completed: int,
+        segments_total: Optional[int] = None,
+        playlist_url: Optional[str] = None,
+    ):
+        """Update streaming progress for an HLS job."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            logger.warning(
+                "Cannot update streaming progress: job not found",
+                extra={"data": {"job_id": job_id}}
+            )
+            return
+
+        # Initialize streaming dict if missing (backward compatibility)
+        if "streaming" not in job_data:
+            job_data["streaming"] = {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            }
+
+        streaming = job_data["streaming"]
+        streaming["segments_completed"] = segments_completed
+
+        if segments_total is not None:
+            streaming["segments_total"] = segments_total
+
+        if playlist_url is not None:
+            streaming["playlist_url"] = playlist_url
+
+        # Set started_at on first segment
+        if segments_completed == 1 and streaming.get("started_at") is None:
+            streaming["started_at"] = _utcnow().isoformat()
+
+        job_data["updated_at"] = _utcnow().isoformat()
+        self._save_job(user_id, job_id, job_data)
+
+        logger.debug(
+            "Updated streaming progress",
+            extra={"data": {"job_id": job_id, "segments": segments_completed}}
+        )
+
+    def mark_streaming_started(
+        self,
+        user_id: str,
+        job_id: str,
+        playlist_url: str,
+    ):
+        """Mark job as streaming and set initial playlist URL."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            logger.warning(
+                "Cannot mark streaming started: job not found",
+                extra={"data": {"job_id": job_id, "user_id": user_id}}
+            )
+            return
+
+        job_data["status"] = JobStatus.STREAMING.value
+        job_data["updated_at"] = _utcnow().isoformat()
+
+        if "streaming" not in job_data:
+            job_data["streaming"] = {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            }
+
+        job_data["streaming"]["playlist_url"] = playlist_url
+        job_data["streaming"]["started_at"] = _utcnow().isoformat()
+
+        self._save_job(user_id, job_id, job_data)
+        logger.info("Marked job as streaming", extra={"data": {"job_id": job_id}})
+
+    def mark_streaming_complete(
+        self,
+        user_id: str,
+        job_id: str,
+        segments_total: int,
+    ):
+        """Mark streaming as complete, set status to COMPLETED, enable download."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            return
+
+        job_data["status"] = JobStatus.COMPLETED.value
+        job_data["updated_at"] = _utcnow().isoformat()
+
+        if "streaming" in job_data:
+            job_data["streaming"]["segments_completed"] = segments_total
+            job_data["streaming"]["segments_total"] = segments_total
+
+        # Mark download as available
+        if "download" not in job_data:
+            job_data["download"] = {
+                "available": False,
+                "url": None,
+                "downloaded": False,
+            }
+        job_data["download"]["available"] = True
+
+        self._save_job(user_id, job_id, job_data)
+        logger.info(
+            "Marked streaming complete",
+            extra={"data": {"job_id": job_id, "total_segments": segments_total}}
+        )
+
+    def mark_download_ready(
+        self,
+        user_id: str,
+        job_id: str,
+        download_url: str,
+    ):
+        """Set the download URL for a completed job."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            return
+
+        if "download" not in job_data:
+            job_data["download"] = {
+                "available": False,
+                "url": None,
+                "downloaded": False,
+            }
+
+        job_data["download"]["available"] = True
+        job_data["download"]["url"] = download_url
+        job_data["updated_at"] = _utcnow().isoformat()
+
+        self._save_job(user_id, job_id, job_data)
+
+    def mark_download_completed(self, user_id: str, job_id: str):
+        """Mark download as completed (for cleanup tracking)."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            return
+
+        if "download" in job_data:
+            job_data["download"]["downloaded"] = True
+            job_data["updated_at"] = _utcnow().isoformat()
+            self._save_job(user_id, job_id, job_data)
+            logger.info("Marked download completed", extra={"data": {"job_id": job_id}})
+
+    def set_tts_cache_key(self, user_id: str, job_id: str, cache_key: str):
+        """Set the TTS cache key for retry capability."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            return
+
+        job_data["tts_cache_key"] = cache_key
+        job_data["updated_at"] = _utcnow().isoformat()
+        self._save_job(user_id, job_id, job_data)
+
+    def increment_generation_attempt(self, user_id: str, job_id: str) -> int:
+        """Increment and return the generation attempt count."""
+        job_data = self.get_job(user_id, job_id)
+        if not job_data:
+            return 1
+
+        attempt = job_data.get("generation_attempt", 1) + 1
+        job_data["generation_attempt"] = attempt
+        job_data["updated_at"] = _utcnow().isoformat()
+        self._save_job(user_id, job_id, job_data)
+        return attempt
+
     def get_job(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status. Returns None if job doesn't exist or is expired."""
-        key = f"{user_id}/jobs/{job_id}.json"
+        key = f"jobs/{user_id}/{job_id}.json"
         try:
             data = self.storage_service.download_json(self.bucket, key)
 
@@ -121,7 +312,7 @@ class JobService:
 
     def _delete_job(self, user_id: str, job_id: str):
         """Delete a job from S3."""
-        key = f"{user_id}/jobs/{job_id}.json"
+        key = f"jobs/{user_id}/{job_id}.json"
         try:
             self.storage_service.delete_object(self.bucket, key)
             logger.debug("Deleted expired job", extra={"data": {"job_id": job_id}})
@@ -135,7 +326,7 @@ class JobService:
         """Clean up expired jobs for a user. Returns list of deleted job IDs."""
         deleted_jobs = []
         try:
-            prefix = f"{user_id}/jobs/"
+            prefix = f"jobs/{user_id}/"
             job_keys = self.storage_service.list_objects(self.bucket, prefix)
 
             for key in job_keys:
@@ -166,5 +357,5 @@ class JobService:
 
     def _save_job(self, user_id: str, job_id: str, job_data: Dict[str, Any]):
         """Save job data to S3."""
-        key = f"{user_id}/jobs/{job_id}.json"
+        key = f"jobs/{user_id}/{job_id}.json"
         self.storage_service.upload_json(self.bucket, key, job_data)

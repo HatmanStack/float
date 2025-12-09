@@ -14,12 +14,13 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { BackendMeditationCall } from '@/components/BackendMeditationCall';
+import { BackendMeditationCall, BackendMeditationCallStreaming } from '@/components/BackendMeditationCall';
 import * as FileSystem from 'expo-file-system';
 
 const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';
 const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAABAAAAAEAAAB9AAAA';
 const mockJobId = 'test-job-id-123';
+const mockPlaylistUrl = 'https://s3.example.com/hls/playlist.m3u8?signature=abc123';
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -252,5 +253,311 @@ describe('BackendMeditationCall', () => {
     await expect(
       BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL)
     ).rejects.toThrow('File write failed');
+  });
+});
+
+describe('BackendMeditationCallStreaming', () => {
+  const defaultIncident = {
+    sentiment_label: 'Happy',
+    intensity: 3,
+    speech_to_text: 'Test',
+    added_text: 'Test',
+    summary: 'Test',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset FileSystem mock to default behavior
+    (FileSystem.writeAsStringAsync as jest.Mock).mockImplementation(() => Promise.resolve());
+  });
+
+  it('should return playlist URL when streaming starts', async () => {
+    // First call: submit job
+    // Second call: poll returns streaming status
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'streaming',
+          streaming: {
+            playlist_url: mockPlaylistUrl,
+            segments_completed: 2,
+            segments_total: null,
+          },
+        }),
+      }) as jest.Mock;
+
+    const result = await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL
+    );
+
+    expect(result.jobId).toBe(mockJobId);
+    expect(result.playlistUrl).toBe(mockPlaylistUrl);
+    expect(result.isStreaming).toBe(true);
+    expect(typeof result.waitForCompletion).toBe('function');
+    expect(typeof result.getDownloadUrl).toBe('function');
+  });
+
+  it('should detect non-streaming jobs (base64 fallback)', async () => {
+    // Non-streaming job returns completed with base64
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'completed',
+          result: {
+            base64: mockBase64,
+            music_list: ['music1'],
+          },
+        }),
+      }) as jest.Mock;
+
+    const result = await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL
+    );
+
+    expect(result.isStreaming).toBe(false);
+    expect(result.playlistUrl).toBeNull();
+    expect(result.responseMeditationURI).toBe('mock-directory/output.mp3');
+  });
+
+  it('should call onStatusUpdate during polling', async () => {
+    const onStatusUpdate = jest.fn();
+
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'processing',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'streaming',
+          streaming: {
+            playlist_url: mockPlaylistUrl,
+            segments_completed: 1,
+            segments_total: null,
+          },
+        }),
+      }) as jest.Mock;
+
+    await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL,
+      onStatusUpdate
+    );
+
+    expect(onStatusUpdate).toHaveBeenCalledTimes(2);
+    expect(onStatusUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'processing' })
+    );
+    expect(onStatusUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'streaming' })
+    );
+  });
+
+  it('should waitForCompletion until job completes', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'streaming',
+          streaming: {
+            playlist_url: mockPlaylistUrl,
+            segments_completed: 5,
+            segments_total: 36,
+          },
+        }),
+      })
+      // Continuation polling for waitForCompletion
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'completed',
+          streaming: {
+            playlist_url: mockPlaylistUrl,
+            segments_completed: 36,
+            segments_total: 36,
+          },
+          download: {
+            available: true,
+          },
+        }),
+      }) as jest.Mock;
+
+    const result = await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL
+    );
+
+    const finalResult = await result.waitForCompletion();
+
+    expect(finalResult.isComplete).toBe(true);
+    expect(finalResult.downloadAvailable).toBe(true);
+    expect(finalResult.segmentsCompleted).toBe(36);
+  });
+
+  it('should getDownloadUrl after completion', async () => {
+    const mockDownloadUrl = 'https://s3.example.com/downloads/meditation.mp3?signature=xyz';
+
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'completed',
+          streaming: {
+            playlist_url: mockPlaylistUrl,
+            segments_completed: 36,
+            segments_total: 36,
+          },
+          download: { available: true },
+        }),
+      })
+      // Download endpoint call
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          download_url: mockDownloadUrl,
+          expires_in: 3600,
+        }),
+      }) as jest.Mock;
+
+    const result = await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL
+    );
+
+    const downloadUrl = await result.getDownloadUrl();
+
+    expect(downloadUrl).toBe(mockDownloadUrl);
+    // Verify download endpoint was called
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/job/test-job-id-123/download'),
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('should handle failed jobs', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'failed',
+          error: 'Audio generation failed',
+        }),
+      }) as jest.Mock;
+
+    await expect(
+      BackendMeditationCallStreaming(
+        [0],
+        [defaultIncident],
+        ['music1'],
+        'testuser',
+        MOCK_LAMBDA_URL
+      )
+    ).rejects.toThrow('Audio generation failed');
+  });
+
+  it('should handle structured error messages', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'failed',
+          error: {
+            code: 'GENERATION_FAILED',
+            message: 'Audio generation failed after 3 attempts',
+            retriable: false,
+          },
+        }),
+      }) as jest.Mock;
+
+    await expect(
+      BackendMeditationCallStreaming(
+        [0],
+        [defaultIncident],
+        ['music1'],
+        'testuser',
+        MOCK_LAMBDA_URL
+      )
+    ).rejects.toThrow('Audio generation failed after 3 attempts');
   });
 });

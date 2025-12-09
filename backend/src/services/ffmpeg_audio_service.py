@@ -1,20 +1,41 @@
 import ast
+import glob
 import os
 import random
 import re
+import shutil
 import subprocess
-from typing import List, Optional
+import tempfile
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from ..config.constants import DEFAULT_MUSIC_VOLUME_REDUCTION, DEFAULT_SILENCE_DURATION
 from ..config.settings import settings
+from ..utils.logging_utils import get_logger
 from .audio_service import AudioService
 from .storage_service import StorageService
+
+if TYPE_CHECKING:
+    from .hls_service import HLSService
+
+logger = get_logger(__name__)
+
+# HLS Configuration
+HLS_SEGMENT_DURATION = 5  # seconds
+
+# FFmpeg timeout configuration (seconds)
+FFMPEG_STEP_TIMEOUT = 120  # 2 minutes per individual step
+FFMPEG_HLS_TIMEOUT = 300   # 5 minutes for full HLS generation
 
 
 class FFmpegAudioService(AudioService):
 
-    def __init__(self, storage_service: StorageService):
+    def __init__(
+        self,
+        storage_service: StorageService,
+        hls_service: Optional["HLSService"] = None,
+    ):
         self.storage_service = storage_service
+        self.hls_service = hls_service
         self.ffmpeg_executable = settings.FFMPEG_PATH
         self._verify_ffmpeg()
 
@@ -62,6 +83,7 @@ class FFmpegAudioService(AudioService):
     def combine_voice_and_music(
         self, voice_path: str, music_list: List[str], timestamp: str, output_path: str
     ) -> List[str]:
+        """Combine voice and music into a single MP3 file."""
         print("Combining Audio")
         music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
         music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
@@ -167,6 +189,249 @@ class FFmpegAudioService(AudioService):
         except Exception as e:
             print(f"Error in audio combination: {e}")
             raise
+
+    def combine_voice_and_music_hls(
+        self,
+        voice_path: str,
+        music_list: List[str],
+        timestamp: str,
+        user_id: str,
+        job_id: str,
+        progress_callback: Optional[Callable[[int, Optional[int]], None]] = None,
+    ) -> tuple[List[str], int, List[float]]:
+        """
+        Combine voice and music, outputting HLS segments progressively.
+
+        Args:
+            voice_path: Path to voice audio file
+            music_list: List of previously used music tracks
+            timestamp: Unique timestamp for temp files
+            user_id: User identifier
+            job_id: Job identifier
+            progress_callback: Optional callback(segments_completed, segments_total)
+
+        Returns:
+            Tuple of (updated music list, total segments, segment durations)
+        """
+        if not self.hls_service:
+            raise ValueError("HLS service required for HLS output mode")
+
+        logger.info("Starting HLS audio generation", extra={"data": {"job_id": job_id}})
+
+        # Create temp directory for HLS output
+        hls_output_dir = tempfile.mkdtemp(prefix="hls_")
+        mixed_audio_path = None
+
+        try:
+            # Step 1-4: Prepare mixed audio (same as regular combine)
+            mixed_audio_path, updated_music_list = self._prepare_mixed_audio(
+                voice_path, music_list, timestamp
+            )
+
+            # Get duration to estimate total segments
+            total_duration = self.get_audio_duration(mixed_audio_path)
+            estimated_segments = int(total_duration / HLS_SEGMENT_DURATION) + 1
+            logger.info(
+                "Audio prepared for HLS",
+                extra={"data": {"duration": total_duration, "est_segments": estimated_segments}}
+            )
+
+            # Step 5: Output as HLS segments
+            playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
+            segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
+
+            # Run FFmpeg with HLS output
+            ffmpeg_cmd = [
+                self.ffmpeg_executable,
+                "-i", mixed_audio_path,
+                "-f", "hls",
+                "-hls_time", str(HLS_SEGMENT_DURATION),
+                "-hls_segment_type", "mpegts",
+                "-hls_flags", "independent_segments",
+                "-hls_segment_filename", segment_pattern,
+                "-hls_list_size", "0",  # Keep all segments in playlist
+                playlist_path,
+            ]
+
+            logger.debug("Running FFmpeg HLS command", extra={"data": {"cmd": " ".join(ffmpeg_cmd)}})
+
+            try:
+                subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=FFMPEG_HLS_TIMEOUT)
+            except subprocess.TimeoutExpired as e:
+                logger.error(
+                    "FFmpeg HLS generation timed out",
+                    extra={"data": {"timeout": FFMPEG_HLS_TIMEOUT, "cmd": " ".join(ffmpeg_cmd)}}
+                )
+                raise Exception(f"FFmpeg HLS generation timed out after {FFMPEG_HLS_TIMEOUT}s") from e
+
+            # Now upload segments progressively
+            segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
+            segment_durations = []
+            segments_uploaded = 0
+
+            for i, segment_file in enumerate(segment_files):
+                # Get segment duration
+                seg_duration = self.get_audio_duration(segment_file)
+                if seg_duration == 0:
+                    seg_duration = float(HLS_SEGMENT_DURATION)
+                segment_durations.append(seg_duration)
+
+                # Upload segment
+                success = self.hls_service.upload_segment_from_file(
+                    user_id, job_id, i, segment_file
+                )
+                if not success:
+                    raise Exception(f"Failed to upload segment {i}")
+
+                segments_uploaded += 1
+
+                # Generate and upload updated playlist
+                playlist_content = self.hls_service.generate_live_playlist(
+                    user_id, job_id, segments_uploaded, segment_durations, is_complete=False
+                )
+                self.hls_service.upload_playlist(user_id, job_id, playlist_content)
+
+                # Call progress callback
+                if progress_callback:
+                    progress_callback(segments_uploaded, estimated_segments)
+
+                logger.debug(
+                    "Uploaded segment",
+                    extra={"data": {"segment": i, "duration": seg_duration}}
+                )
+
+            # Finalize playlist with ENDLIST
+            self.hls_service.finalize_playlist(user_id, job_id, segments_uploaded, segment_durations)
+
+            logger.info(
+                "HLS generation complete",
+                extra={"data": {"job_id": job_id, "segments": segments_uploaded}}
+            )
+
+            # Return the updated music list from _prepare_mixed_audio
+            return (updated_music_list, segments_uploaded, segment_durations)
+
+        finally:
+            # Cleanup temp directory
+            if os.path.exists(hls_output_dir):
+                shutil.rmtree(hls_output_dir, ignore_errors=True)
+            # Cleanup mixed audio file
+            if mixed_audio_path and os.path.exists(mixed_audio_path):
+                try:
+                    os.remove(mixed_audio_path)
+                except OSError:
+                    pass
+
+    def _prepare_mixed_audio(
+        self, voice_path: str, music_list: List[str], timestamp: str
+    ) -> tuple[str, List[str]]:
+        """
+        Prepare mixed audio file (voice + music) for further processing.
+        Returns tuple of (path to mixed audio file, updated music list).
+        """
+        music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
+        music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
+        music_length_reduced_path = f"{settings.TEMP_DIR}/music_length_reduced_{timestamp}.mp3"
+        silence_path = f"{settings.TEMP_DIR}/silence_{timestamp}.mp3"
+        voice_with_silence_path = f"{settings.TEMP_DIR}/voice_with_silence_{timestamp}.mp3"
+        mixed_output_path = f"{settings.TEMP_DIR}/mixed_{timestamp}.mp3"
+
+        # Intermediate files to clean up (excludes mixed_output_path which is returned)
+        intermediate_paths = [
+            music_path, music_volume_reduced_path, music_length_reduced_path,
+            silence_path, voice_with_silence_path
+        ]
+
+        # Clean up any existing files
+        for path in intermediate_paths + [mixed_output_path]:
+            if os.path.exists(path):
+                os.remove(path)
+
+        try:
+            voice_duration = self.get_audio_duration(voice_path)
+            total_duration = voice_duration + 30
+
+            # Select and download background music
+            updated_music_list = self.select_background_music(music_list, total_duration, music_path)
+
+            # Step 1: Reduce music volume
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", music_path,
+                    "-filter:a", f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
+                    music_volume_reduced_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
+
+            # Step 2: Create silence
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-f", "lavfi",
+                    "-i", f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
+                    "-t", str(DEFAULT_SILENCE_DURATION),
+                    silence_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
+
+            # Step 3: Add silence to voice
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", f"concat:{silence_path}|{voice_path}",
+                    "-c", "copy",
+                    voice_with_silence_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
+
+            # Step 4: Trim music to duration
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", music_volume_reduced_path,
+                    "-t", str(total_duration),
+                    music_length_reduced_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
+
+            # Step 5: Mix voice and music
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", music_length_reduced_path,
+                    "-i", voice_with_silence_path,
+                    "-filter_complex",
+                    "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2",
+                    mixed_output_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
+
+            return mixed_output_path, updated_music_list
+
+        finally:
+            # Cleanup intermediate files (always, even on failure)
+            for path in intermediate_paths:
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except OSError:
+                    pass
 
     def select_background_music(
         self, used_music: List[str], duration: float, output_path: str

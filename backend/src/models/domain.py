@@ -68,15 +68,75 @@ class MeditationSession:
 
 
 @dataclass
+class StreamingInfo:
+    """HLS streaming metadata for meditation jobs."""
+    enabled: bool = False
+    playlist_url: Optional[str] = None
+    segments_completed: int = 0
+    segments_total: Optional[int] = None
+    started_at: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "playlist_url": self.playlist_url,
+            "segments_completed": self.segments_completed,
+            "segments_total": self.segments_total,
+            "started_at": self.started_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict[str, Any]]) -> "StreamingInfo":
+        if not data:
+            return cls()
+        return cls(
+            enabled=data.get("enabled", False),
+            playlist_url=data.get("playlist_url"),
+            segments_completed=data.get("segments_completed", 0),
+            segments_total=data.get("segments_total"),
+            started_at=data.get("started_at"),
+        )
+
+
+@dataclass
+class DownloadInfo:
+    """Download metadata for completed meditation jobs."""
+    available: bool = False
+    url: Optional[str] = None
+    downloaded: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "available": self.available,
+            "url": self.url,
+            "downloaded": self.downloaded,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict[str, Any]]) -> "DownloadInfo":
+        if not data:
+            return cls()
+        return cls(
+            available=data.get("available", False),
+            url=data.get("url"),
+            downloaded=data.get("downloaded", False),
+        )
+
+
+@dataclass
 class ProcessingJob:
     job_id: str
     user_id: str
     job_type: str  # 'summary', 'meditation', etc.
-    status: str  # 'pending', 'processing', 'completed', 'failed'
+    status: str  # 'pending', 'processing', 'streaming', 'completed', 'failed'
     created_at: datetime
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
     result_data: Optional[Dict[str, Any]] = None
+    streaming: Optional[StreamingInfo] = None
+    download: Optional[DownloadInfo] = None
+    tts_cache_key: Optional[str] = None
+    generation_attempt: int = 1
 
     def mark_completed(self, result: Dict[str, Any]):
         self.status = "completed"

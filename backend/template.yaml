@@ -62,6 +62,7 @@ Globals:
     Environment:
       Variables:
         PYTHONPATH: /var/task/src
+        ENABLE_HLS_STREAMING: 'true'
 
 Resources:
   FloatApi:
@@ -77,6 +78,7 @@ Resources:
             - !Ref ProductionOrigins
             - ['https://localhost']
         AllowMethods:
+          - GET
           - POST
           - OPTIONS
         AllowHeaders:
@@ -146,6 +148,18 @@ Resources:
             ApiId: !Ref FloatApi
             Path: /job/{job_id}
             Method: OPTIONS
+        ApiDownload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /job/{job_id}/download
+            Method: POST
+        ApiDownloadOptions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /job/{job_id}/download
+            Method: OPTIONS
 
   FloatFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -168,6 +182,23 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          # HLS streaming artifacts - cleanup after 7 days
+          - Id: HLSStreamingCleanup
+            Status: Enabled
+            Prefix: hls/
+            ExpirationInDays: 7
+          # Download artifacts - cleanup after 7 days
+          - Id: DownloadsCleanup
+            Status: Enabled
+            Prefix: downloads/
+            ExpirationInDays: 7
+          # Job metadata - cleanup after 30 days
+          - Id: JobMetadataCleanup
+            Status: Enabled
+            Prefix: jobs/
+            ExpirationInDays: 30
 
 Outputs:
   ApiUrl:

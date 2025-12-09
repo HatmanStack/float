@@ -785,3 +785,315 @@ class TestGeminiAIService:
 
             # Should still work - input is included in prompt as-is
             assert result is not None
+
+
+@pytest.mark.unit
+class TestJobServiceHLS:
+    """Test JobService HLS streaming functionality."""
+
+    def test_create_job_without_streaming(self, mock_storage_service):
+        """Test job creation without streaming enabled."""
+        from src.services.job_service import JobService
+
+        service = JobService(mock_storage_service)
+        job_id = service.create_job("user123", "meditation", enable_streaming=False)
+
+        assert job_id is not None
+        # Verify upload_json was called
+        mock_storage_service.upload_json.assert_called_once()
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        # Should NOT have streaming fields
+        assert "streaming" not in job_data
+        assert "download" not in job_data
+
+    def test_create_job_with_streaming(self, mock_storage_service):
+        """Test job creation with HLS streaming enabled."""
+        from src.services.job_service import JobService
+
+        service = JobService(mock_storage_service)
+        job_id = service.create_job("user123", "meditation", enable_streaming=True)
+
+        assert job_id is not None
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        # Should have streaming fields
+        assert "streaming" in job_data
+        assert job_data["streaming"]["enabled"] is True
+        assert job_data["streaming"]["segments_completed"] == 0
+        assert job_data["streaming"]["playlist_url"] is None
+        assert "download" in job_data
+        assert job_data["download"]["available"] is False
+        assert job_data["tts_cache_key"] is None
+        assert job_data["generation_attempt"] == 1
+
+    def test_streaming_status_enum(self):
+        """Test STREAMING status exists in JobStatus enum."""
+        from src.services.job_service import JobStatus
+
+        assert JobStatus.STREAMING.value == "streaming"
+        assert JobStatus.PENDING.value == "pending"
+        assert JobStatus.PROCESSING.value == "processing"
+        assert JobStatus.COMPLETED.value == "completed"
+        assert JobStatus.FAILED.value == "failed"
+
+    def test_update_streaming_progress(self, mock_storage_service):
+        """Test updating streaming progress."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "streaming",
+            "streaming": {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            }
+        }
+
+        service = JobService(mock_storage_service)
+        service.update_streaming_progress(
+            "user123", "test-job",
+            segments_completed=5,
+            segments_total=36,
+            playlist_url="https://s3.../playlist.m3u8"
+        )
+
+        # Verify save was called
+        assert mock_storage_service.upload_json.called
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["streaming"]["segments_completed"] == 5
+        assert job_data["streaming"]["segments_total"] == 36
+        assert job_data["streaming"]["playlist_url"] == "https://s3.../playlist.m3u8"
+
+    def test_update_streaming_progress_sets_started_at_on_first_segment(self, mock_storage_service):
+        """Test that started_at is set when first segment completes."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "processing",
+            "streaming": {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            }
+        }
+
+        service = JobService(mock_storage_service)
+        service.update_streaming_progress("user123", "test-job", segments_completed=1)
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["streaming"]["started_at"] is not None
+
+    def test_mark_streaming_started(self, mock_storage_service):
+        """Test marking job as streaming."""
+        from src.services.job_service import JobService, JobStatus
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "processing",
+            "streaming": {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            }
+        }
+
+        service = JobService(mock_storage_service)
+        service.mark_streaming_started("user123", "test-job", "https://s3.../playlist.m3u8")
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["status"] == JobStatus.STREAMING.value
+        assert job_data["streaming"]["playlist_url"] == "https://s3.../playlist.m3u8"
+        assert job_data["streaming"]["started_at"] is not None
+
+    def test_mark_streaming_complete(self, mock_storage_service):
+        """Test marking streaming as complete."""
+        from src.services.job_service import JobService, JobStatus
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "streaming",
+            "streaming": {
+                "enabled": True,
+                "playlist_url": "https://s3.../playlist.m3u8",
+                "segments_completed": 35,
+                "segments_total": None,
+                "started_at": "2024-01-01T00:00:00",
+            },
+            "download": {
+                "available": False,
+                "url": None,
+                "downloaded": False,
+            }
+        }
+
+        service = JobService(mock_storage_service)
+        service.mark_streaming_complete("user123", "test-job", segments_total=36)
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["status"] == JobStatus.COMPLETED.value
+        assert job_data["streaming"]["segments_completed"] == 36
+        assert job_data["streaming"]["segments_total"] == 36
+        assert job_data["download"]["available"] is True
+
+    def test_mark_download_ready(self, mock_storage_service):
+        """Test setting download URL."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "completed",
+            "download": {
+                "available": True,
+                "url": None,
+                "downloaded": False,
+            }
+        }
+
+        service = JobService(mock_storage_service)
+        service.mark_download_ready("user123", "test-job", "https://s3.../download.mp3")
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["download"]["url"] == "https://s3.../download.mp3"
+
+    def test_mark_download_completed(self, mock_storage_service):
+        """Test marking download as completed."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "completed",
+            "download": {
+                "available": True,
+                "url": "https://s3.../download.mp3",
+                "downloaded": False,
+            }
+        }
+
+        service = JobService(mock_storage_service)
+        service.mark_download_completed("user123", "test-job")
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["download"]["downloaded"] is True
+
+    def test_set_tts_cache_key(self, mock_storage_service):
+        """Test setting TTS cache key."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "processing",
+            "tts_cache_key": None,
+        }
+
+        service = JobService(mock_storage_service)
+        service.set_tts_cache_key("user123", "test-job", "user123/hls/test-job/voice.mp3")
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["tts_cache_key"] == "user123/hls/test-job/voice.mp3"
+
+    def test_increment_generation_attempt(self, mock_storage_service):
+        """Test incrementing generation attempt."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "processing",
+            "generation_attempt": 1,
+        }
+
+        service = JobService(mock_storage_service)
+        attempt = service.increment_generation_attempt("user123", "test-job")
+
+        assert attempt == 2
+
+        call_args = mock_storage_service.upload_json.call_args
+        job_data = call_args[1]["data"] if "data" in call_args[1] else call_args[0][2]
+
+        assert job_data["generation_attempt"] == 2
+
+    def test_backward_compatibility_job_without_streaming(self, mock_storage_service):
+        """Test that jobs without streaming fields still work."""
+        from src.services.job_service import JobService
+
+        # Old job format without streaming fields
+        mock_storage_service.download_json.return_value = {
+            "job_id": "old-job",
+            "user_id": "user123",
+            "status": "completed",
+            "result": {"audio": "base64data"},
+        }
+
+        service = JobService(mock_storage_service)
+        job = service.get_job("user123", "old-job")
+
+        assert job is not None
+        assert job["status"] == "completed"
+        assert "streaming" not in job
+
+
+@pytest.mark.unit
+class TestFFmpegAudioServiceHLS:
+    """Test FFmpeg audio service HLS functionality."""
+
+    def test_hls_service_optional_parameter(self, mock_storage_service):
+        """Test that HLS service is optional in constructor."""
+        service = FFmpegAudioService(mock_storage_service)
+        assert service.hls_service is None
+
+    def test_hls_service_injection(self, mock_storage_service):
+        """Test that HLS service can be injected."""
+        mock_hls_service = MagicMock()
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+        assert service.hls_service == mock_hls_service
+
+    def test_combine_voice_and_music_hls_requires_hls_service(self, mock_storage_service):
+        """Test that HLS method requires HLS service."""
+        service = FFmpegAudioService(mock_storage_service)
+
+        with pytest.raises(ValueError, match="HLS service required"):
+            service.combine_voice_and_music_hls(
+                voice_path="/tmp/voice.mp3",
+                music_list=[],
+                timestamp="20241101",
+                user_id="user123",
+                job_id="job456",
+            )
+
+    def test_hls_segment_duration_configuration(self, mock_storage_service):
+        """Test that HLS segment duration is configured correctly."""
+        from src.services.ffmpeg_audio_service import HLS_SEGMENT_DURATION
+
+        assert HLS_SEGMENT_DURATION == 5
