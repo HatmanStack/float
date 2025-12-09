@@ -2,6 +2,7 @@
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from botocore.exceptions import ClientError
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ class TestDownloadService:
         service = DownloadService(mock_storage_service, mock_hls_service)
         key = service.get_download_key("user123", "job456")
 
-        assert key == "user123/downloads/job456.mp3"
+        assert key == "downloads/user123/job456.mp3"
 
     def test_check_mp3_exists_true(self, mock_storage_service, mock_hls_service):
         """Test MP3 exists check returns True."""
@@ -60,7 +61,10 @@ class TestDownloadService:
         """Test MP3 exists check returns False when not found."""
         from src.services.download_service import DownloadService
 
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
 
         service = DownloadService(mock_storage_service, mock_hls_service)
         result = service.check_mp3_exists("user123", "job456")
@@ -99,7 +103,7 @@ class TestDownloadService:
         service = DownloadService(mock_storage_service, mock_hls_service)
         result = service.generate_mp3("user123", "job456")
 
-        assert result == "user123/downloads/job456.mp3"
+        assert result == "downloads/user123/job456.mp3"
         # Should not download segments if MP3 exists
         mock_hls_service.list_segments.assert_not_called()
 
@@ -108,7 +112,10 @@ class TestDownloadService:
         from src.services.download_service import DownloadService
 
         # MP3 doesn't exist
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         # No segments
         mock_hls_service.list_segments.return_value = []
 
@@ -130,14 +137,17 @@ class TestDownloadService:
         from src.services.download_service import DownloadService
 
         # Setup mocks
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         mock_mkdtemp.return_value = "/tmp/mp3_gen_123"
         mock_subprocess.return_value = MagicMock(returncode=0)
 
         service = DownloadService(mock_storage_service, mock_hls_service)
         result = service.generate_mp3("user123", "job456")
 
-        assert result == "user123/downloads/job456.mp3"
+        assert result == "downloads/user123/job456.mp3"
         # Should have downloaded segments
         assert mock_storage_service.s3_client.download_file.call_count == 3
         # Should have run FFmpeg
@@ -159,7 +169,10 @@ class TestDownloadService:
         """Test MP3 generation handles FFmpeg failure."""
         from src.services.download_service import DownloadService
 
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         mock_mkdtemp.return_value = "/tmp/mp3_gen_123"
         mock_subprocess.return_value = MagicMock(returncode=1, stderr="FFmpeg error")
 
@@ -180,7 +193,10 @@ class TestDownloadService:
         """Test MP3 generation handles segment download failure."""
         from src.services.download_service import DownloadService
 
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         mock_mkdtemp.return_value = "/tmp/mp3_gen_123"
         mock_storage_service.s3_client.download_file.side_effect = Exception("Download failed")
 
@@ -207,7 +223,10 @@ class TestDownloadService:
         from src.services.download_service import DownloadService
 
         # MP3 doesn't exist and no segments
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         mock_hls_service.list_segments.return_value = []
 
         service = DownloadService(mock_storage_service, mock_hls_service)

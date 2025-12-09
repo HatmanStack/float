@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 import type {
   JobStatusResponse,
   MeditationResult,
-  DownloadResponse,
   StreamingInfo,
 } from '@/types/api';
 
@@ -218,7 +217,14 @@ async function fetchDownloadUrl(
     throw new Error(`Download request failed with status ${response.status}`);
   }
 
-  const data: DownloadResponse = await response.json();
+  const data = await response.json();
+
+  // Validate response contains download URL
+  if (!data.download_url) {
+    const errorMsg = data.error?.message || 'No download URL returned';
+    throw new Error(errorMsg);
+  }
+
   return data.download_url;
 }
 

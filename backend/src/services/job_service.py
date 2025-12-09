@@ -145,6 +145,10 @@ class JobService:
         """Mark job as streaming and set initial playlist URL."""
         job_data = self.get_job(user_id, job_id)
         if not job_data:
+            logger.warning(
+                "Cannot mark streaming started: job not found",
+                extra={"data": {"job_id": job_id, "user_id": user_id}}
+            )
             return
 
         job_data["status"] = JobStatus.STREAMING.value
@@ -258,7 +262,7 @@ class JobService:
 
     def get_job(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status. Returns None if job doesn't exist or is expired."""
-        key = f"{user_id}/jobs/{job_id}.json"
+        key = f"jobs/{user_id}/{job_id}.json"
         try:
             data = self.storage_service.download_json(self.bucket, key)
 
@@ -308,7 +312,7 @@ class JobService:
 
     def _delete_job(self, user_id: str, job_id: str):
         """Delete a job from S3."""
-        key = f"{user_id}/jobs/{job_id}.json"
+        key = f"jobs/{user_id}/{job_id}.json"
         try:
             self.storage_service.delete_object(self.bucket, key)
             logger.debug("Deleted expired job", extra={"data": {"job_id": job_id}})
@@ -322,7 +326,7 @@ class JobService:
         """Clean up expired jobs for a user. Returns list of deleted job IDs."""
         deleted_jobs = []
         try:
-            prefix = f"{user_id}/jobs/"
+            prefix = f"jobs/{user_id}/"
             job_keys = self.storage_service.list_objects(self.bucket, prefix)
 
             for key in job_keys:
@@ -353,5 +357,5 @@ class JobService:
 
     def _save_job(self, user_id: str, job_id: str, job_data: Dict[str, Any]):
         """Save job data to S3."""
-        key = f"{user_id}/jobs/{job_id}.json"
+        key = f"jobs/{user_id}/{job_id}.json"
         self.storage_service.upload_json(self.bucket, key, job_data)

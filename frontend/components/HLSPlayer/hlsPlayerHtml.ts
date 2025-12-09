@@ -28,7 +28,7 @@ export const hlsPlayerHtml = `<!DOCTYPE html>
 <body>
   <audio id="audio" playsinline></audio>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js" integrity="sha384-B+mKMxMJ/78dFGf/57JyjKLzgw4Es7EwVOIm+8/G1BKivQButPe+Bg+OL2lvIVjX" crossorigin="anonymous"></script>
   <script>
     (function() {
       'use strict';

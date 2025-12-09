@@ -22,6 +22,10 @@ logger = get_logger(__name__)
 # HLS Configuration
 HLS_SEGMENT_DURATION = 5  # seconds
 
+# FFmpeg timeout configuration (seconds)
+FFMPEG_STEP_TIMEOUT = 120  # 2 minutes per individual step
+FFMPEG_HLS_TIMEOUT = 300   # 5 minutes for full HLS generation
+
 
 class FFmpegAudioService(AudioService):
 
@@ -219,7 +223,7 @@ class FFmpegAudioService(AudioService):
 
         try:
             # Step 1-4: Prepare mixed audio (same as regular combine)
-            mixed_audio_path = self._prepare_mixed_audio(
+            mixed_audio_path, updated_music_list = self._prepare_mixed_audio(
                 voice_path, music_list, timestamp
             )
 
@@ -250,7 +254,14 @@ class FFmpegAudioService(AudioService):
 
             logger.debug("Running FFmpeg HLS command", extra={"data": {"cmd": " ".join(ffmpeg_cmd)}})
 
-            subprocess.run(ffmpeg_cmd, check=True, capture_output=True)
+            try:
+                subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=FFMPEG_HLS_TIMEOUT)
+            except subprocess.TimeoutExpired as e:
+                logger.error(
+                    "FFmpeg HLS generation timed out",
+                    extra={"data": {"timeout": FFMPEG_HLS_TIMEOUT, "cmd": " ".join(ffmpeg_cmd)}}
+                )
+                raise Exception(f"FFmpeg HLS generation timed out after {FFMPEG_HLS_TIMEOUT}s") from e
 
             # Now upload segments progressively
             segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
@@ -296,8 +307,8 @@ class FFmpegAudioService(AudioService):
                 extra={"data": {"job_id": job_id, "segments": segments_uploaded}}
             )
 
-            # Return the music list that was selected
-            return (music_list, segments_uploaded, segment_durations)
+            # Return the updated music list from _prepare_mixed_audio
+            return (updated_music_list, segments_uploaded, segment_durations)
 
         finally:
             # Cleanup temp directory
@@ -306,10 +317,10 @@ class FFmpegAudioService(AudioService):
 
     def _prepare_mixed_audio(
         self, voice_path: str, music_list: List[str], timestamp: str
-    ) -> str:
+    ) -> tuple[str, List[str]]:
         """
         Prepare mixed audio file (voice + music) for further processing.
-        Returns path to the mixed audio file.
+        Returns tuple of (path to mixed audio file, updated music list).
         """
         music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
         music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
@@ -331,7 +342,7 @@ class FFmpegAudioService(AudioService):
         total_duration = voice_duration + 30
 
         # Select and download background music
-        self.select_background_music(music_list, total_duration, music_path)
+        updated_music_list = self.select_background_music(music_list, total_duration, music_path)
 
         # Step 1: Reduce music volume
         subprocess.run(
@@ -343,6 +354,7 @@ class FFmpegAudioService(AudioService):
             ],
             check=True,
             capture_output=True,
+            timeout=FFMPEG_STEP_TIMEOUT,
         )
 
         # Step 2: Create silence
@@ -356,6 +368,7 @@ class FFmpegAudioService(AudioService):
             ],
             check=True,
             capture_output=True,
+            timeout=FFMPEG_STEP_TIMEOUT,
         )
 
         # Step 3: Add silence to voice
@@ -368,6 +381,7 @@ class FFmpegAudioService(AudioService):
             ],
             check=True,
             capture_output=True,
+            timeout=FFMPEG_STEP_TIMEOUT,
         )
 
         # Step 4: Trim music to duration
@@ -380,6 +394,7 @@ class FFmpegAudioService(AudioService):
             ],
             check=True,
             capture_output=True,
+            timeout=FFMPEG_STEP_TIMEOUT,
         )
 
         # Step 5: Mix voice and music
@@ -394,6 +409,7 @@ class FFmpegAudioService(AudioService):
             ],
             check=True,
             capture_output=True,
+            timeout=FFMPEG_STEP_TIMEOUT,
         )
 
         # Cleanup intermediate files (keep mixed output)
@@ -402,7 +418,7 @@ class FFmpegAudioService(AudioService):
             if os.path.exists(path):
                 os.remove(path)
 
-        return mixed_output_path
+        return mixed_output_path, updated_music_list
 
     def select_background_music(
         self, used_music: List[str], duration: float, output_path: str

@@ -8,6 +8,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from botocore.exceptions import ClientError
 
 
 @pytest.fixture
@@ -153,7 +154,10 @@ class TestHLSIntegration:
         from src.services.hls_service import HLSService
 
         # Setup HLS service with no segments (so we don't need FFmpeg)
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         mock_storage_service.list_objects.return_value = []  # Empty = no segments
 
         hls_service = HLSService(mock_storage_service)
@@ -174,7 +178,10 @@ class TestHLSIntegration:
         service = HLSService(mock_storage_service)
 
         # First attempt - no cache
-        mock_storage_service.s3_client.head_object.side_effect = Exception("Not found")
+        error_response = {"Error": {"Code": "404", "Message": "Not Found"}}
+        mock_storage_service.s3_client.head_object.side_effect = ClientError(
+            error_response, "HeadObject"
+        )
         assert service.tts_cache_exists("user123", "job456") is False
 
         # Upload TTS cache

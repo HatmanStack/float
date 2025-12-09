@@ -31,14 +31,14 @@ function getErrorMessage(error: Error): string {
     return 'Playback failed. Tap retry to start over.';
   }
 
-  // Generation errors
-  if (message.includes('generation') || message.includes('failed') || message.includes('timeout')) {
-    return 'Could not generate meditation. Please try again.';
-  }
-
-  // Download errors
+  // Download errors (check before generation to avoid 'failed' matching 'Download failed')
   if (message.includes('download')) {
     return 'Download failed. Tap to retry.';
+  }
+
+  // Generation errors
+  if (message.includes('generation') || message.includes('timeout')) {
+    return 'Could not generate meditation. Please try again.';
   }
 
   // Default message

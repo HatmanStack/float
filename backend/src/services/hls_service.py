@@ -21,7 +21,7 @@ class HLSService:
 
     def get_hls_prefix(self, user_id: str, job_id: str) -> str:
         """Get S3 key prefix for HLS artifacts."""
-        return f"{user_id}/hls/{job_id}/"
+        return f"hls/{user_id}/{job_id}/"
 
     def get_segment_key(self, user_id: str, job_id: str, segment_index: int) -> str:
         """Get S3 key for a specific segment."""

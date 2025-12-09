@@ -33,7 +33,7 @@ class TestHLSService:
         service = HLSService(mock_storage_service)
         prefix = service.get_hls_prefix("user123", "job456")
 
-        assert prefix == "user123/hls/job456/"
+        assert prefix == "hls/user123/job456/"
 
     def test_get_segment_key(self, mock_storage_service):
         """Test segment key generation."""
@@ -42,9 +42,9 @@ class TestHLSService:
         service = HLSService(mock_storage_service)
 
         # Test various segment indices
-        assert service.get_segment_key("user123", "job456", 0) == "user123/hls/job456/segment_000.ts"
-        assert service.get_segment_key("user123", "job456", 5) == "user123/hls/job456/segment_005.ts"
-        assert service.get_segment_key("user123", "job456", 99) == "user123/hls/job456/segment_099.ts"
+        assert service.get_segment_key("user123", "job456", 0) == "hls/user123/job456/segment_000.ts"
+        assert service.get_segment_key("user123", "job456", 5) == "hls/user123/job456/segment_005.ts"
+        assert service.get_segment_key("user123", "job456", 99) == "hls/user123/job456/segment_099.ts"
 
     def test_get_playlist_key(self, mock_storage_service):
         """Test playlist key generation."""
@@ -53,7 +53,7 @@ class TestHLSService:
         service = HLSService(mock_storage_service)
         key = service.get_playlist_key("user123", "job456")
 
-        assert key == "user123/hls/job456/playlist.m3u8"
+        assert key == "hls/user123/job456/playlist.m3u8"
 
     def test_get_tts_cache_key(self, mock_storage_service):
         """Test TTS cache key generation."""
@@ -62,7 +62,7 @@ class TestHLSService:
         service = HLSService(mock_storage_service)
         key = service.get_tts_cache_key("user123", "job456")
 
-        assert key == "user123/hls/job456/voice.mp3"
+        assert key == "hls/user123/job456/voice.mp3"
 
     def test_generate_presigned_url_success(self, mock_storage_service):
         """Test pre-signed URL generation."""

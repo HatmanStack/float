@@ -4,8 +4,25 @@
  * Safari uses native HLS support when available.
  */
 
-import Hls, { Events, ErrorTypes, ErrorDetails } from 'hls.js';
+import Hls, { Events, ErrorTypes, ErrorDetails, HlsConfig } from 'hls.js';
 import { useState, useEffect, useCallback, useRef } from 'react';
+
+// Shared HLS.js configuration
+const HLS_CONFIG: Partial<HlsConfig> = {
+  // Live streaming configuration
+  liveSyncDuration: 3,
+  liveMaxLatencyDuration: 10,
+  liveDurationInfinity: true,
+  // Enable low latency mode
+  lowLatencyMode: true,
+  // Retry configuration
+  manifestLoadingMaxRetry: 4,
+  manifestLoadingRetryDelay: 1000,
+  levelLoadingMaxRetry: 4,
+  levelLoadingRetryDelay: 1000,
+  fragLoadingMaxRetry: 6,
+  fragLoadingRetryDelay: 1000,
+};
 
 export interface HLSPlayerState {
   isLoading: boolean;
@@ -185,21 +202,7 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
       return;
     }
 
-    const hls = new Hls({
-      // Live streaming configuration
-      liveSyncDuration: 3,
-      liveMaxLatencyDuration: 10,
-      liveDurationInfinity: true,
-      // Enable low latency mode
-      lowLatencyMode: true,
-      // Retry configuration
-      manifestLoadingMaxRetry: 4,
-      manifestLoadingRetryDelay: 1000,
-      levelLoadingMaxRetry: 4,
-      levelLoadingRetryDelay: 1000,
-      fragLoadingMaxRetry: 6,
-      fragLoadingRetryDelay: 1000,
-    });
+    const hls = new Hls(HLS_CONFIG);
 
     hlsRef.current = hls;
 
@@ -326,17 +329,25 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
       }
 
       if (Hls.isSupported()) {
-        const hls = new Hls({
-          liveSyncDuration: 3,
-          liveMaxLatencyDuration: 10,
-          liveDurationInfinity: true,
-          lowLatencyMode: true,
-        });
+        const hls = new Hls(HLS_CONFIG);
         hlsRef.current = hls;
 
         hls.on(Events.MANIFEST_PARSED, () => {
           setState(prev => ({ ...prev, isLoading: false }));
           audio.play().catch(console.warn);
+        });
+
+        // Include LEVEL_LOADED handler for duration/completion (same as main init)
+        hls.on(Events.LEVEL_LOADED, (_, data) => {
+          if (data.details.totalduration) {
+            setState(prev => ({
+              ...prev,
+              duration: data.details.totalduration,
+            }));
+          }
+          if (data.details.live === false) {
+            setState(prev => ({ ...prev, isComplete: true }));
+          }
         });
 
         hls.on(Events.ERROR, (_, data) => {

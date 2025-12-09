@@ -8,6 +8,9 @@ import { StyleSheet, View } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { hlsPlayerHtml } from './hlsPlayerHtml';
 
+// Delay before auto-play to let HLS.js initialize
+const AUTOPLAY_DELAY_MS = 100;
+
 export interface HLSPlayerProps {
   playlistUrl: string | null;
   onPlaybackStart?: () => void;
@@ -72,8 +75,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
       if (isReadyRef.current) {
         sendCommand('load', { url: playlistUrl });
         if (autoPlay) {
-          // Small delay to let HLS initialize
-          setTimeout(() => sendCommand('play'), 100);
+          setTimeout(() => sendCommand('play'), AUTOPLAY_DELAY_MS);
         }
       } else {
         // Store URL to load when WebView is ready
@@ -94,7 +96,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
           if (pendingUrlRef.current) {
             sendCommand('load', { url: pendingUrlRef.current });
             if (autoPlay) {
-              setTimeout(() => sendCommand('play'), 100);
+              setTimeout(() => sendCommand('play'), AUTOPLAY_DELAY_MS);
             }
             pendingUrlRef.current = null;
           }

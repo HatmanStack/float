@@ -1,24 +1,6 @@
-# HLS Streaming for Meditation Audio (Future)
+# HLS Streaming for Meditation Audio
 
-Progressive audio playback using HLS to reduce perceived wait time from 2 minutes to ~20 seconds.
-
-## Current Flow
-
-```
-POST /meditation → job_id → poll every 3s → wait 2 min → download 2MB audio
-```
-
-## Proposed Flow
-
-```
-POST /meditation → job_id
-Lambda generates segments → S3:
-  /jobs/{job_id}/playlist.m3u8
-  /jobs/{job_id}/segment_000.ts  (ready in ~20s)
-  /jobs/{job_id}/segment_001.ts
-  ...
-Client plays playlist.m3u8 → audio starts after first segment
-```
+Progressive audio playback using HLS to reduce perceived wait time from ~2 minutes to ~4 seconds.
 
 ## Architecture
 
@@ -30,113 +12,67 @@ Client plays playlist.m3u8 → audio starts after first segment
       │                                        ▼
       │                               ┌─────────────┐
       │                               │   FFmpeg    │
-      │                               │  (segment)  │
+      │                               │  (HLS out)  │
       │                               └──────┬──────┘
       │                                      │
       │         ┌────────────────────────────┘
       │         ▼
       │   ┌─────────────┐
       └──▶│     S3      │
-          │  segments/  │
-          │  playlist   │
+          │  hls/       │
+          │  downloads/ │
           └─────────────┘
 ```
 
-## Backend Changes
+## Flow
 
-### FFmpeg Segmented Output
+1. **Client** sends `POST /meditation` with `streaming: true`
+2. **Lambda** returns `job_id` immediately, invokes async processing
+3. **Async Lambda** generates TTS, creates HLS segments via FFmpeg
+4. **Segments** uploaded to S3 progressively with live playlist updates
+5. **Client** polls `/job/{job_id}`, receives `playlist_url` when first segment ready
+6. **Client** plays HLS stream (starts in ~4 seconds, full audio ~2 minutes)
+7. **Download** available after completion via `/job/{job_id}/download`
 
-```python
-# Current: single file output
-ffmpeg -i input.mp3 -i music.mp3 ... output.mp3
-
-# HLS: segmented output
-ffmpeg -i input.mp3 -i music.mp3 ... \
-  -f hls \
-  -hls_time 10 \
-  -hls_segment_filename 'segment_%03d.ts' \
-  playlist.m3u8
-```
-
-### Lambda Flow
-
-1. Generate meditation text (Gemini)
-2. Generate voice (OpenAI TTS)
-3. Start FFmpeg with HLS output, upload segments to S3 as created
-4. Update playlist.m3u8 in S3 after each segment
-5. Mark job complete when all segments uploaded
-
-### S3 Structure
+## S3 Key Structure
 
 ```
-s3://float-data-bucket/
-  jobs/
-    {job_id}/
-      playlist.m3u8      # HLS manifest
-      segment_000.ts     # First 10 seconds
-      segment_001.ts     # Next 10 seconds
-      ...
+s3://float-cust-data/
+  hls/{user_id}/{job_id}/
+    playlist.m3u8      # HLS manifest (live, then finalized)
+    segment_000.ts     # First 5 seconds
+    segment_001.ts     # Next 5 seconds
+    ...
+    voice.mp3          # Cached TTS for retry
+  downloads/{user_id}/{job_id}.mp3   # Full MP3 for offline
+  jobs/{user_id}/{job_id}.json       # Job metadata
 ```
 
-### Cleanup
+## Backend Components
 
-- S3 lifecycle rule: delete segments after 24 hours
-- Or delete on meditation completion/skip
+- **HLSService** (`hls_service.py`): Segment upload, playlist generation, pre-signed URLs
+- **DownloadService** (`download_service.py`): MP3 concatenation from segments
+- **FFmpegAudioService** (`ffmpeg_audio_service.py`): `combine_voice_and_music_hls()` for HLS output
+- **JobService** (`job_service.py`): Streaming status tracking
 
-## Frontend Changes
+## Frontend Components
 
-### Web (HLS.js)
+- **HLSPlayer** (`HLSPlayer.tsx`): WebView-based player for mobile
+- **useHLSPlayer** (`useHLSPlayer.web.ts`): HLS.js hook for web browsers
+- **MeditationControls**: Integrates streaming playback with download button
 
-```typescript
-import Hls from 'hls.js';
+## Configuration
 
-function playHLSAudio(playlistUrl: string) {
-  const audio = document.createElement('audio');
+- Segment duration: 5 seconds
+- Pre-signed URL expiry: 1 hour
+- S3 lifecycle: 7 days for HLS/downloads, 30 days for job metadata
+- Retry attempts: 3 (with TTS caching)
+- FFmpeg timeout: 2 minutes per step, 5 minutes for HLS generation
 
-  if (Hls.isSupported()) {
-    const hls = new Hls();
-    hls.loadSource(playlistUrl);
-    hls.attachMedia(audio);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => audio.play());
-  } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari native HLS
-    audio.src = playlistUrl;
-    audio.play();
-  }
+## Download Flow
 
-  return audio;
-}
-```
-
-### React Native
-
-- iOS: `expo-av` supports HLS natively
-- Android: Use `react-native-video` for HLS support
-
-## Cost Comparison
-
-| Current | HLS/S3 |
-|---------|--------|
-| API Gateway: $3.50/million requests | S3 GET: $0.40/million requests |
-| Lambda response bandwidth | S3/CloudFront bandwidth |
-| Polling overhead | No polling needed |
-
-HLS/S3 is cheaper for audio delivery.
-
-## Implementation Steps
-
-1. [ ] Modify FFmpeg service to output HLS segments
-2. [ ] Add segment upload logic (stream to S3 during FFmpeg)
-3. [ ] Create playlist.m3u8 generation
-4. [ ] Add S3 lifecycle rule for cleanup
-5. [ ] Create HLS player component for web
-6. [ ] Test on iOS (native HLS via expo-av)
-7. [ ] Add react-native-video for Android HLS
-8. [ ] Update job status to include playlist URL
-9. [ ] Add CloudFront distribution (optional, for caching)
-
-## Open Questions
-
-- Segment duration: 10s vs 5s (shorter = faster start, more requests)
-- Keep base64 fallback for offline/download?
-- Progress UI during segment generation?
+After streaming completes:
+1. User taps download button
+2. `POST /job/{job_id}/download` triggers MP3 generation
+3. Backend concatenates segments to single MP3, uploads to S3
+4. Returns pre-signed download URL (1 hour expiry)

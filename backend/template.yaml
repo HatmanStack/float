@@ -187,17 +187,17 @@ Resources:
           # HLS streaming artifacts - cleanup after 7 days
           - Id: HLSStreamingCleanup
             Status: Enabled
-            Prefix: /hls/
+            Prefix: hls/
             ExpirationInDays: 7
           # Download artifacts - cleanup after 7 days
           - Id: DownloadsCleanup
             Status: Enabled
-            Prefix: /downloads/
+            Prefix: downloads/
             ExpirationInDays: 7
           # Job metadata - cleanup after 30 days
           - Id: JobMetadataCleanup
             Status: Enabled
-            Prefix: /jobs/
+            Prefix: jobs/
             ExpirationInDays: 30
 
 Outputs:

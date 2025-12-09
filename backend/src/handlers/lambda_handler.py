@@ -333,14 +333,15 @@ class LambdaHandler:
             current_attempt = job_data.get("generation_attempt", 1) if job_data else 1
 
             if current_attempt < MAX_GENERATION_ATTEMPTS:
-                # Increment attempt and let the next poll trigger retry
+                # Increment attempt counter
                 self.job_service.increment_generation_attempt(request.user_id, job_id)
                 logger.info(
-                    "Will retry HLS generation",
+                    "Retrying HLS generation",
                     extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}}
                 )
-                # Re-raise to trigger retry via another async invocation
-                raise
+                # Self-invoke to retry asynchronously
+                self._invoke_async_meditation(request, job_id)
+                return
 
             # Max retries exceeded
             self.job_service.update_job_status(
@@ -365,11 +366,14 @@ class LambdaHandler:
 
         return job_data
 
-    def handle_download_request(self, user_id: str, job_id: str) -> Dict[str, Any]:
+    def handle_download_request(
+        self, user_id: str, job_id: str, job_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Handle download request - generate MP3 and return URL."""
-        job_data = self.job_service.get_job(user_id, job_id)
-        if not job_data:
-            return None
+        if job_data is None:
+            job_data = self.job_service.get_job(user_id, job_id)
+            if not job_data:
+                return None
 
         # Check job is completed
         if job_data.get("status") != JobStatus.COMPLETED.value:
@@ -606,8 +610,8 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
         )
         return cors_middleware(lambda e, c: response)(event, None)
 
-    # Handle download
-    result = handler.handle_download_request(user_id, job_id)
+    # Handle download (pass job_data to avoid duplicate lookup)
+    result = handler.handle_download_request(user_id, job_id, job_data)
     if result is None:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
         return cors_middleware(lambda e, c: response)(event, None)

@@ -5,6 +5,8 @@ import subprocess
 import tempfile
 from typing import Optional
 
+from botocore.exceptions import ClientError
+
 from ..config.settings import settings
 from ..utils.logging_utils import get_logger
 from .hls_service import HLSService
@@ -14,6 +16,9 @@ logger = get_logger(__name__)
 
 # URL expiry for downloads
 DOWNLOAD_URL_EXPIRY = 3600  # 1 hour
+
+# FFmpeg timeout for concatenation
+FFMPEG_CONCAT_TIMEOUT = 300  # 5 minutes
 
 
 class DownloadService:
@@ -27,7 +32,7 @@ class DownloadService:
 
     def get_download_key(self, user_id: str, job_id: str) -> str:
         """Get S3 key for the downloadable MP3."""
-        return f"{user_id}/downloads/{job_id}.mp3"
+        return f"downloads/{user_id}/{job_id}.mp3"
 
     def check_mp3_exists(self, user_id: str, job_id: str) -> bool:
         """Check if MP3 has already been generated for this job."""
@@ -35,8 +40,11 @@ class DownloadService:
         try:
             self.storage_service.s3_client.head_object(Bucket=self.bucket, Key=key)
             return True
-        except Exception:
-            return False
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                return False
+            # Re-raise unexpected errors (permissions, network, etc.)
+            raise
 
     def get_download_url(self, user_id: str, job_id: str) -> Optional[str]:
         """Generate pre-signed GET URL for the downloadable MP3."""
@@ -133,11 +141,19 @@ class DownloadService:
                 extra={"data": {"cmd": " ".join(ffmpeg_cmd)}}
             )
 
-            result = subprocess.run(
-                ffmpeg_cmd,
-                capture_output=True,
-                text=True,
-            )
+            try:
+                result = subprocess.run(
+                    ffmpeg_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=FFMPEG_CONCAT_TIMEOUT,
+                )
+            except subprocess.TimeoutExpired:
+                logger.error(
+                    "FFmpeg concat timed out",
+                    extra={"data": {"timeout": FFMPEG_CONCAT_TIMEOUT}}
+                )
+                return None
 
             if result.returncode != 0:
                 logger.error(

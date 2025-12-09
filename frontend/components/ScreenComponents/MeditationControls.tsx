@@ -100,13 +100,15 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   const [streamEnded, setStreamEnded] = useState(false);
 
   // HLS playback controls
+  // For play: let handlePlaybackStart callback update state (confirms playback started)
+  // For pause: update state immediately (pause is synchronous and reliable)
   const handleHLSPlay = useCallback(() => {
     if (isHLSPlaying) {
       hlsPlayerRef.current?.pause();
       setIsHLSPlaying(false);
     } else {
       hlsPlayerRef.current?.play();
-      setIsHLSPlaying(true);
+      // State will be updated by handlePlaybackStart callback
     }
   }, [isHLSPlaying]);
 
@@ -157,7 +159,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
         </ThemedText>
         <Pressable
           onPress={() => {
-            setHlsError(null);
+            // Don't clear error immediately - handlePlaybackStart will clear it on success
             hlsPlayerRef.current?.play();
           }}
           style={({ pressed }) => [
