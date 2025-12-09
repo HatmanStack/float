@@ -254,15 +254,14 @@ class LambdaHandler:
                 request.user_id, job_id, JobStatus.PROCESSING
             )
 
-            # Check for TTS cache (for retry scenarios)
-            tts_cache_key = self.hls_service.get_tts_cache_key(request.user_id, job_id)
+            # Get job data for retry info
             job_data = self.job_service.get_job(request.user_id, job_id)
             generation_attempt = job_data.get("generation_attempt", 1) if job_data else 1
 
             timestamp = generate_timestamp()
             voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
 
-            # Check if we have cached TTS audio
+            # Check if we have cached TTS audio (for retry scenarios)
             if self.hls_service.tts_cache_exists(request.user_id, job_id):
                 logger.info(
                     "Using cached TTS audio",
@@ -285,6 +284,7 @@ class LambdaHandler:
                     raise Exception("Failed to generate speech audio")
 
                 # Cache the TTS audio for retry (only set key if upload succeeds)
+                tts_cache_key = self.hls_service.get_tts_cache_key(request.user_id, job_id)
                 if self.hls_service.upload_tts_cache(request.user_id, job_id, voice_path):
                     self.job_service.set_tts_cache_key(request.user_id, job_id, tts_cache_key)
 

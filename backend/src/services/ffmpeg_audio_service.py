@@ -220,6 +220,7 @@ class FFmpegAudioService(AudioService):
 
         # Create temp directory for HLS output
         hls_output_dir = tempfile.mkdtemp(prefix="hls_")
+        mixed_audio_path = None
 
         try:
             # Step 1-4: Prepare mixed audio (same as regular combine)
@@ -314,6 +315,12 @@ class FFmpegAudioService(AudioService):
             # Cleanup temp directory
             if os.path.exists(hls_output_dir):
                 shutil.rmtree(hls_output_dir, ignore_errors=True)
+            # Cleanup mixed audio file
+            if mixed_audio_path and os.path.exists(mixed_audio_path):
+                try:
+                    os.remove(mixed_audio_path)
+                except OSError:
+                    pass
 
     def _prepare_mixed_audio(
         self, voice_path: str, music_list: List[str], timestamp: str

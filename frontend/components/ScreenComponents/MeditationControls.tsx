@@ -171,33 +171,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
     );
   }
 
-  // Show error state for HLS
-  if (hlsError && useStreamingMode) {
-    return (
-      <ThemedView style={{ padding: 20 }}>
-        <ThemedText type="default" style={{ textAlign: 'center', marginBottom: 10 }}>
-          Playback error
-        </ThemedText>
-        <Pressable
-          onPress={() => {
-            // Don't clear error immediately - handlePlaybackStart will clear it on success
-            hlsPlayerRef.current?.play();
-          }}
-          style={({ pressed }) => [
-            {
-              backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
-            },
-            styles.button,
-          ]}
-          testID="retry-button"
-        >
-          <ThemedText type="generate">Retry</ThemedText>
-        </Pressable>
-      </ThemedView>
-    );
-  }
-
-  // Streaming mode: HLS player
+  // Streaming mode: HLS player (keep mounted even during error for retry to work)
   if (useStreamingMode) {
     return (
       <ThemedView style={{ padding: 20 }}>
@@ -210,22 +184,44 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           onError={handleHLSError}
           autoPlay={true}
         />
-        <Pressable
-          onPress={handleHLSPlay}
-          style={({ pressed }) => [
-            {
-              backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
-            },
-            styles.button,
-          ]}
-          testID="hls-play-button"
-        >
-          {({ pressed }) => (
-            <ThemedText type="generate">
-              {isHLSPlaying ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
+        {hlsError ? (
+          <>
+            <ThemedText type="default" style={{ textAlign: 'center', marginBottom: 10 }}>
+              Playback error
             </ThemedText>
-          )}
-        </Pressable>
+            <Pressable
+              onPress={() => {
+                hlsPlayerRef.current?.play();
+              }}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+                },
+                styles.button,
+              ]}
+              testID="retry-button"
+            >
+              <ThemedText type="generate">Retry</ThemedText>
+            </Pressable>
+          </>
+        ) : (
+          <Pressable
+            onPress={handleHLSPlay}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+              },
+              styles.button,
+            ]}
+            testID="hls-play-button"
+          >
+            {({ pressed }) => (
+              <ThemedText type="generate">
+                {isHLSPlaying ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
+              </ThemedText>
+            )}
+          </Pressable>
+        )}
         {streamEnded && (
           <ThemedText type="default" style={{ textAlign: 'center', marginTop: 10 }}>
             Meditation complete
