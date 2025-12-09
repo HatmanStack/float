@@ -329,96 +329,102 @@ class FFmpegAudioService(AudioService):
         voice_with_silence_path = f"{settings.TEMP_DIR}/voice_with_silence_{timestamp}.mp3"
         mixed_output_path = f"{settings.TEMP_DIR}/mixed_{timestamp}.mp3"
 
-        # Clean up any existing files
-        temp_paths = [
+        # Intermediate files to clean up (excludes mixed_output_path which is returned)
+        intermediate_paths = [
             music_path, music_volume_reduced_path, music_length_reduced_path,
-            silence_path, voice_with_silence_path, mixed_output_path
+            silence_path, voice_with_silence_path
         ]
-        for path in temp_paths:
+
+        # Clean up any existing files
+        for path in intermediate_paths + [mixed_output_path]:
             if os.path.exists(path):
                 os.remove(path)
 
-        voice_duration = self.get_audio_duration(voice_path)
-        total_duration = voice_duration + 30
+        try:
+            voice_duration = self.get_audio_duration(voice_path)
+            total_duration = voice_duration + 30
 
-        # Select and download background music
-        updated_music_list = self.select_background_music(music_list, total_duration, music_path)
+            # Select and download background music
+            updated_music_list = self.select_background_music(music_list, total_duration, music_path)
 
-        # Step 1: Reduce music volume
-        subprocess.run(
-            [
-                self.ffmpeg_executable,
-                "-i", music_path,
-                "-filter:a", f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
-                music_volume_reduced_path,
-            ],
-            check=True,
-            capture_output=True,
-            timeout=FFMPEG_STEP_TIMEOUT,
-        )
+            # Step 1: Reduce music volume
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", music_path,
+                    "-filter:a", f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
+                    music_volume_reduced_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
 
-        # Step 2: Create silence
-        subprocess.run(
-            [
-                self.ffmpeg_executable,
-                "-f", "lavfi",
-                "-i", f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
-                "-t", str(DEFAULT_SILENCE_DURATION),
-                silence_path,
-            ],
-            check=True,
-            capture_output=True,
-            timeout=FFMPEG_STEP_TIMEOUT,
-        )
+            # Step 2: Create silence
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-f", "lavfi",
+                    "-i", f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
+                    "-t", str(DEFAULT_SILENCE_DURATION),
+                    silence_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
 
-        # Step 3: Add silence to voice
-        subprocess.run(
-            [
-                self.ffmpeg_executable,
-                "-i", f"concat:{silence_path}|{voice_path}",
-                "-c", "copy",
-                voice_with_silence_path,
-            ],
-            check=True,
-            capture_output=True,
-            timeout=FFMPEG_STEP_TIMEOUT,
-        )
+            # Step 3: Add silence to voice
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", f"concat:{silence_path}|{voice_path}",
+                    "-c", "copy",
+                    voice_with_silence_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
 
-        # Step 4: Trim music to duration
-        subprocess.run(
-            [
-                self.ffmpeg_executable,
-                "-i", music_volume_reduced_path,
-                "-t", str(total_duration),
-                music_length_reduced_path,
-            ],
-            check=True,
-            capture_output=True,
-            timeout=FFMPEG_STEP_TIMEOUT,
-        )
+            # Step 4: Trim music to duration
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", music_volume_reduced_path,
+                    "-t", str(total_duration),
+                    music_length_reduced_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
 
-        # Step 5: Mix voice and music
-        subprocess.run(
-            [
-                self.ffmpeg_executable,
-                "-i", music_length_reduced_path,
-                "-i", voice_with_silence_path,
-                "-filter_complex",
-                "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2",
-                mixed_output_path,
-            ],
-            check=True,
-            capture_output=True,
-            timeout=FFMPEG_STEP_TIMEOUT,
-        )
+            # Step 5: Mix voice and music
+            subprocess.run(
+                [
+                    self.ffmpeg_executable,
+                    "-i", music_length_reduced_path,
+                    "-i", voice_with_silence_path,
+                    "-filter_complex",
+                    "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2",
+                    mixed_output_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
+            )
 
-        # Cleanup intermediate files (keep mixed output)
-        for path in [music_path, music_volume_reduced_path, music_length_reduced_path,
-                     silence_path, voice_with_silence_path]:
-            if os.path.exists(path):
-                os.remove(path)
+            return mixed_output_path, updated_music_list
 
-        return mixed_output_path, updated_music_list
+        finally:
+            # Cleanup intermediate files (always, even on failure)
+            for path in intermediate_paths:
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except OSError:
+                    pass
 
     def select_background_music(
         self, used_music: List[str], duration: float, output_path: str

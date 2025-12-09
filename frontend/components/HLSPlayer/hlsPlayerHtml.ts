@@ -36,6 +36,9 @@ export const hlsPlayerHtml = `<!DOCTYPE html>
       const audio = document.getElementById('audio');
       let hls = null;
       let currentUrl = null;
+      let networkRetryCount = 0;
+      const MAX_NETWORK_RETRIES = 3;
+      const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
 
       // Send message to React Native
       function sendMessage(type, data = {}) {
@@ -133,6 +136,7 @@ export const hlsPlayerHtml = `<!DOCTYPE html>
 
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             sendMessage('loaded');
+            networkRetryCount = 0; // Reset on successful load
           });
 
           hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
@@ -152,12 +156,24 @@ export const hlsPlayerHtml = `<!DOCTYPE html>
             if (data.fatal) {
               switch (data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
-                  hls.startLoad();
+                  if (networkRetryCount < MAX_NETWORK_RETRIES) {
+                    const delay = RETRY_DELAYS[networkRetryCount] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
+                    networkRetryCount++;
+                    console.log('Network retry ' + networkRetryCount + ' after ' + delay + 'ms');
+                    setTimeout(() => hls.startLoad(), delay);
+                  } else {
+                    currentUrl = null; // Reset so retry command can reload
+                    sendMessage('error', {
+                      message: 'Network error after ' + MAX_NETWORK_RETRIES + ' retries',
+                      fatal: true
+                    });
+                  }
                   break;
                 case Hls.ErrorTypes.MEDIA_ERROR:
                   hls.recoverMediaError();
                   break;
                 default:
+                  currentUrl = null; // Reset so retry command can reload
                   sendMessage('error', {
                     message: 'HLS fatal error: ' + data.details,
                     fatal: true

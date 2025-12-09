@@ -284,9 +284,9 @@ class LambdaHandler:
                 if not success:
                     raise Exception("Failed to generate speech audio")
 
-                # Cache the TTS audio for retry
-                self.hls_service.upload_tts_cache(request.user_id, job_id, voice_path)
-                self.job_service.set_tts_cache_key(request.user_id, job_id, tts_cache_key)
+                # Cache the TTS audio for retry (only set key if upload succeeds)
+                if self.hls_service.upload_tts_cache(request.user_id, job_id, voice_path):
+                    self.job_service.set_tts_cache_key(request.user_id, job_id, tts_cache_key)
 
             # Generate playlist URL
             playlist_url = self.hls_service.generate_playlist_url(request.user_id, job_id)
@@ -340,8 +340,15 @@ class LambdaHandler:
                     extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}}
                 )
                 # Self-invoke to retry asynchronously
-                self._invoke_async_meditation(request, job_id)
-                return
+                try:
+                    self._invoke_async_meditation(request, job_id)
+                    return
+                except Exception as invoke_error:
+                    logger.error(
+                        "Failed to invoke retry",
+                        extra={"data": {"job_id": job_id, "error": str(invoke_error)}}
+                    )
+                    # Fall through to mark as failed
 
             # Max retries exceeded
             self.job_service.update_job_status(
@@ -411,20 +418,6 @@ class LambdaHandler:
             "download_url": download_url,
             "expires_in": 3600,  # 1 hour
         }
-
-    def handle_download_complete(self, user_id: str, job_id: str) -> Dict[str, Any]:
-        """Mark download as completed and trigger cleanup."""
-        job_data = self.job_service.get_job(user_id, job_id)
-        if not job_data:
-            return None
-
-        # Mark download completed
-        self.job_service.mark_download_completed(user_id, job_id)
-
-        # Cleanup HLS artifacts
-        self.hls_service.cleanup_hls_artifacts(user_id, job_id)
-
-        return {"status": "cleanup_completed"}
 
     def _store_summary_results(
         self, request: SummaryRequest, response, has_audio: bool

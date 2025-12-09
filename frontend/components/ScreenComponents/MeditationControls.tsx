@@ -1,5 +1,5 @@
 import { Audio } from 'expo-av';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Pressable, ActivityIndicator } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import useStyles from '@/constants/StylesConstants';
@@ -28,14 +28,30 @@ interface MeditationControlsProps {
 function useAudioPlayback(meditationURI: string, setMeditationURI: (uri: string) => void) {
   const [isPausing, setisPausing] = useState(false);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const handlePlayMeditation = useCallback(async () => {
     try {
       let uri = meditationURI;
       if (uri.startsWith('blob:')) {
+        // Revoke previous blob URL if any
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
         const response = await fetch(uri);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
+        blobUrlRef.current = blobUrl;
         uri = blobUrl;
       }
 
@@ -56,6 +72,11 @@ function useAudioPlayback(meditationURI: string, setMeditationURI: (uri: string)
               await newSound.unloadAsync();
             } catch (error) {
               console.error('Error unloading audio:', error);
+            }
+            // Revoke blob URL when playback finishes
+            if (blobUrlRef.current) {
+              URL.revokeObjectURL(blobUrlRef.current);
+              blobUrlRef.current = null;
             }
             setisPausing(false);
             setSound(null);
