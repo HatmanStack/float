@@ -316,18 +316,17 @@ describe('useHLSPlayer', () => {
     });
   });
 
-  describe('Safari native HLS fallback', () => {
-    it('should use native HLS when supported', () => {
-      // Mock canPlayType to return support
+  describe('HLS.js usage', () => {
+    it('should always use HLS.js regardless of native support', () => {
+      // Even if native HLS is supported, we always use HLS.js for presigned URL compatibility
       mockAudioElement.canPlayType.mockReturnValue('maybe');
 
       renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
-      // Should set src directly instead of using HLS.js
-      // Note: This test may not work exactly as expected due to hook implementation
-      // but it verifies the canPlayType is called
-      expect(mockAudioElement.canPlayType).toHaveBeenCalledWith(
-        'application/vnd.apple.mpegurl'
+      // HLS.js should be used and load the source
+      // Native canPlayType is not used since we always use HLS.js
+      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith(
+        'https://example.com/playlist.m3u8'
       );
     });
   });

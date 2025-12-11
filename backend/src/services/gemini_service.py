@@ -198,7 +198,7 @@ Data for meditation transcript:"""
         logger.info("Starting meditation generation")
         logger.debug("Input data keys: %s", list(input_data.keys()))
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-pro-preview-05-06",
+            model_name="gemini-2.5-flash",
             safety_settings=self.safety_settings,
         )
         try:

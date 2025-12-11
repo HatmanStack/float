@@ -26,10 +26,12 @@ class TestOpenAITTSProvider:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
 
-            # Mock the speech.create response
-            mock_response = MagicMock()
-            mock_response.content = b"audio_data"
-            mock_client.audio.speech.create.return_value = mock_response
+            # Mock the streaming response context manager
+            mock_streaming_response = MagicMock()
+            mock_streaming_response.iter_bytes.return_value = [b"audio_chunk"]
+            mock_streaming_response.__enter__ = MagicMock(return_value=mock_streaming_response)
+            mock_streaming_response.__exit__ = MagicMock(return_value=False)
+            mock_client.audio.speech.with_streaming_response.create.return_value = mock_streaming_response
 
             # Mock file operations
             with patch("builtins.open", create=True):
@@ -37,14 +39,14 @@ class TestOpenAITTSProvider:
                 result = provider.synthesize_speech("Test text", "/tmp/test.mp3")
 
                 assert result is True
-                mock_client.audio.speech.create.assert_called_once()
+                mock_client.audio.speech.with_streaming_response.create.assert_called_once()
 
     def test_synthesize_speech_api_error(self):
         """Test error handling when OpenAI API fails."""
         with patch("src.providers.openai_tts.openai.OpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
-            mock_client.audio.speech.create.side_effect = Exception("API Error")
+            mock_client.audio.speech.with_streaming_response.create.side_effect = Exception("API Error")
 
             provider = OpenAITTSProvider()
             result = provider.synthesize_speech("Test text", "/tmp/test.mp3")
@@ -57,9 +59,12 @@ class TestOpenAITTSProvider:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
 
-            mock_response = MagicMock()
-            mock_response.content = b"audio_data"
-            mock_client.audio.speech.create.return_value = mock_response
+            # Mock the streaming response context manager
+            mock_streaming_response = MagicMock()
+            mock_streaming_response.iter_bytes.return_value = [b"audio_chunk"]
+            mock_streaming_response.__enter__ = MagicMock(return_value=mock_streaming_response)
+            mock_streaming_response.__exit__ = MagicMock(return_value=False)
+            mock_client.audio.speech.with_streaming_response.create.return_value = mock_streaming_response
 
             # Mock file write failure
             with patch("builtins.open", side_effect=IOError("Write failed")):

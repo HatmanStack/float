@@ -50,11 +50,9 @@ export interface StreamingMeditationResponse {
   responseMusicList: string[];
 }
 
-// Polling configuration with exponential backoff
+// Polling configuration
 const INITIAL_POLL_INTERVAL_MS = 1000; // Start with 1 second
-const MAX_POLL_INTERVAL_MS = 30000; // Cap at 30 seconds
-const BACKOFF_MULTIPLIER = 1.5; // Increase by 50% each time
-const JITTER_FACTOR = 0.2; // Add up to 20% random jitter
+const MAX_POLL_INTERVAL_MS = 3000; // 3 seconds after fast window
 const MAX_TOTAL_WAIT_MS = 5 * 60 * 1000; // 5 minutes max total wait
 
 const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): TransformedDict => {
@@ -85,15 +83,19 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
 
 const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 
+// Fast polling for first 45 seconds when streaming is expected
+const FAST_POLL_WINDOW_MS = 45000;
+const FAST_POLL_INTERVAL_MS = 1000;
+
 /**
- * Calculate next poll interval with exponential backoff and jitter.
- * Jitter helps prevent thundering herd when multiple clients poll simultaneously.
+ * Calculate next poll interval.
+ * Uses fast 1-second polling for first 45 seconds, then 3-second intervals.
  */
-function getNextPollInterval(currentInterval: number): number {
-  const nextInterval = Math.min(currentInterval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL_MS);
-  // Add random jitter: interval * (1 + random(-JITTER_FACTOR, +JITTER_FACTOR))
-  const jitter = nextInterval * JITTER_FACTOR * (Math.random() * 2 - 1);
-  return Math.round(nextInterval + jitter);
+function getNextPollInterval(elapsedMs: number): number {
+  if (elapsedMs < FAST_POLL_WINDOW_MS) {
+    return FAST_POLL_INTERVAL_MS;
+  }
+  return MAX_POLL_INTERVAL_MS;
 }
 
 /**
@@ -125,8 +127,9 @@ async function pollJobStatusForStreaming(
     const jobData: JobStatusResponse = await response.json();
     onStatusUpdate?.(jobData);
 
-    // Return early when streaming starts OR when completed
-    if (jobData.status === 'streaming' && jobData.streaming?.playlist_url) {
+    // Return early when streaming is available (regardless of status) OR when completed
+    // Job may transition quickly from 'streaming' to 'completed', so check playlist_url first
+    if (jobData.streaming?.playlist_url) {
       return jobData;
     }
 
@@ -141,9 +144,10 @@ async function pollJobStatusForStreaming(
       throw new Error(errorMsg);
     }
 
-    // Wait with exponential backoff before next poll
+    // Wait before next poll
+    const elapsed = Date.now() - startTime;
+    pollInterval = getNextPollInterval(elapsed);
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    pollInterval = getNextPollInterval(pollInterval);
   }
 
   throw new Error('Meditation generation timed out');
@@ -189,9 +193,10 @@ async function pollUntilComplete(
       throw new Error(errorMsg);
     }
 
-    // Wait with exponential backoff before next poll
+    // Wait before next poll
+    const elapsed = Date.now() - startTime;
+    pollInterval = getNextPollInterval(elapsed);
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    pollInterval = getNextPollInterval(pollInterval);
   }
 
   throw new Error('Meditation generation timed out');
@@ -267,9 +272,10 @@ async function pollJobStatus(
       throw new Error(errorMsg);
     }
 
-    // Wait with exponential backoff before next poll
+    // Wait before next poll
+    const elapsed = Date.now() - startTime;
+    pollInterval = getNextPollInterval(elapsed);
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    pollInterval = getNextPollInterval(pollInterval);
   }
 
   throw new Error('Meditation generation timed out');
@@ -353,8 +359,9 @@ export async function BackendMeditationCallStreaming(
 
     const getDownloadUrl = async (): Promise<string> => {
       // Ensure job is completed first
+      // Don't pass onStatusUpdate - we don't want to re-trigger streaming UI
       if (initialStatus.status !== 'completed') {
-        await pollUntilComplete(jobId, userId, lambdaUrl, onStatusUpdate);
+        await pollUntilComplete(jobId, userId, lambdaUrl);
       }
       return fetchDownloadUrl(jobId, userId, lambdaUrl);
     };

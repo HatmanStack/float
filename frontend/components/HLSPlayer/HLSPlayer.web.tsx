@@ -9,6 +9,7 @@ import { useHLSPlayer } from '@/hooks/useHLSPlayer.web';
 export interface HLSPlayerProps {
   playlistUrl: string | null;
   onPlaybackStart?: () => void;
+  onPlaybackPause?: () => void;
   onPlaybackComplete?: () => void;
   onError?: (error: Error) => void;
   onTimeUpdate?: (currentTime: number, duration: number | null) => void;
@@ -30,12 +31,13 @@ export interface HLSPlayerRef {
 const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
   playlistUrl,
   onPlaybackStart,
+  onPlaybackPause,
   onPlaybackComplete,
   onError,
   onTimeUpdate,
   onBuffering,
   onStreamComplete,
-  autoPlay = true,
+  autoPlay = false,
 }, ref) => {
   const [state, controls] = useHLSPlayer(playlistUrl);
   const prevPlayingRef = useRef(false);
@@ -63,17 +65,39 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
     if (state.isPlaying && !prevPlayingRef.current) {
       onPlaybackStart?.();
     }
+    // Playback paused (was playing, now not)
+    if (!state.isPlaying && prevPlayingRef.current && !state.isComplete) {
+      onPlaybackPause?.();
+    }
     prevPlayingRef.current = state.isPlaying;
-  }, [state.isPlaying, onPlaybackStart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isPlaying, state.isComplete]);
 
   useEffect(() => {
-    // Playback completed
+    // Stream generation completed (EXT-X-ENDLIST detected)
+    // This does NOT mean playback is done - just that all segments are available
     if (state.isComplete && !prevCompleteRef.current) {
-      onPlaybackComplete?.();
       onStreamComplete?.();
     }
     prevCompleteRef.current = state.isComplete;
-  }, [state.isComplete, onPlaybackComplete, onStreamComplete]);
+  }, [state.isComplete, onStreamComplete]);
+
+  // Track when playback actually finishes (audio ended event)
+  // This is when currentTime reaches duration and isPlaying becomes false
+  const prevCurrentTimeRef = useRef(0);
+  useEffect(() => {
+    const playbackFinished =
+      state.duration &&
+      state.duration > 0 &&
+      state.currentTime >= state.duration - 0.5 && // Within 0.5s of end
+      !state.isPlaying &&
+      prevCurrentTimeRef.current > 0; // Was playing before
+
+    if (playbackFinished) {
+      onPlaybackComplete?.();
+    }
+    prevCurrentTimeRef.current = state.currentTime;
+  }, [state.currentTime, state.duration, state.isPlaying, onPlaybackComplete]);
 
   useEffect(() => {
     // Error occurred

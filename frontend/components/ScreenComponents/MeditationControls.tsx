@@ -20,6 +20,8 @@ interface MeditationControlsProps {
   isStreaming?: boolean;
   onStreamComplete?: () => void;
   onStreamError?: (error: Error) => void;
+  // Callback when playback ends (to reset UI to Generate button)
+  onPlaybackEnd?: () => void;
 }
 
 /**
@@ -110,6 +112,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   isStreaming = false,
   onStreamComplete,
   onStreamError,
+  onPlaybackEnd,
 }: MeditationControlsProps): React.JSX.Element => {
   const styles = useStyles();
   const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
@@ -118,34 +121,38 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   const hlsPlayerRef = useRef<HLSPlayerRef>(null);
   const [isHLSPlaying, setIsHLSPlaying] = useState(false);
   const [hlsError, setHlsError] = useState<Error | null>(null);
-  const [streamEnded, setStreamEnded] = useState(false);
 
   // HLS playback controls
-  // For play: let handlePlaybackStart callback update state (confirms playback started)
-  // For pause: update state immediately (pause is synchronous and reliable)
   const handleHLSPlay = useCallback(() => {
-    if (isHLSPlaying) {
-      hlsPlayerRef.current?.pause();
-      setIsHLSPlaying(false);
-    } else {
-      hlsPlayerRef.current?.play();
-      // State will be updated by handlePlaybackStart callback
-    }
-  }, [isHLSPlaying]);
+    setIsHLSPlaying(prev => {
+      if (prev) {
+        hlsPlayerRef.current?.pause();
+        return false;
+      } else {
+        hlsPlayerRef.current?.play();
+        return true;
+      }
+    });
+  }, []);
 
-  // HLS event handlers - also reset state on new playback
+  // HLS event handlers
   const handlePlaybackStart = useCallback(() => {
     setIsHLSPlaying(true);
     setHlsError(null);
-    setStreamEnded(false);
+  }, []);
+
+  const handlePlaybackPause = useCallback(() => {
+    setIsHLSPlaying(false);
   }, []);
 
   const handlePlaybackComplete = useCallback(() => {
     setIsHLSPlaying(false);
-  }, []);
+    // Parent will reset playlistUrl via onPlaybackEnd callback
+    onPlaybackEnd?.();
+  }, [onPlaybackEnd]);
 
   const handleHLSStreamComplete = useCallback(() => {
-    setStreamEnded(true);
+    // Stream generation complete (all segments uploaded)
     onStreamComplete?.();
   }, [onStreamComplete]);
 
@@ -172,6 +179,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   }
 
   // Streaming mode: HLS player (keep mounted even during error for retry to work)
+  // Parent resets playlistUrl via onPlaybackEnd when playback finishes
   if (useStreamingMode) {
     return (
       <ThemedView style={{ padding: 20 }}>
@@ -179,10 +187,11 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           ref={hlsPlayerRef}
           playlistUrl={playlistUrl}
           onPlaybackStart={handlePlaybackStart}
+          onPlaybackPause={handlePlaybackPause}
           onPlaybackComplete={handlePlaybackComplete}
           onStreamComplete={handleHLSStreamComplete}
           onError={handleHLSError}
-          autoPlay={true}
+          autoPlay={false}
         />
         {hlsError ? (
           <>
@@ -191,6 +200,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
             </ThemedText>
             <Pressable
               onPress={() => {
+                setHlsError(null);
                 hlsPlayerRef.current?.play();
               }}
               style={({ pressed }) => [
@@ -221,11 +231,6 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
               </ThemedText>
             )}
           </Pressable>
-        )}
-        {streamEnded && (
-          <ThemedText type="default" style={{ textAlign: 'center', marginTop: 10 }}>
-            Meditation complete
-          </ThemedText>
         )}
       </ThemedView>
     );

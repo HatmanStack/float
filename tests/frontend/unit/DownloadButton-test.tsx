@@ -187,7 +187,8 @@ describe('DownloadButton', () => {
       fireEvent.press(screen.getByTestId('download-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('Downloaded')).toBeTruthy();
+        // Button stays as "Download" after completion (no "Downloaded" state)
+        expect(screen.getByText('Download')).toBeTruthy();
       });
     });
 

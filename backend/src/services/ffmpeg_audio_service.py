@@ -6,7 +6,9 @@ import re
 import shutil
 import subprocess
 import tempfile
-from typing import TYPE_CHECKING, Callable, List, Optional
+import threading
+import time
+from typing import TYPE_CHECKING, Callable, Iterator, List, Optional
 
 from ..config.constants import DEFAULT_MUSIC_VOLUME_REDUCTION, DEFAULT_SILENCE_DURATION
 from ..config.settings import settings
@@ -244,6 +246,7 @@ class FFmpegAudioService(AudioService):
             ffmpeg_cmd = [
                 self.ffmpeg_executable,
                 "-i", mixed_audio_path,
+                "-c:a", "aac",  # AAC codec required for HLS browser compatibility
                 "-f", "hls",
                 "-hls_time", str(HLS_SEGMENT_DURATION),
                 "-hls_segment_type", "mpegts",
@@ -482,3 +485,169 @@ class FFmpegAudioService(AudioService):
         if matches:
             return int(matches[-1])
         return None
+
+    def process_stream_to_hls(
+        self,
+        voice_generator: Iterator[bytes],
+        music_path: str,
+        user_id: str,
+        job_id: str,
+        progress_callback: Optional[Callable[[int, Optional[int]], None]] = None,
+    ) -> tuple[int, List[float]]:
+        """
+        Stream TTS audio directly to FFmpeg, mixing with music and outputting HLS segments.
+        Uploads segments progressively as they're created.
+
+        Args:
+            voice_generator: Iterator yielding audio chunks from TTS
+            music_path: Path to downloaded background music file
+            user_id: User identifier
+            job_id: Job identifier
+            progress_callback: Optional callback(segments_completed, segments_total)
+
+        Returns:
+            Tuple of (total_segments, segment_durations)
+        """
+        if not self.hls_service:
+            raise ValueError("HLS service required for streaming HLS output")
+
+        logger.info("Starting streaming HLS generation", extra={"data": {"job_id": job_id}})
+
+        hls_output_dir = tempfile.mkdtemp(prefix="hls_stream_")
+        playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
+        segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
+
+        # FFmpeg command: pipe voice input, mix with looped music, output HLS
+        # OpenAI TTS outputs MP3 at 24kHz
+        # Add 20 seconds of trailing music after voice ends
+        trailing_music_seconds = 20
+        ffmpeg_cmd = [
+            self.ffmpeg_executable,
+            "-stream_loop", "-1", "-i", music_path,  # Loop music infinitely
+            "-f", "mp3", "-i", "pipe:0",  # Voice from stdin (MP3 format)
+            "-filter_complex",
+            f"[0:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
+            f"[1:a]adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
+            f"apad=pad_dur={trailing_music_seconds}[voice_padded];"
+            f"[music][voice_padded]amix=inputs=2:duration=second:dropout_transition=2[out]",
+            "-map", "[out]",
+            "-c:a", "aac",  # AAC codec required for HLS browser compatibility
+            "-f", "hls",
+            "-hls_time", str(HLS_SEGMENT_DURATION),
+            "-hls_segment_type", "mpegts",
+            "-hls_flags", "independent_segments",
+            "-hls_segment_filename", segment_pattern,
+            "-hls_list_size", "0",
+            playlist_path,
+        ]
+
+        logger.info("Starting FFmpeg streaming process", extra={"data": {"cmd": " ".join(ffmpeg_cmd)}})
+
+        process = subprocess.Popen(
+            ffmpeg_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        # State for watcher thread
+        state = {
+            "uploading": True,
+            "segments_uploaded": 0,
+            "segment_durations": [],
+            "error": None,
+        }
+        uploaded_segments = set()
+
+        def upload_watcher():
+            """Watch for new segments and upload them progressively."""
+            while state["uploading"] or os.path.exists(hls_output_dir):
+                try:
+                    segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
+                    for segment_file in segment_files:
+                        if segment_file in uploaded_segments:
+                            continue
+
+                        # Wait for file to be fully written
+                        if not os.path.exists(segment_file):
+                            continue
+                        file_size = os.path.getsize(segment_file)
+                        if file_size == 0:
+                            continue
+
+                        # Extract segment index
+                        segment_name = os.path.basename(segment_file)
+                        segment_index = int(segment_name.replace("segment_", "").replace(".ts", ""))
+
+                        # Get duration
+                        seg_duration = self.get_audio_duration(segment_file)
+                        if seg_duration == 0:
+                            seg_duration = float(HLS_SEGMENT_DURATION)
+
+                        while len(state["segment_durations"]) <= segment_index:
+                            state["segment_durations"].append(float(HLS_SEGMENT_DURATION))
+                        state["segment_durations"][segment_index] = seg_duration
+
+                        # Upload segment
+                        if self.hls_service.upload_segment_from_file(user_id, job_id, segment_index, segment_file):
+                            uploaded_segments.add(segment_file)
+                            state["segments_uploaded"] += 1
+
+                            # Update playlist
+                            playlist_content = self.hls_service.generate_live_playlist(
+                                user_id, job_id,
+                                state["segments_uploaded"],
+                                state["segment_durations"][:state["segments_uploaded"]],
+                                is_complete=False
+                            )
+                            self.hls_service.upload_playlist(user_id, job_id, playlist_content)
+
+                            if progress_callback:
+                                progress_callback(state["segments_uploaded"], None)
+
+                            logger.info(f"Uploaded segment {segment_index}")
+                        else:
+                            logger.error(f"Failed to upload segment {segment_index}")
+
+                    if not state["uploading"]:
+                        break
+                    time.sleep(0.3)
+                except Exception as e:
+                    logger.error(f"Watcher error: {e}")
+                    state["error"] = e
+                    break
+
+        watcher_thread = threading.Thread(target=upload_watcher)
+        watcher_thread.start()
+
+        try:
+            # Stream voice data to FFmpeg stdin
+            for chunk in voice_generator:
+                process.stdin.write(chunk)
+                process.stdin.flush()
+
+            process.stdin.close()
+            process.wait()
+
+            if process.returncode != 0:
+                stderr = process.stderr.read().decode()
+                raise Exception(f"FFmpeg failed: {stderr}")
+
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            process.kill()
+            raise
+        finally:
+            state["uploading"] = False
+            watcher_thread.join(timeout=30)
+
+            if state["error"]:
+                raise state["error"]
+
+            # Finalize playlist
+            self.hls_service.finalize_playlist(
+                user_id, job_id, state["segments_uploaded"], state["segment_durations"]
+            )
+            shutil.rmtree(hls_output_dir, ignore_errors=True)
+
+        return (state["segments_uploaded"], state["segment_durations"])

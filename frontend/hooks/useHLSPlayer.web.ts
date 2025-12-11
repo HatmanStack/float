@@ -5,16 +5,19 @@
  */
 
 import Hls, { Events, ErrorTypes, ErrorDetails, HlsConfig } from 'hls.js';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
-// Shared HLS.js configuration
+// Shared HLS.js configuration - optimized for sequential playback from start
 const HLS_CONFIG: Partial<HlsConfig> = {
-  // Live streaming configuration
-  liveSyncDuration: 3,
-  liveMaxLatencyDuration: 10,
-  liveDurationInfinity: true,
-  // Enable low latency mode
-  lowLatencyMode: true,
+  // Start from beginning, not live edge
+  startPosition: 0,
+  // Large latency tolerance - don't jump to catch up with live edge
+  liveSyncDuration: 9999,
+  liveMaxLatencyDuration: 99999,
+  liveDurationInfinity: false,
+  lowLatencyMode: false,
+  // Disable back buffer trimming to keep all segments available
+  backBufferLength: Infinity,
   // Retry configuration
   manifestLoadingMaxRetry: 4,
   manifestLoadingRetryDelay: 1000,
@@ -60,7 +63,18 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
 
   const hlsRef = useRef<Hls | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const playlistUrlRef = useRef<string | null>(null);
+
+  // Memoize the base URL so effect only runs when stream changes
+  // Presigned URLs have different signatures each time but same base path
+  const baseUrl = useMemo(() => {
+    if (!playlistUrl) return null;
+    try {
+      const parsed = new URL(playlistUrl);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+      return playlistUrl;
+    }
+  }, [playlistUrl]);
 
   // Check if browser supports HLS natively (Safari)
   const supportsNativeHLS = useCallback((): boolean => {
@@ -128,6 +142,8 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
 
     const handleError = () => {
       const mediaError = audio.error;
+      const errorTypes = ['', 'ABORTED', 'NETWORK', 'DECODE', 'SRC_NOT_SUPPORTED'];
+      console.error('Audio error:', errorTypes[mediaError?.code || 0] || mediaError?.code);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -156,40 +172,26 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
     };
   }, []);
 
-  // Initialize HLS when playlist URL changes
+  // Initialize HLS when base URL changes (ignoring presigned URL query param changes)
   useEffect(() => {
     const audio = audioRef.current;
 
-    // Handle no URL case
-    if (!audio || !playlistUrl) {
-      playlistUrlRef.current = playlistUrl;
+    // Handle no URL case - cleanup if URL removed
+    if (!audio || !baseUrl || !playlistUrl) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
       return;
     }
 
-    // Skip if URL hasn't changed
-    if (playlistUrl === playlistUrlRef.current) return;
-    playlistUrlRef.current = playlistUrl;
-
-    // Cleanup previous HLS instance
+    // If HLS is already running for this base URL, don't reinitialize
     if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
-    // Use native HLS for Safari
-    if (supportsNativeHLS()) {
-      audio.src = playlistUrl;
-      audio.load();
-      // Auto-play when ready
-      audio.addEventListener('canplay', () => {
-        audio.play().catch(err => {
-          console.warn('Auto-play prevented:', err);
-        });
-      }, { once: true });
       return;
     }
 
-    // Use HLS.js for other browsers
+    // Always use HLS.js - native HLS support doesn't handle presigned URLs well
+    // Native Safari HLS can't properly fetch segments with AWS presigned URLs
     if (!Hls.isSupported()) {
       // Schedule state update via microtask to avoid sync setState in effect
       queueMicrotask(() => {
@@ -208,10 +210,6 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
 
     hls.on(Events.MANIFEST_PARSED, () => {
       setState(prev => ({ ...prev, isLoading: false }));
-      // Auto-play when manifest is parsed
-      audio.play().catch(err => {
-        console.warn('Auto-play prevented:', err);
-      });
     });
 
     hls.on(Events.LEVEL_LOADED, (_, data) => {
@@ -231,30 +229,25 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
 
     hls.on(Events.ERROR, (_, data) => {
       if (data.fatal) {
+        console.error('HLS fatal:', data.type, data.details);
         switch (data.type) {
           case ErrorTypes.NETWORK_ERROR:
-            // Try to recover from network errors
             hls.startLoad();
             break;
           case ErrorTypes.MEDIA_ERROR:
-            // Try to recover from media errors
             hls.recoverMediaError();
             break;
           default:
-            // Cannot recover
             setState(prev => ({
               ...prev,
               isLoading: false,
-              error: new Error(`HLS fatal error: ${data.details}`),
+              error: new Error(`HLS error: ${data.details}`),
             }));
             hls.destroy();
             break;
         }
-      } else {
-        // Non-fatal errors - HLS.js will handle retry
-        if (data.details === ErrorDetails.BUFFER_STALLED_ERROR) {
-          setState(prev => ({ ...prev, isLoading: true }));
-        }
+      } else if (data.details === ErrorDetails.BUFFER_STALLED_ERROR) {
+        setState(prev => ({ ...prev, isLoading: true }));
       }
     });
 
@@ -265,14 +258,16 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
       hls.destroy();
       hlsRef.current = null;
     };
-  }, [playlistUrl, supportsNativeHLS]);
+    // Only re-run when baseUrl changes (new stream), not when presigned URL refreshes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseUrl, supportsNativeHLS]);
 
   // Controls
   const play = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
       audio.play().catch(err => {
-        console.error('Play error:', err);
+        console.error('Play failed:', err.name);
         setState(prev => ({ ...prev, error: err }));
       });
     }
@@ -304,9 +299,8 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
     });
 
     const audio = audioRef.current;
-    const url = playlistUrlRef.current;
 
-    if (!audio || !url) return;
+    if (!audio || !playlistUrl) return;
 
     // Cleanup existing HLS
     if (hlsRef.current) {
@@ -314,57 +308,41 @@ export function useHLSPlayer(playlistUrl: string | null): [HLSPlayerState, HLSPl
       hlsRef.current = null;
     }
 
-    // Force URL change to trigger re-initialization
-    playlistUrlRef.current = null;
+    // Reinitialize HLS
+    if (Hls.isSupported()) {
+      const hls = new Hls(HLS_CONFIG);
+      hlsRef.current = hls;
 
-    // Small delay then re-set URL to trigger effect
-    setTimeout(() => {
-      playlistUrlRef.current = url;
+      hls.on(Events.MANIFEST_PARSED, () => {
+        setState(prev => ({ ...prev, isLoading: false }));
+      });
 
-      if (supportsNativeHLS()) {
-        audio.src = url;
-        audio.load();
-        audio.play().catch(console.warn);
-        return;
-      }
+      hls.on(Events.LEVEL_LOADED, (_, data) => {
+        if (data.details.totalduration) {
+          setState(prev => ({
+            ...prev,
+            duration: data.details.totalduration,
+          }));
+        }
+        if (data.details.live === false) {
+          setState(prev => ({ ...prev, isComplete: true }));
+        }
+      });
 
-      if (Hls.isSupported()) {
-        const hls = new Hls(HLS_CONFIG);
-        hlsRef.current = hls;
+      hls.on(Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: new Error(`HLS error: ${data.details}`),
+          }));
+        }
+      });
 
-        hls.on(Events.MANIFEST_PARSED, () => {
-          setState(prev => ({ ...prev, isLoading: false }));
-          audio.play().catch(console.warn);
-        });
-
-        // Include LEVEL_LOADED handler for duration/completion (same as main init)
-        hls.on(Events.LEVEL_LOADED, (_, data) => {
-          if (data.details.totalduration) {
-            setState(prev => ({
-              ...prev,
-              duration: data.details.totalduration,
-            }));
-          }
-          if (data.details.live === false) {
-            setState(prev => ({ ...prev, isComplete: true }));
-          }
-        });
-
-        hls.on(Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            setState(prev => ({
-              ...prev,
-              isLoading: false,
-              error: new Error(`HLS error: ${data.details}`),
-            }));
-          }
-        });
-
-        hls.loadSource(url);
-        hls.attachMedia(audio);
-      }
-    }, 100);
-  }, [supportsNativeHLS]);
+      hls.loadSource(playlistUrl);
+      hls.attachMedia(audio);
+    }
+  }, [playlistUrl]);
 
   const controls: HLSPlayerControls = {
     play,

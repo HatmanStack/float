@@ -261,16 +261,41 @@ class LambdaHandler:
             timestamp = generate_timestamp()
             voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
 
+            # Generate playlist URL
+            playlist_url = self.hls_service.generate_playlist_url(request.user_id, job_id)
+
             # Check if we have cached TTS audio (for retry scenarios)
             if self.hls_service.tts_cache_exists(request.user_id, job_id):
                 logger.info(
-                    "Using cached TTS audio",
+                    "Using cached TTS audio (batch mode)",
                     extra={"data": {"job_id": job_id, "attempt": generation_attempt}}
                 )
                 if not self.hls_service.download_tts_cache(request.user_id, job_id, voice_path):
                     raise Exception("Failed to download cached TTS audio")
+
+                # Mark job as streaming
+                self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+
+                # Progress callback
+                def progress_callback(segments_completed: int, segments_total: Optional[int]):
+                    self.job_service.update_streaming_progress(
+                        request.user_id, job_id,
+                        segments_completed=segments_completed,
+                        segments_total=segments_total,
+                        playlist_url=playlist_url,
+                    )
+
+                # Use batch mode for cached audio
+                music_list, total_segments, segment_durations = self.audio_service.combine_voice_and_music_hls(
+                    voice_path=voice_path,
+                    music_list=request.music_list,
+                    timestamp=timestamp,
+                    user_id=request.user_id,
+                    job_id=job_id,
+                    progress_callback=progress_callback,
+                )
             else:
-                # Generate new TTS audio
+                # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
                 input_data = self._ensure_input_data_is_dict(request.input_data)
                 meditation_text = self.ai_service.generate_meditation(input_data)
                 logger.debug(
@@ -278,40 +303,48 @@ class LambdaHandler:
                     extra={"data": {"length": len(meditation_text)}}
                 )
 
-                tts_provider = self.get_tts_provider()
-                success = tts_provider.synthesize_speech(meditation_text, voice_path)
-                if not success:
-                    raise Exception("Failed to generate speech audio")
-
-                # Cache the TTS audio for retry (only set key if upload succeeds)
-                tts_cache_key = self.hls_service.get_tts_cache_key(request.user_id, job_id)
-                if self.hls_service.upload_tts_cache(request.user_id, job_id, voice_path):
-                    self.job_service.set_tts_cache_key(request.user_id, job_id, tts_cache_key)
-
-            # Generate playlist URL
-            playlist_url = self.hls_service.generate_playlist_url(request.user_id, job_id)
-
-            # Mark job as streaming
-            self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
-
-            # Progress callback to update job status
-            def progress_callback(segments_completed: int, segments_total: Optional[int]):
-                self.job_service.update_streaming_progress(
-                    request.user_id, job_id,
-                    segments_completed=segments_completed,
-                    segments_total=segments_total,
-                    playlist_url=playlist_url,
+                # Select and download background music
+                music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
+                self.audio_service.select_background_music(
+                    request.music_list, 120, music_path  # Estimate 2 min duration
                 )
 
-            # Generate HLS segments
-            music_list, total_segments, segment_durations = self.audio_service.combine_voice_and_music_hls(
-                voice_path=voice_path,
-                music_list=request.music_list,
-                timestamp=timestamp,
-                user_id=request.user_id,
-                job_id=job_id,
-                progress_callback=progress_callback,
-            )
+                # Get TTS stream generator
+                tts_provider = self.get_tts_provider()
+                voice_generator = tts_provider.stream_speech(meditation_text)
+
+                # Track if we've marked streaming started
+                streaming_started = False
+
+                def progress_callback(segments_completed: int, segments_total: Optional[int]):
+                    nonlocal streaming_started
+                    # Mark streaming started on first segment
+                    if not streaming_started:
+                        self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+                        streaming_started = True
+                        logger.info(
+                            "First segment ready, marked as streaming",
+                            extra={"data": {"job_id": job_id, "playlist_url": playlist_url}}
+                        )
+                    self.job_service.update_streaming_progress(
+                        request.user_id, job_id,
+                        segments_completed=segments_completed,
+                        segments_total=segments_total,
+                        playlist_url=playlist_url,
+                    )
+
+                # Stream TTS directly to FFmpeg HLS output
+                total_segments, segment_durations = self.audio_service.process_stream_to_hls(
+                    voice_generator=voice_generator,
+                    music_path=music_path,
+                    user_id=request.user_id,
+                    job_id=job_id,
+                    progress_callback=progress_callback,
+                )
+
+                # Clean up music file
+                if os.path.exists(music_path):
+                    os.remove(music_path)
 
             # Mark streaming complete
             self.job_service.mark_streaming_complete(request.user_id, job_id, total_segments)
@@ -365,11 +398,16 @@ class LambdaHandler:
         if not job_data:
             return None
 
-        # Refresh pre-signed playlist URL if streaming
-        if job_data.get("streaming", {}).get("enabled"):
+        # Refresh pre-signed playlist URL ONLY if streaming has actually started
+        # (i.e., at least one segment is uploaded and playlist file exists)
+        streaming = job_data.get("streaming", {})
+        if streaming.get("enabled") and streaming.get("started_at"):
             fresh_playlist_url = self.hls_service.generate_playlist_url(user_id, job_id)
             if fresh_playlist_url:
                 job_data["streaming"]["playlist_url"] = fresh_playlist_url
+        elif streaming.get("enabled"):
+            # Streaming enabled but not started yet - clear any stale URL
+            job_data["streaming"]["playlist_url"] = None
 
         return job_data
 

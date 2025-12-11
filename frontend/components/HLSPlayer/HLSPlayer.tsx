@@ -14,6 +14,7 @@ const AUTOPLAY_DELAY_MS = 100;
 export interface HLSPlayerProps {
   playlistUrl: string | null;
   onPlaybackStart?: () => void;
+  onPlaybackPause?: () => void;
   onPlaybackComplete?: () => void;
   onError?: (error: Error) => void;
   onTimeUpdate?: (currentTime: number, duration: number | null) => void;
@@ -44,12 +45,13 @@ interface WebViewMessage {
 const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
   playlistUrl,
   onPlaybackStart,
+  onPlaybackPause,
   onPlaybackComplete,
   onError,
   onTimeUpdate,
   onBuffering,
   onStreamComplete,
-  autoPlay = true,
+  autoPlay = false,
 }, ref) => {
   const webViewRef = useRef<WebView>(null);
   const isReadyRef = useRef(false);
@@ -107,7 +109,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
           break;
 
         case 'paused':
-          // No-op for now
+          onPlaybackPause?.();
           break;
 
         case 'complete':
@@ -143,7 +145,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
     } catch (e) {
       console.error('Error parsing WebView message:', e);
     }
-  }, [onPlaybackStart, onPlaybackComplete, onError, onTimeUpdate, onBuffering, onStreamComplete, sendCommand, autoPlay]);
+  }, [onPlaybackStart, onPlaybackPause, onPlaybackComplete, onError, onTimeUpdate, onBuffering, onStreamComplete, sendCommand, autoPlay]);
 
   return (
     <View style={styles.container}>

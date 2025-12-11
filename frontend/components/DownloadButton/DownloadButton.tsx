@@ -112,8 +112,6 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
         return 'Preparing...';
       case 'downloading':
         return `Downloading ${progress}%`;
-      case 'completed':
-        return 'Downloaded';
       case 'error':
         return 'Retry Download';
       default:
@@ -146,7 +144,7 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
       testID="download-button"
     >
       {() => (
-        <ThemedView style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'transparent' }}>
+        <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'transparent' }}>
           {(downloadState === 'fetching_url' || downloadState === 'downloading') && (
             <ActivityIndicator
               size="small"

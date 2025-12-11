@@ -288,13 +288,14 @@ class TestEndToEndFlow:
 
         from src.handlers.lambda_handler import LambdaHandler
 
-        # Setup job with streaming
+        # Setup job with streaming (started_at is required for URL refresh)
         mock_storage_service.download_json.return_value = {
             "job_id": "test-job",
             "user_id": "user123",
             "status": "streaming",
             "streaming": {
                 "enabled": True,
+                "started_at": "2025-01-01T00:00:00Z",
                 "playlist_url": "https://old-url/playlist.m3u8",
                 "segments_completed": 5,
                 "segments_total": None,

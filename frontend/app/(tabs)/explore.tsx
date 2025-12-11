@@ -73,7 +73,8 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingResponse, setStreamingResponse] = useState<StreamingMeditationResponse | null>(null);
-  const [downloadAvailable, setDownloadAvailable] = useState(false);
+  // Download only available after full generation completes
+  const [generationComplete, setGenerationComplete] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,16 +84,14 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
             selectedIndexes,
             incidentList,
             musicList,
-            user?.id ?? '',
+            user?.id ?? 'guest',
             undefined, // Use default Lambda URL
             (status) => {
-              // Handle status updates during polling
+              // Handle status updates during polling - only set playlist URL here
+              // generationComplete is set by waitForCompletion() to avoid race condition
               if (status.streaming?.playlist_url) {
                 setPlaylistUrl(status.streaming.playlist_url);
                 setIsStreaming(true);
-              }
-              if (status.download?.available) {
-                setDownloadAvailable(true);
               }
             }
           );
@@ -108,21 +107,15 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
             if (response.responseMusicList?.length) {
               setMusicList(response.responseMusicList);
             }
+            // Don't call waitForCompletion here - let separate effect handle it
+            // to ensure Play button renders before Download button
           } else {
             // Legacy base64 mode
             setMeditationURI(response.responseMeditationURI ?? '');
             setMusicList(response.responseMusicList);
             setIsStreaming(false);
-          }
-
-          // Check if download is already available
-          try {
-            const completionResult = await response.waitForCompletion();
-            if (completionResult.downloadAvailable) {
-              setDownloadAvailable(true);
-            }
-          } catch {
-            // Silent fail - download might not be available yet
+            // Base64 mode means generation is complete
+            setGenerationComplete(true);
           }
         } catch (error) {
           console.error('Error fetching data:', error);
@@ -135,6 +128,40 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     fetchData();
   }, [isCalling, selectedIndexes, incidentList, musicList, user?.id, setMusicList]);
 
+  // Separate effect to poll for completion AFTER Play button is rendered
+  // Uses requestAnimationFrame + timeout to ensure Play button renders first
+  useEffect(() => {
+    if (!streamingResponse || !playlistUrl || generationComplete) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const checkCompletion = async () => {
+      try {
+        const result = await streamingResponse.waitForCompletion();
+        if (!cancelled && result.isComplete) {
+          setGenerationComplete(true);
+        }
+      } catch {
+        // Silent fail - download might not be available
+      }
+    };
+
+    // Wait for render to complete before checking completion
+    // setTimeout(0) ensures this runs after React commits the render with Play button
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        checkCompletion();
+      }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [streamingResponse, playlistUrl, generationComplete]);
+
   const handleMeditationCall = useCallback(() => {
     if (selectedIndexes.length === 0) {
       return;
@@ -143,19 +170,27 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     setMeditationURI('');
     setPlaylistUrl(null);
     setIsStreaming(false);
-    setDownloadAvailable(false);
+    setGenerationComplete(false);
     setStreamingResponse(null);
     setIsCalling(true);
   }, [selectedIndexes]);
 
   const handleStreamComplete = useCallback(() => {
-    // Stream has finished generating
-    setDownloadAvailable(true);
+    // Stream generation has finished (all segments uploaded)
+    // Note: generationComplete is set by the separate effect that calls waitForCompletion()
+    // This callback is just for logging/debugging if needed
   }, []);
 
   const handleStreamError = useCallback((error: Error) => {
     console.error('Stream error:', error);
     // Optionally fall back to non-streaming mode or show error UI
+  }, []);
+
+  const handlePlaybackEnd = useCallback(() => {
+    // Playback has finished - reset streaming state so Generate button shows
+    setPlaylistUrl(null);
+    setIsStreaming(false);
+    // Keep generationComplete true so Download button remains visible
   }, []);
 
   const getDownloadUrl = useCallback(async (): Promise<string> => {
@@ -175,8 +210,9 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     isStreaming,
     onStreamComplete: handleStreamComplete,
     onStreamError: handleStreamError,
-    // Download props
-    downloadAvailable,
+    onPlaybackEnd: handlePlaybackEnd,
+    // Download props - only available after generation complete
+    downloadAvailable: generationComplete,
     getDownloadUrl,
   };
 }
@@ -237,6 +273,7 @@ export default function TabTwoScreen(): React.ReactNode {
     isStreaming,
     onStreamComplete,
     onStreamError,
+    onPlaybackEnd,
     downloadAvailable,
     getDownloadUrl,
   } = useMeditation(selectedIndexes, incidentList, musicList);
@@ -311,6 +348,7 @@ export default function TabTwoScreen(): React.ReactNode {
           isStreaming={isStreaming}
           onStreamComplete={onStreamComplete}
           onStreamError={onStreamError}
+          onPlaybackEnd={onPlaybackEnd}
         />
         <DownloadButton
           downloadAvailable={downloadAvailable}
