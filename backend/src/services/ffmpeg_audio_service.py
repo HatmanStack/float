@@ -519,17 +519,19 @@ class FFmpegAudioService(AudioService):
 
         # FFmpeg command: pipe voice input, mix with looped music, output HLS
         # OpenAI TTS outputs MP3 at 24kHz
-        # Add 20 seconds of trailing music after voice ends
-        trailing_music_seconds = 20
+        # Add 30 seconds of trailing music after voice ends with fade out
+        trailing_music_seconds = 30
+        fade_duration = 30
         ffmpeg_cmd = [
             self.ffmpeg_executable,
-            "-stream_loop", "-1", "-i", music_path,  # Loop music infinitely
-            "-f", "mp3", "-i", "pipe:0",  # Voice from stdin (MP3 format)
+            "-f", "mp3", "-i", "pipe:0",  # Voice from stdin (MP3 format) - first input
+            "-stream_loop", "-1", "-i", music_path,  # Loop music infinitely - second input
             "-filter_complex",
-            f"[0:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
-            f"[1:a]adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
+            f"[0:a]adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
             f"apad=pad_dur={trailing_music_seconds}[voice_padded];"
-            f"[music][voice_padded]amix=inputs=2:duration=second:dropout_transition=2[out]",
+            f"[1:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
+            f"[voice_padded][music]amix=inputs=2:duration=first:dropout_transition=2,"
+            f"areverse,afade=t=in:d={fade_duration},areverse[out]",
             "-map", "[out]",
             "-c:a", "aac",  # AAC codec required for HLS browser compatibility
             "-f", "hls",
@@ -623,6 +625,11 @@ class FFmpegAudioService(AudioService):
         try:
             # Stream voice data to FFmpeg stdin
             for chunk in voice_generator:
+                # Check if FFmpeg is still running before writing
+                if process.poll() is not None:
+                    stderr = process.stderr.read().decode()
+                    logger.error(f"FFmpeg exited early: {stderr}")
+                    raise Exception(f"FFmpeg exited unexpectedly: {stderr}")
                 process.stdin.write(chunk)
                 process.stdin.flush()
 
@@ -633,9 +640,14 @@ class FFmpegAudioService(AudioService):
                 stderr = process.stderr.read().decode()
                 raise Exception(f"FFmpeg failed: {stderr}")
 
+        except BrokenPipeError as e:
+            stderr = process.stderr.read().decode() if process.stderr else "unknown"
+            logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
+            raise Exception(f"FFmpeg pipe closed: {stderr}") from e
         except Exception as e:
             logger.error(f"Streaming error: {e}")
-            process.kill()
+            if process.poll() is None:
+                process.kill()
             raise
         finally:
             state["uploading"] = False

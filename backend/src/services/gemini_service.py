@@ -107,9 +107,9 @@ Remember:
 Here are the results from the audio and text prompts for synthesis:"""
         self.prompt_meditation = """You are a meditation guide tasked with creating a personalized meditation transcript.
 You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity,
-speech-to-text, added_text, and summary.  Each index of the lists will refer to a different instance that was evaluated.
+speech-to-text, added_text, and summary. Each index of the lists will refer to a different instance that was evaluated.
 Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps
-the user release them.  If there are specific incidents mentioned in the summaries recall them to the user to
+the user release them. If there are specific incidents mentioned in the summaries recall them to the user to
 help them visualize the instance and release it. If there are multiple instances of data, ensure that each instance
 is acknowledged and released.
 JSON Data Format
@@ -130,9 +130,10 @@ intensity, speech-to-text, added_text, and summary.
 addressed in the meditation.
 3. Create the Meditation Transcript: Develop a meditation script that guides
 the user through releasing each identified instance. Ensure the tone is calming and supportive.
-    - Use tags to create the SSML of the meditation script
-        A. Include pauses at relevant intervals using the format: <break time="XXXXms"/>.
-Remember to return only the meditation script.
+Use natural pauses by writing "..." or starting new paragraphs - do NOT use SSML tags.
+
+IMPORTANT: Keep the meditation script under 3500 characters total. This is a hard limit.
+Return only the plain text meditation script with no markup or tags.
 Data for meditation transcript:"""
 
     def analyze_sentiment(

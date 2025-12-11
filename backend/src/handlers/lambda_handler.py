@@ -298,15 +298,28 @@ class LambdaHandler:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
                 input_data = self._ensure_input_data_is_dict(request.input_data)
                 meditation_text = self.ai_service.generate_meditation(input_data)
-                logger.debug(
+                logger.info(
                     "Meditation text generated",
-                    extra={"data": {"length": len(meditation_text)}}
+                    extra={"data": {
+                        "length": len(meditation_text),
+                        "preview": meditation_text[:200],
+                        "ending": meditation_text[-200:] if len(meditation_text) > 200 else meditation_text,
+                    }}
                 )
+
+                # Estimate TTS duration from text length (~150 words/min)
+                word_count = len(meditation_text.split())
+                estimated_tts_duration = (word_count / 150) * 60  # seconds
+                music_duration = estimated_tts_duration + 30  # Add 30s buffer
 
                 # Select and download background music
                 music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
                 self.audio_service.select_background_music(
-                    request.music_list, 120, music_path  # Estimate 2 min duration
+                    request.music_list, music_duration, music_path
+                )
+                logger.debug(
+                    "Music selected based on estimated TTS duration",
+                    extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}}
                 )
 
                 # Get TTS stream generator
