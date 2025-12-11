@@ -519,9 +519,9 @@ class FFmpegAudioService(AudioService):
 
         # FFmpeg command: pipe voice input, mix with looped music, output HLS
         # OpenAI TTS outputs MP3 at 24kHz
-        # Add 30 seconds of trailing music after voice ends with fade out
-        trailing_music_seconds = 30
-        fade_duration = 30
+        # Add 20 seconds of trailing music after voice ends with fade out
+        trailing_music_seconds = 20
+        fade_duration = 20
         ffmpeg_cmd = [
             self.ffmpeg_executable,
             "-f", "mp3", "-i", "pipe:0",  # Voice from stdin (MP3 format) - first input
