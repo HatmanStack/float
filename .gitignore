@@ -31,6 +31,9 @@ npm-debug.*
 yarn.lock
 
 # AWS SAM
+# NOTE: samconfig.toml contains API keys (Gemini, OpenAI) passed to CloudFormation.
+# It is intentionally gitignored. Template parameters use NoEcho: true for security.
+# Create your own samconfig.toml locally using `sam deploy --guided` or copy from a template.
 .aws-sam/
 .deploy-config.json
 samconfig.toml

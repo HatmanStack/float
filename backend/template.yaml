@@ -11,6 +11,9 @@ Parameters:
       - production
     Description: Deployment environment
 
+  # SECURITY: API keys are passed via samconfig.toml which is gitignored.
+  # NoEcho: true prevents keys from appearing in CloudFormation logs/outputs.
+  # To deploy, create your own samconfig.toml with `sam deploy --guided`.
   GeminiApiKey:
     Type: String
     NoEcho: true
