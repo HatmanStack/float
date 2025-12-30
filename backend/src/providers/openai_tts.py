@@ -9,6 +9,13 @@ from ..services.tts_service import TTSService
 
 logger = logging.getLogger(__name__)
 
+# Voice instructions for meditation TTS
+MEDITATION_VOICE_INSTRUCTIONS = """Speak in a calm, soothing, and gentle meditation guide voice.
+Use a slow, measured pace with natural pauses for breathing.
+Your tone should be warm, peaceful, and reassuring - like a trusted meditation instructor
+guiding someone through a relaxing session. Emphasize words related to relaxation,
+breathing, and letting go. When you encounter "..." in the text, pause naturally."""
+
 
 class OpenAITTSProvider(TTSService):
 
@@ -16,15 +23,16 @@ class OpenAITTSProvider(TTSService):
         self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
     def stream_speech(self, text: str) -> Iterator[bytes]:
-        """Stream audio chunks from OpenAI TTS."""
+        """Stream audio chunks from OpenAI TTS using gpt-4o-mini-tts for meditation voice."""
         try:
             logger.info(f"Streaming OpenAI TTS for text length: {len(text)}")
 
             with self.client.audio.speech.with_streaming_response.create(
-                model="tts-1",
-                voice="alloy",
+                model="gpt-4o-mini-tts-2025-12-15",
+                voice="sage",  # sage is calm
                 input=text,
                 response_format="mp3",
+                instructions=MEDITATION_VOICE_INSTRUCTIONS,
             ) as response:
                 for chunk in response.iter_bytes(chunk_size=4096):
                     yield chunk

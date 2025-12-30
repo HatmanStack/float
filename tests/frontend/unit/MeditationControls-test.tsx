@@ -46,7 +46,7 @@ describe('MeditationControls', () => {
   });
 
   describe('Legacy base64 mode', () => {
-    it('renders "Generate Meditation" button when not calling and no URI', () => {
+    it('renders "Generate" button when not calling and no URI', () => {
       render(
         <MeditationControls
           isCalling={false}
@@ -55,7 +55,7 @@ describe('MeditationControls', () => {
           handleMeditationCall={mockHandleMeditationCall}
         />
       );
-      expect(screen.getByText('Generate Meditation')).toBeTruthy();
+      expect(screen.getByText('Generate')).toBeTruthy();
     });
 
     it('renders ActivityIndicator when isCalling is true', () => {
@@ -82,7 +82,7 @@ describe('MeditationControls', () => {
       expect(screen.getByText('Play')).toBeTruthy();
     });
 
-    it('calls handleMeditationCall when "Generate Meditation" is pressed', () => {
+    it('calls handleMeditationCall with default duration when "Generate" is pressed', () => {
       render(
         <MeditationControls
           isCalling={false}
@@ -91,8 +91,8 @@ describe('MeditationControls', () => {
           handleMeditationCall={mockHandleMeditationCall}
         />
       );
-      fireEvent.press(screen.getByText('Generate Meditation'));
-      expect(mockHandleMeditationCall).toHaveBeenCalled();
+      fireEvent.press(screen.getByText('Generate'));
+      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5); // Default duration is 5 minutes
     });
 
     it('plays audio when "Play" is pressed', async () => {

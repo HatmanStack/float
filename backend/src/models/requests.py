@@ -34,9 +34,14 @@ class SummaryRequest(BaseRequest):
 class MeditationRequest(BaseRequest):
     input_data: Union[Dict[str, Any], List[Dict[str, Any]]]
     music_list: List[str]
+    duration_minutes: int = 5  # Target meditation duration: 3, 5, 10, 15, or 20 minutes
 
     def __post_init__(self) -> None:
         self.inference_type = InferenceType.MEDITATION
+        # Validate duration is one of the allowed values
+        allowed_durations = [3, 5, 10, 15, 20]
+        if self.duration_minutes not in allowed_durations:
+            self.duration_minutes = 5  # Default to 5 if invalid
 
     def validate(self) -> bool:
         print(f"[MEDITATION_VALIDATION] input_data type: {type(self.input_data)}")
@@ -59,6 +64,7 @@ class MeditationRequest(BaseRequest):
             "inference_type": self.inference_type.value,
             "input_data": self.input_data,
             "music_list": self.music_list,
+            "duration_minutes": self.duration_minutes,
         }
 
 
@@ -99,11 +105,20 @@ def parse_request_body(body: Dict[str, Any]) -> BaseRequest:
     elif inference_enum == InferenceType.MEDITATION:
         input_data = _parse_json_field(body.get("input_data", {}), "input_data")
         music_list = _parse_json_field(body.get("music_list", []), "music_list", [])
+        duration_minutes = body.get("duration_minutes", 5)
+        print(f"[MEDITATION_REQUEST] Raw duration_minutes from body: {body.get('duration_minutes')} -> parsed: {duration_minutes}")
+        if isinstance(duration_minutes, str):
+            try:
+                duration_minutes = int(duration_minutes)
+            except ValueError:
+                duration_minutes = 5
+        print(f"[MEDITATION_REQUEST] Final duration_minutes: {duration_minutes}")
         request = MeditationRequest(
             user_id=user_id,
             inference_type=inference_enum,
             input_data=input_data,
             music_list=music_list,
+            duration_minutes=duration_minutes,
         )
     else:
         raise ValueError(f"Unsupported inference type: {inference_enum.value}")

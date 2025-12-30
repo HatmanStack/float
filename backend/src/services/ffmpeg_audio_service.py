@@ -10,7 +10,11 @@ import threading
 import time
 from typing import TYPE_CHECKING, Callable, Iterator, List, Optional
 
-from ..config.constants import DEFAULT_MUSIC_VOLUME_REDUCTION, DEFAULT_SILENCE_DURATION
+from ..config.constants import (
+    DEFAULT_MUSIC_VOLUME_REDUCTION,
+    DEFAULT_SILENCE_DURATION,
+    DEFAULT_VOICE_BOOST,
+)
 from ..config.settings import settings
 from ..utils.logging_utils import get_logger
 from .audio_service import AudioService
@@ -486,6 +490,112 @@ class FFmpegAudioService(AudioService):
             return int(matches[-1])
         return None
 
+    def _get_audio_duration_from_file(self, audio_path: str) -> float:
+        """Get audio duration using ffmpeg (ffprobe not available in Lambda layer)."""
+        try:
+            # Use ffmpeg to probe the file - same approach as get_audio_duration
+            result = subprocess.run(
+                [self.ffmpeg_executable, "-i", audio_path, "-f", "null", "-"],
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=30,
+            )
+            # Parse duration from stderr output
+            for line in result.stderr.split("\n"):
+                if "Duration" in line:
+                    duration_str = line.split(",")[0].split("Duration:")[1].strip()
+                    h, m, s = map(float, duration_str.split(":"))
+                    return h * 3600 + m * 60 + s
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Could not get audio duration: {e}")
+            return 0.0
+
+    def _apply_fade_to_segments(
+        self,
+        hls_output_dir: str,
+        music_path: str,
+        voice_temp_path: str,
+        actual_voice_duration: float,
+        user_id: str,
+        job_id: str,
+        total_segments: int,
+        segment_durations: List[float],
+    ) -> None:
+        """Re-process the last few segments to add proper fade."""
+        trailing_music_seconds = 20
+        fade_duration = 20
+        total_duration = DEFAULT_SILENCE_DURATION + actual_voice_duration + trailing_music_seconds
+        fade_start = total_duration - fade_duration
+
+        # Determine which segments need fade (last ~25 seconds worth)
+        segments_to_redo = 5  # ~25 seconds at 5 sec/segment
+        first_segment_to_redo = max(0, total_segments - segments_to_redo)
+        redo_start_time = sum(segment_durations[:first_segment_to_redo])
+
+        logger.info(f"Applying fade: redoing segments {first_segment_to_redo}-{total_segments-1}, "
+                    f"fade_start={fade_start:.1f}s, total={total_duration:.1f}s")
+
+        # Generate faded audio for the tail portion
+        fade_output_dir = tempfile.mkdtemp(prefix="hls_fade_")
+        fade_segment_pattern = os.path.join(fade_output_dir, "segment_%03d.ts")
+        fade_playlist_path = os.path.join(fade_output_dir, "playlist.m3u8")
+
+        # Adjusted fade_start relative to the redo portion
+        adjusted_fade_start = fade_start - redo_start_time
+        if adjusted_fade_start < 0:
+            adjusted_fade_start = 0
+
+        ffmpeg_fade_cmd = [
+            self.ffmpeg_executable,
+            "-ss", str(redo_start_time - DEFAULT_SILENCE_DURATION) if redo_start_time > DEFAULT_SILENCE_DURATION else "0",
+            "-i", voice_temp_path,
+            "-stream_loop", "-1", "-ss", str(redo_start_time), "-i", music_path,
+            "-filter_complex",
+            f"[0:a]volume={DEFAULT_VOICE_BOOST}dB,"
+            f"adelay={int(max(0, DEFAULT_SILENCE_DURATION - redo_start_time) * 1000)}|{int(max(0, DEFAULT_SILENCE_DURATION - redo_start_time) * 1000)},"
+            f"apad=pad_dur={trailing_music_seconds}[voice_padded];"
+            f"[1:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
+            f"[voice_padded][music]amix=inputs=2:duration=first:dropout_transition=2,"
+            f"afade=t=out:st={adjusted_fade_start}:d={fade_duration}[out]",
+            "-map", "[out]",
+            "-c:a", "aac",
+            "-f", "hls",
+            "-hls_time", str(HLS_SEGMENT_DURATION),
+            "-hls_segment_type", "mpegts",
+            "-hls_flags", "independent_segments",
+            "-hls_segment_filename", fade_segment_pattern,
+            "-hls_list_size", "0",
+            fade_playlist_path,
+        ]
+
+        try:
+            subprocess.run(ffmpeg_fade_cmd, check=True, capture_output=True)
+
+            # Re-upload the faded segments (only replace existing segments)
+            fade_segments = sorted(glob.glob(os.path.join(fade_output_dir, "segment_*.ts")))
+            for i, fade_segment in enumerate(fade_segments):
+                segment_index = first_segment_to_redo + i
+                if segment_index >= total_segments:
+                    logger.warning(f"Skipping fade segment {i}: index {segment_index} >= total_segments {total_segments}")
+                    continue
+
+                seg_duration = self.get_audio_duration(fade_segment)
+                if seg_duration == 0:
+                    seg_duration = float(HLS_SEGMENT_DURATION)
+
+                self.hls_service.upload_segment_from_file(user_id, job_id, segment_index, fade_segment)
+                logger.info(f"Re-uploaded faded segment {segment_index}")
+
+                # Update duration (only for existing indices)
+                if segment_index < len(segment_durations):
+                    segment_durations[segment_index] = seg_duration
+
+        except Exception as e:
+            logger.error(f"Failed to apply fade: {e}")
+        finally:
+            shutil.rmtree(fade_output_dir, ignore_errors=True)
+
     def process_stream_to_hls(
         self,
         voice_generator: Iterator[bytes],
@@ -493,10 +603,15 @@ class FFmpegAudioService(AudioService):
         user_id: str,
         job_id: str,
         progress_callback: Optional[Callable[[int, Optional[int]], None]] = None,
+        estimated_voice_duration: float = 60.0,
     ) -> tuple[int, List[float]]:
         """
-        Stream TTS audio directly to FFmpeg, mixing with music and outputting HLS segments.
-        Uploads segments progressively as they're created.
+        Stream TTS to HLS segments, then apply fade to final segments.
+
+        Strategy:
+        1. Stream without fade for fast delivery
+        2. Save TTS audio to temp file while streaming
+        3. After TTS completes, re-process last few segments with proper fade
 
         Args:
             voice_generator: Iterator yielding audio chunks from TTS
@@ -504,6 +619,7 @@ class FFmpegAudioService(AudioService):
             user_id: User identifier
             job_id: Job identifier
             progress_callback: Optional callback(segments_completed, segments_total)
+            estimated_voice_duration: Fallback if duration detection fails
 
         Returns:
             Tuple of (total_segments, segment_durations)
@@ -517,23 +633,23 @@ class FFmpegAudioService(AudioService):
         playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
         segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
 
-        # FFmpeg command: pipe voice input, mix with looped music, output HLS
-        # OpenAI TTS outputs MP3 at 24kHz
-        # Add 20 seconds of trailing music after voice ends with fade out
+        # Save TTS to temp file for later fade processing
+        voice_temp_path = os.path.join(hls_output_dir, "voice.mp3")
+
+        # Stream WITHOUT fade - we'll add fade to final segments later
         trailing_music_seconds = 20
-        fade_duration = 20
         ffmpeg_cmd = [
             self.ffmpeg_executable,
-            "-f", "mp3", "-i", "pipe:0",  # Voice from stdin (MP3 format) - first input
-            "-stream_loop", "-1", "-i", music_path,  # Loop music infinitely - second input
+            "-f", "mp3", "-i", "pipe:0",
+            "-stream_loop", "-1", "-i", music_path,
             "-filter_complex",
-            f"[0:a]adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
+            f"[0:a]volume={DEFAULT_VOICE_BOOST}dB,"
+            f"adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
             f"apad=pad_dur={trailing_music_seconds}[voice_padded];"
             f"[1:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
-            f"[voice_padded][music]amix=inputs=2:duration=first:dropout_transition=2,"
-            f"areverse,afade=t=in:d={fade_duration},areverse[out]",
+            f"[voice_padded][music]amix=inputs=2:duration=first:dropout_transition=2[out]",
             "-map", "[out]",
-            "-c:a", "aac",  # AAC codec required for HLS browser compatibility
+            "-c:a", "aac",
             "-f", "hls",
             "-hls_time", str(HLS_SEGMENT_DURATION),
             "-hls_segment_type", "mpegts",
@@ -543,7 +659,7 @@ class FFmpegAudioService(AudioService):
             playlist_path,
         ]
 
-        logger.info("Starting FFmpeg streaming process", extra={"data": {"cmd": " ".join(ffmpeg_cmd)}})
+        logger.info("Starting FFmpeg streaming process (no fade - will add later)")
 
         process = subprocess.Popen(
             ffmpeg_cmd,
@@ -623,15 +739,17 @@ class FFmpegAudioService(AudioService):
         watcher_thread.start()
 
         try:
-            # Stream voice data to FFmpeg stdin
-            for chunk in voice_generator:
-                # Check if FFmpeg is still running before writing
-                if process.poll() is not None:
-                    stderr = process.stderr.read().decode()
-                    logger.error(f"FFmpeg exited early: {stderr}")
-                    raise Exception(f"FFmpeg exited unexpectedly: {stderr}")
-                process.stdin.write(chunk)
-                process.stdin.flush()
+            # Stream voice data to FFmpeg stdin AND save to temp file
+            with open(voice_temp_path, "wb") as voice_file:
+                for chunk in voice_generator:
+                    # Check if FFmpeg is still running before writing
+                    if process.poll() is not None:
+                        stderr = process.stderr.read().decode()
+                        logger.error(f"FFmpeg exited early: {stderr}")
+                        raise Exception(f"FFmpeg exited unexpectedly: {stderr}")
+                    process.stdin.write(chunk)
+                    process.stdin.flush()
+                    voice_file.write(chunk)  # Save for fade processing
 
             process.stdin.close()
             process.wait()
@@ -656,10 +774,27 @@ class FFmpegAudioService(AudioService):
             if state["error"]:
                 raise state["error"]
 
-            # Finalize playlist
-            self.hls_service.finalize_playlist(
-                user_id, job_id, state["segments_uploaded"], state["segment_durations"]
+        # Get actual voice duration and apply fade to final segments
+        actual_voice_duration = self._get_audio_duration_from_file(voice_temp_path)
+        if actual_voice_duration > 0:
+            logger.info(f"Voice duration: {actual_voice_duration:.1f}s, applying fade to final segments")
+            self._apply_fade_to_segments(
+                hls_output_dir,
+                music_path,
+                voice_temp_path,
+                actual_voice_duration,
+                user_id,
+                job_id,
+                state["segments_uploaded"],
+                state["segment_durations"],
             )
-            shutil.rmtree(hls_output_dir, ignore_errors=True)
+
+        # Finalize playlist with updated segments
+        self.hls_service.finalize_playlist(
+            user_id, job_id, state["segments_uploaded"], state["segment_durations"]
+        )
+
+        # Cleanup
+        shutil.rmtree(hls_output_dir, ignore_errors=True)
 
         return (state["segments_uploaded"], state["segment_durations"])

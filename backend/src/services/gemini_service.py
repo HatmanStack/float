@@ -105,7 +105,8 @@ Remember:
 - The intensity scale should be from 1 to 5.
 - The format of your return should be only the json. There should be no additional formatting
 Here are the results from the audio and text prompts for synthesis:"""
-        self.prompt_meditation = """You are a meditation guide tasked with creating a personalized meditation transcript.
+        # Base meditation prompt template - character limit filled in dynamically
+        self.prompt_meditation_template = """You are a meditation guide tasked with creating a personalized meditation transcript.
 You will receive data in JSON format which includes lists of strings with the keys sentiment_label, intensity,
 speech-to-text, added_text, and summary. Each index of the lists will refer to a different instance that was evaluated.
 Your goal is to evaluate all the data and craft a meditation script that addresses each of the instances and helps
@@ -113,7 +114,7 @@ the user release them. If there are specific incidents mentioned in the summarie
 help them visualize the instance and release it. If there are multiple instances of data, ensure that each instance
 is acknowledged and released.
 JSON Data Format
-  {
+  {{
     "user_id": <a user id>,
     "sentiment_label": ["<overall sentiment of the data>"],
     "intensity": ["<evaluated intensity of the sentiment_label>"],
@@ -122,7 +123,7 @@ JSON Data Format
     "summary": ["<a summary of why the sentiment label and intensity were selected>"]
     "user_summary":["<a summary of in First Person about the incident>"]
     "user_short_summary":["<a summary of just a few words to describe the incident>"]
-  }
+  }}
 Instructions:
 1. Evaluate the Data: Consider all the provided data points for each instance, including the sentiment_label,
 intensity, speech-to-text, added_text, and summary.
@@ -131,10 +132,24 @@ addressed in the meditation.
 3. Create the Meditation Transcript: Develop a meditation script that guides
 the user through releasing each identified instance. Ensure the tone is calming and supportive.
 Use natural pauses by writing "..." or starting new paragraphs - do NOT use SSML tags.
+4. Pacing: Include FREQUENT pauses for breathing and reflection. Use "..." liberally throughout
+the script (at least every 2-3 sentences). Include explicit breathing instructions like
+"Take a deep breath in... and slowly release..." between major sections. The meditation should
+feel spacious and unhurried, with generous silence between thoughts.
 
-IMPORTANT: Keep the meditation script under 3500 characters total. This is a hard limit.
+IMPORTANT: The meditation should be approximately {target_words} words ({target_chars} characters) to achieve
+a {duration_minutes}-minute spoken meditation. This is the target length - aim to be within 10% of this target.
 Return only the plain text meditation script with no markup or tags.
 Data for meditation transcript:"""
+
+        # Duration to target words/chars mapping (~150 wpm spoken + pauses for breathing)
+        self.duration_targets = {
+            3: {"words": 450, "chars": 2300},
+            5: {"words": 750, "chars": 3800},
+            10: {"words": 1500, "chars": 7500},
+            15: {"words": 2250, "chars": 11000},
+            20: {"words": 3000, "chars": 15000},
+        }
 
     def analyze_sentiment(
         self, audio_file: str | None = None, user_text: str | None = None
@@ -195,17 +210,36 @@ Data for meditation transcript:"""
             raise ValueError(f"Failed to synthesize sentiment results: {str(e)}") from e
         return response.text  # type: ignore[no-any-return]
 
-    def generate_meditation(self, input_data: Dict[str, Any]) -> str:
-        logger.info("Starting meditation generation")
+    def generate_meditation(self, input_data: Dict[str, Any], duration_minutes: int = 5) -> str:
+        logger.info("Starting meditation generation for %d minutes", duration_minutes)
         logger.debug("Input data keys: %s", list(input_data.keys()))
+
+        # Get target words/chars for duration (default to 5 min if not found)
+        targets = self.duration_targets.get(duration_minutes, self.duration_targets[5])
+
+        # Build prompt with duration-specific targets
+        prompt_meditation = self.prompt_meditation_template.format(
+            target_words=targets["words"],
+            target_chars=targets["chars"],
+            duration_minutes=duration_minutes,
+        )
+
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
+            model_name="gemini-2.0-flash",
             safety_settings=self.safety_settings,
         )
         try:
-            prompt = self.prompt_meditation + str(input_data)
+            prompt = prompt_meditation + str(input_data)
             response = model.generate_content([prompt])
-            return response.text  # type: ignore[no-any-return]
+            meditation_text = response.text
+            logger.info(
+                "Generated meditation: %d words, %d chars (target: %d words for %d min)",
+                len(meditation_text.split()),
+                len(meditation_text),
+                targets["words"],
+                duration_minutes,
+            )
+            return meditation_text  # type: ignore[no-any-return]
         except Exception as e:
             logger.error("Error generating meditation: %s", str(e))
             raise ValueError(f"Failed to generate meditation: {str(e)}") from e
