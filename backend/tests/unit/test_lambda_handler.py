@@ -252,20 +252,22 @@ class TestMeditationRequestRouting:
             music_list=[]
         )
 
-        # Mock file operations to avoid actual file I/O
-        with patch('src.handlers.lambda_handler.encode_audio_to_base64') as mock_encode:
-            mock_encode.return_value = "base64_encoded_audio"
+        # Mock Lambda async invocation (meditation now uses async processing)
+        with patch('src.handlers.lambda_handler.boto3') as mock_boto3:
+            mock_lambda_client = MagicMock()
+            mock_boto3.client.return_value = mock_lambda_client
             result = handler.handle_meditation_request(request)
 
         assert result is not None
-        assert "request_id" in result
-        assert mock_ai_service.generate_meditation.called
+        assert "job_id" in result
+        assert result["status"] == "pending"
+        assert mock_lambda_client.invoke.called
 
     @pytest.mark.skipif(not FFMPEG_AVAILABLE, reason="ffmpeg not available")
     def test_meditation_request_with_music_list_processes_correctly(
         self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
     ):
-        """Test meditation request with music list processes correctly."""
+        """Test meditation request with music list creates async job correctly."""
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.audio_service = mock_audio_service
@@ -280,14 +282,19 @@ class TestMeditationRequestRouting:
             music_list=["Ambient-Peaceful_300.wav", "Nature-Birds_180.wav"]
         )
 
-        with patch('src.handlers.lambda_handler.encode_audio_to_base64') as mock_encode:
-            mock_encode.return_value = "base64_encoded_audio"
+        # Mock Lambda async invocation
+        with patch('src.handlers.lambda_handler.boto3') as mock_boto3:
+            mock_lambda_client = MagicMock()
+            mock_boto3.client.return_value = mock_lambda_client
             result = handler.handle_meditation_request(request)
 
         assert result is not None
-        assert mock_audio_service.combine_voice_and_music.called
-        call_args = mock_audio_service.combine_voice_and_music.call_args
-        assert len(call_args.kwargs['music_list']) == 2
+        assert "job_id" in result
+        assert result["status"] == "pending"
+        # Verify async invocation was called with correct payload
+        assert mock_lambda_client.invoke.called
+        invoke_kwargs = mock_lambda_client.invoke.call_args.kwargs
+        assert invoke_kwargs["InvocationType"] == "Event"
 
     def test_invalid_meditation_request_raises_error(self):
         """Test invalid meditation request raises appropriate error."""

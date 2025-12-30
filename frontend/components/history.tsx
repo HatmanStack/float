@@ -17,7 +17,7 @@ export default function ArchivedItemsScreen() {
     title: string;
     timestamp?: string;
     sentiment_label?: string;
-    intensity?: 1 | 2 | 3 | 4 | 5 | string | number;
+    intensity?: number | string;
   }
 
   const fetchArchivedItemsFromAPI = useCallback(async (): Promise<ArchivedItem[]> => {
@@ -52,12 +52,14 @@ export default function ArchivedItemsScreen() {
     const fetchArchivedItems = async () => {
       // Replace with actual fetch logic
       const items = await fetchArchivedItemsFromAPI();
-      // Convert to Incident type format
+      // Convert to Incident type format, normalizing intensity to number
       const incidents = items.map((item) => ({
         ...item,
         timestamp: item.timestamp || new Date().toISOString(),
         sentiment_label: item.sentiment_label || 'neutral',
-        intensity: item.intensity || 1,
+        intensity: typeof item.intensity === 'string'
+          ? parseInt(item.intensity, 10) || 1
+          : item.intensity || 1,
       }));
       setArchivedItems(incidents);
     };
