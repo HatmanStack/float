@@ -113,7 +113,7 @@ class LambdaHandler:
         """Create job and invoke async processing, return job_id immediately."""
         logger.info(
             "Processing meditation request",
-            extra={"data": {"user_id": request.user_id}}
+            extra={"data": {"user_id": request.user_id, "duration_minutes": request.duration_minutes}}
         )
 
         # Create job for tracking (with HLS streaming if enabled)
@@ -195,10 +195,15 @@ class LambdaHandler:
             )
 
             input_data = self._ensure_input_data_is_dict(request.input_data)
-            meditation_text = self.ai_service.generate_meditation(input_data)
-            logger.debug(
+            meditation_text = self.ai_service.generate_meditation(
+                input_data, duration_minutes=request.duration_minutes
+            )
+            logger.info(
                 "Meditation text generated",
-                extra={"data": {"length": len(meditation_text)}}
+                extra={"data": {
+                    "length": len(meditation_text),
+                    "duration_minutes": request.duration_minutes,
+                }}
             )
             timestamp = generate_timestamp()
 
@@ -297,20 +302,24 @@ class LambdaHandler:
             else:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
                 input_data = self._ensure_input_data_is_dict(request.input_data)
-                meditation_text = self.ai_service.generate_meditation(input_data)
+                meditation_text = self.ai_service.generate_meditation(
+                    input_data, duration_minutes=request.duration_minutes
+                )
                 logger.info(
                     "Meditation text generated",
                     extra={"data": {
                         "length": len(meditation_text),
+                        "duration_minutes": request.duration_minutes,
                         "preview": meditation_text[:200],
                         "ending": meditation_text[-200:] if len(meditation_text) > 200 else meditation_text,
                     }}
                 )
 
-                # Estimate TTS duration from text length (~150 words/min)
+                # Estimate TTS duration from text length
+                # Using ~80 words/min for calm meditation voice with pauses (conservative)
                 word_count = len(meditation_text.split())
-                estimated_tts_duration = (word_count / 150) * 60  # seconds
-                music_duration = estimated_tts_duration + 30  # Add 30s buffer
+                estimated_tts_duration = (word_count / 80) * 60  # seconds
+                music_duration = estimated_tts_duration + 90  # Add 90s buffer for trailing music
 
                 # Select and download background music
                 music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
@@ -353,6 +362,7 @@ class LambdaHandler:
                     user_id=request.user_id,
                     job_id=job_id,
                     progress_callback=progress_callback,
+                    estimated_voice_duration=estimated_tts_duration,
                 )
 
                 # Clean up music file

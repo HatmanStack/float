@@ -25,7 +25,8 @@ class SentimentLabel(Enum):
 CHUNK_SIZE = 1024
 MAX_AUDIO_DURATION = 600  # 10 minutes
 DEFAULT_SILENCE_DURATION = 10  # seconds
-DEFAULT_MUSIC_VOLUME_REDUCTION = -5  # dB
+DEFAULT_MUSIC_VOLUME_REDUCTION = -15  # dB - background music should be subtle
+DEFAULT_VOICE_BOOST = 3  # dB - slight boost to ensure voice clarity
 SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400

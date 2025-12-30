@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useWindowDimensions, Platform } from 'react-native';
 import * as React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { BackendMeditationCallStreaming, StreamingMeditationResponse } from '@/components/BackendMeditationCall';
@@ -66,6 +66,7 @@ function useCollapsibleState() {
 function useMeditation(selectedIndexes: number[], incidentList: Incident[], musicList: string[]) {
   const [meditationURI, setMeditationURI] = useState('');
   const [isCalling, setIsCalling] = useState(false);
+  const durationRef = useRef(5); // Use ref to avoid race condition with state
   const { setMusicList } = useIncident();
   const { user } = useAuth();
 
@@ -93,7 +94,8 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
                 setPlaylistUrl(status.streaming.playlist_url);
                 setIsStreaming(true);
               }
-            }
+            },
+            durationRef.current
           );
 
           // Store response for download functionality
@@ -162,7 +164,7 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     };
   }, [streamingResponse, playlistUrl, generationComplete]);
 
-  const handleMeditationCall = useCallback(() => {
+  const handleMeditationCall = useCallback((duration: number = 5) => {
     if (selectedIndexes.length === 0) {
       return;
     }
@@ -172,6 +174,7 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     setIsStreaming(false);
     setGenerationComplete(false);
     setStreamingResponse(null);
+    durationRef.current = duration; // Set ref synchronously before triggering effect
     setIsCalling(true);
   }, [selectedIndexes]);
 

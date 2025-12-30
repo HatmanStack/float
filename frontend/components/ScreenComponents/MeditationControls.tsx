@@ -1,11 +1,22 @@
 import { Audio } from 'expo-av';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Pressable, ActivityIndicator } from 'react-native';
+import { Pressable, ActivityIndicator, View, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import useStyles from '@/constants/StylesConstants';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { HLSPlayer, HLSPlayerRef } from '@/components/HLSPlayer';
+
+/**
+ * Duration options for meditation
+ */
+const DURATION_OPTIONS = [
+  { value: 3, label: '3m' },
+  { value: 5, label: '5m' },
+  { value: 10, label: '10m' },
+  { value: 15, label: '15m' },
+  { value: 20, label: '20m' },
+];
 
 /**
  * Props for MeditationControls component
@@ -14,7 +25,7 @@ interface MeditationControlsProps {
   isCalling: boolean;
   meditationURI: string;
   setMeditationURI: (uri: string) => void;
-  handleMeditationCall: () => void;
+  handleMeditationCall: (durationMinutes: number) => void;
   // HLS streaming props
   playlistUrl?: string | null;
   isStreaming?: boolean;
@@ -117,6 +128,9 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   const styles = useStyles();
   const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
 
+  // Duration selector state (must be before any early returns)
+  const [selectedDuration, setSelectedDuration] = useState(5);
+
   // HLS player state
   const hlsPlayerRef = useRef<HLSPlayerRef>(null);
   const [isHLSPlaying, setIsHLSPlaying] = useState(false);
@@ -193,11 +207,9 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           onError={handleHLSError}
           autoPlay={false}
         />
-        {hlsError ? (
-          <>
-            <ThemedText type="default" style={{ textAlign: 'center', marginBottom: 10 }}>
-              Playback error
-            </ThemedText>
+        <View style={localStyles.playbackControls}>
+          <View style={localStyles.spacer} />
+          {hlsError ? (
             <Pressable
               onPress={() => {
                 setHlsError(null);
@@ -213,25 +225,41 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
             >
               <ThemedText type="generate">Retry</ThemedText>
             </Pressable>
-          </>
-        ) : (
-          <Pressable
-            onPress={handleHLSPlay}
-            style={({ pressed }) => [
-              {
-                backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
-              },
-              styles.button,
-            ]}
-            testID="hls-play-button"
-          >
-            {({ pressed }) => (
-              <ThemedText type="generate">
-                {isHLSPlaying ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
-              </ThemedText>
-            )}
-          </Pressable>
-        )}
+          ) : (
+            <Pressable
+              onPress={handleHLSPlay}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+                },
+                styles.button,
+              ]}
+              testID="hls-play-button"
+            >
+              {({ pressed }) => (
+                <ThemedText type="generate">
+                  {isHLSPlaying ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
+                </ThemedText>
+              )}
+            </Pressable>
+          )}
+          <View style={localStyles.newButtonWrapper}>
+            <Pressable
+              onPress={() => {
+                hlsPlayerRef.current?.pause();
+                setIsHLSPlaying(false);
+                onPlaybackEnd?.();
+              }}
+              style={({ pressed }) => [
+                localStyles.newButton,
+                pressed && localStyles.newButtonPressed,
+              ]}
+              testID="new-meditation-button"
+            >
+              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+            </Pressable>
+          </View>
+        </View>
       </ThemedView>
     );
   }
@@ -239,42 +267,152 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   // Legacy base64 mode: expo-av Audio
   if (meditationURI) {
     return (
+      <View style={localStyles.playbackControls}>
+        <View style={localStyles.spacer} />
+        <Pressable
+          onPress={handlePlayMeditation}
+          style={({ pressed }) => [
+            {
+              backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
+            },
+            styles.button,
+          ]}
+          testID="legacy-play-button"
+        >
+          {({ pressed }) => (
+            <ThemedText type="generate">
+              {isPausing ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
+            </ThemedText>
+          )}
+        </Pressable>
+        <View style={localStyles.newButtonWrapper}>
+          <Pressable
+            onPress={() => {
+              setMeditationURI('');
+            }}
+            style={({ pressed }) => [
+              localStyles.newButton,
+              pressed && localStyles.newButtonPressed,
+            ]}
+            testID="new-meditation-button-legacy"
+          >
+            <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // No content yet: show generate button (centered) with duration selector to the right
+  return (
+    <View style={localStyles.generateContainer}>
+      <View style={localStyles.spacer} />
       <Pressable
-        onPress={handlePlayMeditation}
+        onPress={() => handleMeditationCall(selectedDuration)}
         style={({ pressed }) => [
           {
             backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
           },
           styles.button,
+          localStyles.generateButton,
         ]}
-        testID="legacy-play-button"
+        testID="generate-button"
       >
         {({ pressed }) => (
-          <ThemedText type="generate">
-            {isPausing ? (pressed ? 'PAUSING' : 'Pause') : pressed ? 'MEDITATE!' : 'Play'}
-          </ThemedText>
+          <ThemedText type="generate">{pressed ? 'GENERATING!' : 'Generate'}</ThemedText>
         )}
       </Pressable>
-    );
-  }
-
-  // No content yet: show generate button
-  return (
-    <Pressable
-      onPress={handleMeditationCall}
-      style={({ pressed }) => [
-        {
-          backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
-        },
-        styles.button,
-      ]}
-      testID="generate-button"
-    >
-      {({ pressed }) => (
-        <ThemedText type="generate">{pressed ? 'GENERATING!' : 'Generate Meditation'}</ThemedText>
-      )}
-    </Pressable>
+      <View style={localStyles.durationWrapper}>
+        <View style={localStyles.durationSelector}>
+          {DURATION_OPTIONS.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() => setSelectedDuration(option.value)}
+              style={[
+                localStyles.durationOption,
+                selectedDuration === option.value && localStyles.durationOptionSelected,
+              ]}
+              testID={`duration-${option.value}`}
+            >
+              <ThemedText
+                style={[
+                  localStyles.durationText,
+                  selectedDuration === option.value && localStyles.durationTextSelected,
+                ]}
+              >
+                {option.label}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    </View>
   );
 };
+
+const localStyles = StyleSheet.create({
+  generateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playbackControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newButtonWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  newButton: {
+    backgroundColor: Colors['buttonUnpressed'],
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  newButtonPressed: {
+    backgroundColor: Colors['buttonPressed'],
+  },
+  newButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  spacer: {
+    flex: 1,
+  },
+  generateButton: {
+    flex: 0,
+    minWidth: 140,
+  },
+  durationWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  durationSelector: {
+    flexDirection: 'row',
+    backgroundColor: Colors['buttonUnpressed'],
+    borderRadius: 8,
+    padding: 4,
+  },
+  durationOption: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  durationOptionSelected: {
+    backgroundColor: Colors['buttonPressed'],
+  },
+  durationText: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  durationTextSelected: {
+    opacity: 1,
+    fontWeight: '600',
+  },
+});
 
 export default MeditationControls;

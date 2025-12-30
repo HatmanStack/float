@@ -306,7 +306,8 @@ export async function BackendMeditationCallStreaming(
   musicList: string[],
   userId: string,
   lambdaUrl: string = LAMBDA_FUNCTION_URL,
-  onStatusUpdate?: (status: JobStatusResponse) => void
+  onStatusUpdate?: (status: JobStatusResponse) => void,
+  durationMinutes: number = 5
 ): Promise<StreamingMeditationResponse> {
   const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
 
@@ -317,6 +318,7 @@ export async function BackendMeditationCallStreaming(
     music_list: musicList,
     input_data: dict,
     user_id: userId,
+    duration_minutes: durationMinutes,
   };
 
   try {
