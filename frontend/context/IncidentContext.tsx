@@ -1,10 +1,14 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
+/** Intensity level from sentiment analysis (1=lowest, 5=highest) */
+type IntensityLevel = 1 | 2 | 3 | 4 | 5;
+
 export interface Incident {
   id?: string;
   timestamp: string | number | Date;
   sentiment_label: string;
-  intensity: 1 | 2 | 3 | 4 | 5 | string | number;
+  /** Intensity 1-5. May arrive as string from API, normalize with parseInt. */
+  intensity: IntensityLevel | number;
   user_summary?: string;
   user_short_summary?: string;
   summary?: string;
