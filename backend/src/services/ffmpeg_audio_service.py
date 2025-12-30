@@ -572,21 +572,23 @@ class FFmpegAudioService(AudioService):
         try:
             subprocess.run(ffmpeg_fade_cmd, check=True, capture_output=True)
 
-            # Re-upload the faded segments
+            # Re-upload the faded segments (only replace existing segments)
             fade_segments = sorted(glob.glob(os.path.join(fade_output_dir, "segment_*.ts")))
             for i, fade_segment in enumerate(fade_segments):
                 segment_index = first_segment_to_redo + i
-                if segment_index < total_segments + len(fade_segments):
-                    seg_duration = self.get_audio_duration(fade_segment)
-                    if seg_duration == 0:
-                        seg_duration = float(HLS_SEGMENT_DURATION)
+                if segment_index >= total_segments:
+                    logger.warning(f"Skipping fade segment {i}: index {segment_index} >= total_segments {total_segments}")
+                    continue
 
-                    self.hls_service.upload_segment_from_file(user_id, job_id, segment_index, fade_segment)
-                    logger.info(f"Re-uploaded faded segment {segment_index}")
+                seg_duration = self.get_audio_duration(fade_segment)
+                if seg_duration == 0:
+                    seg_duration = float(HLS_SEGMENT_DURATION)
 
-                    # Update duration
-                    while len(segment_durations) <= segment_index:
-                        segment_durations.append(float(HLS_SEGMENT_DURATION))
+                self.hls_service.upload_segment_from_file(user_id, job_id, segment_index, fade_segment)
+                logger.info(f"Re-uploaded faded segment {segment_index}")
+
+                # Update duration (only for existing indices)
+                if segment_index < len(segment_durations):
                     segment_durations[segment_index] = seg_duration
 
         except Exception as e:
