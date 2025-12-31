@@ -10,3 +10,4 @@ requests>=2.32.0
 urllib3>=2.3.0
 protobuf>=5.29.4
 jinja2
+zenquotespy>=1.0.0

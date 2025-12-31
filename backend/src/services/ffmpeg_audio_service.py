@@ -506,8 +506,8 @@ class FFmpegAudioService(AudioService):
         job_id: str,
         total_segments: int,
         segment_durations: List[float],
-    ) -> None:
-        """Re-process the last few segments to add proper fade."""
+    ) -> int:
+        """Re-process the last few segments to add proper fade. Returns new total segment count."""
         trailing_music_seconds = 20
         fade_duration = 20
         total_duration = DEFAULT_SILENCE_DURATION + actual_voice_duration + trailing_music_seconds
@@ -557,27 +557,28 @@ class FFmpegAudioService(AudioService):
         try:
             subprocess.run(ffmpeg_fade_cmd, check=True, capture_output=True)
 
-            # Re-upload the faded segments (only replace existing segments)
+            # Re-upload the faded segments (replace existing + add new ones for fadeout)
             fade_segments = sorted(glob.glob(os.path.join(fade_output_dir, "segment_*.ts")))
             for i, fade_segment in enumerate(fade_segments):
                 segment_index = first_segment_to_redo + i
-                if segment_index >= total_segments:
-                    logger.warning(f"Skipping fade segment {i}: index {segment_index} >= total_segments {total_segments}")
-                    continue
 
                 seg_duration = self.get_audio_duration(fade_segment)
                 if seg_duration == 0:
                     seg_duration = float(HLS_SEGMENT_DURATION)
 
                 self.hls_service.upload_segment_from_file(user_id, job_id, segment_index, fade_segment)
-                logger.info(f"Re-uploaded faded segment {segment_index}")
 
-                # Update duration (only for existing indices)
-                if segment_index < len(segment_durations):
+                if segment_index >= total_segments:
+                    logger.info(f"Uploaded new faded segment {segment_index} (extending for fadeout)")
+                    segment_durations.append(seg_duration)
+                else:
+                    logger.info(f"Re-uploaded faded segment {segment_index}")
                     segment_durations[segment_index] = seg_duration
 
+            return len(segment_durations)
         except Exception as e:
             logger.error(f"Failed to apply fade: {e}")
+            return total_segments
         finally:
             shutil.rmtree(fade_output_dir, ignore_errors=True)
 
@@ -763,7 +764,7 @@ class FFmpegAudioService(AudioService):
         actual_voice_duration = self._get_audio_duration_from_file(voice_temp_path)
         if actual_voice_duration > 0:
             logger.info(f"Voice duration: {actual_voice_duration:.1f}s, applying fade to final segments")
-            self._apply_fade_to_segments(
+            state["segments_uploaded"] = self._apply_fade_to_segments(
                 hls_output_dir,
                 music_path,
                 voice_temp_path,
@@ -774,7 +775,7 @@ class FFmpegAudioService(AudioService):
                 state["segment_durations"],
             )
 
-        # Finalize playlist with updated segments
+        # Finalize playlist with updated segments (including any new fade segments)
         self.hls_service.finalize_playlist(
             user_id, job_id, state["segments_uploaded"], state["segment_durations"]
         )

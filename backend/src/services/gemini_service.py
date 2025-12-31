@@ -3,6 +3,7 @@ import pathlib
 from typing import Any, Dict
 
 import google.generativeai as genai  # type: ignore
+from zenquotespy import random as get_random_quote
 from google.generativeai.types.safety_types import (  # type: ignore
     HarmCategory,
 )
@@ -136,6 +137,8 @@ Use natural pauses by writing "..." or starting new paragraphs - do NOT use SSML
 the script (at least every 2-3 sentences). Include explicit breathing instructions like
 "Take a deep breath in... and slowly release..." between major sections. The meditation should
 feel spacious and unhurried, with generous silence between thoughts.
+5. Thematic Inspiration: Let the following wisdom guide the tone and themes of your meditation.
+"{inspirational_quote}" - {quote_author}
 
 IMPORTANT: The meditation should be approximately {target_words} words ({target_chars} characters) to achieve
 a {duration_minutes}-minute spoken meditation. This is the target length - aim to be within 10% of this target.
@@ -210,6 +213,21 @@ Data for meditation transcript:"""
             raise ValueError(f"Failed to synthesize sentiment results: {str(e)}") from e
         return response.text  # type: ignore[no-any-return]
 
+    def _get_inspirational_quote(self) -> tuple[str, str]:
+        """Get a random inspirational quote for the meditation."""
+        try:
+            # zenquotespy returns: '"Quote text" — Author Name'
+            quote_str = get_random_quote()
+            if quote_str and "—" in quote_str:
+                parts = quote_str.rsplit("—", 1)
+                quote = parts[0].strip().strip('"')
+                author = parts[1].strip() if len(parts) > 1 else "Unknown"
+                return quote, author
+            return "Peace comes from within. Do not seek it without.", "Buddha"
+        except Exception as e:
+            logger.warning("Failed to get quote: %s, using fallback", e)
+            return "Peace comes from within. Do not seek it without.", "Buddha"
+
     def generate_meditation(self, input_data: Dict[str, Any], duration_minutes: int = 5) -> str:
         logger.info("Starting meditation generation for %d minutes", duration_minutes)
         logger.debug("Input data keys: %s", list(input_data.keys()))
@@ -217,11 +235,17 @@ Data for meditation transcript:"""
         # Get target words/chars for duration (default to 5 min if not found)
         targets = self.duration_targets.get(duration_minutes, self.duration_targets[5])
 
+        # Get inspirational quote
+        quote, author = self._get_inspirational_quote()
+        logger.info("Using quote: '%s' - %s", quote[:50] + "..." if len(quote) > 50 else quote, author)
+
         # Build prompt with duration-specific targets
         prompt_meditation = self.prompt_meditation_template.format(
             target_words=targets["words"],
             target_chars=targets["chars"],
             duration_minutes=duration_minutes,
+            inspirational_quote=quote,
+            quote_author=author,
         )
 
         model = genai.GenerativeModel(

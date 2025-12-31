@@ -29,7 +29,7 @@ class OpenAITTSProvider(TTSService):
 
             with self.client.audio.speech.with_streaming_response.create(
                 model="gpt-4o-mini-tts-2025-12-15",
-                voice="sage",  # sage is calm
+                voice="sage",
                 input=text,
                 response_format="mp3",
                 instructions=MEDITATION_VOICE_INSTRUCTIONS,
