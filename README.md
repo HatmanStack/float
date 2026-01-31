@@ -1,6 +1,6 @@
 <div align="center">
 <h1 align="center">
-  <img width="600" src="banner.png" alt="float-app icon">
+  <img src="frontend/public/og-image.jpg" alt="float-app icon">
 </h1>
 
 <h4>
