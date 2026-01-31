@@ -3,10 +3,10 @@ import pathlib
 from typing import Any, Dict
 
 import google.generativeai as genai  # type: ignore
-from zenquotespy import random as get_random_quote
 from google.generativeai.types.safety_types import (  # type: ignore
     HarmCategory,
 )
+from zenquotespy import random as get_random_quote
 
 from ..config.settings import settings
 from .ai_service import AIService
