@@ -238,7 +238,7 @@ def error_handling_middleware(
     2. ValueError - treat as bad request (4xx)
     3. All other exceptions - internal server error (5xx)
     """
-    from ..exceptions import FloatException, ValidationError, ExternalServiceError
+    from ..exceptions import ExternalServiceError, FloatException, ValidationError
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         try:

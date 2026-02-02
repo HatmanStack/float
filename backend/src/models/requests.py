@@ -194,7 +194,7 @@ def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
 
 def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
     """Validate required fields and return parsed values."""
-    from ..exceptions import ValidationError, ErrorCode
+    from ..exceptions import ErrorCode, ValidationError
 
     user_id = body.get("user_id")
     if not user_id:
@@ -230,7 +230,7 @@ def parse_request_body(body: Dict[str, Any]) -> BaseRequest:
     Raises:
         ValidationError: If required fields are missing or invalid.
     """
-    from ..exceptions import ValidationError, ErrorCode
+    from ..exceptions import ErrorCode, ValidationError
 
     user_id, inference_enum = _validate_request_fields(body)
 

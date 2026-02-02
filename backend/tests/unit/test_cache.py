@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.utils.cache import TTLCache, music_list_cache, job_cache
+from src.utils.cache import TTLCache, job_cache, music_list_cache
 
 
 @pytest.mark.unit

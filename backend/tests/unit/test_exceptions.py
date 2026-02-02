@@ -6,7 +6,6 @@ from src.exceptions import (
     AIServiceError,
     AudioProcessingError,
     CircuitBreakerOpenError,
-    EncodingError,
     ErrorCode,
     ExternalServiceError,
     FloatException,
@@ -14,7 +13,6 @@ from src.exceptions import (
     JobError,
     JobNotCompletedError,
     JobNotFoundError,
-    StorageError,
     TTSError,
     ValidationError,
 )
