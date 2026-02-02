@@ -29,9 +29,43 @@ class JobStatus(Enum):
 class JobService:
     """Manages async job status in S3."""
 
+    # Default streaming dict structure
+    _DEFAULT_STREAMING = {
+        "enabled": True,
+        "playlist_url": None,
+        "segments_completed": 0,
+        "segments_total": None,
+        "started_at": None,
+    }
+
+    # Default download dict structure
+    _DEFAULT_DOWNLOAD = {
+        "available": False,
+        "url": None,
+        "downloaded": False,
+    }
+
     def __init__(self, storage_service):
         self.storage_service = storage_service
         self.bucket = settings.AWS_S3_BUCKET
+
+    def _ensure_streaming_dict(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure streaming dict exists with default values.
+
+        Returns the streaming dict for convenient chaining.
+        """
+        if "streaming" not in job_data:
+            job_data["streaming"] = dict(self._DEFAULT_STREAMING)
+        return job_data["streaming"]
+
+    def _ensure_download_dict(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure download dict exists with default values.
+
+        Returns the download dict for convenient chaining.
+        """
+        if "download" not in job_data:
+            job_data["download"] = dict(self._DEFAULT_DOWNLOAD)
+        return job_data["download"]
 
     def create_job(self, user_id: str, job_type: str, enable_streaming: bool = False) -> str:
         """Create a new job and return job_id."""
@@ -105,17 +139,8 @@ class JobService:
             )
             return
 
-        # Initialize streaming dict if missing (backward compatibility)
-        if "streaming" not in job_data:
-            job_data["streaming"] = {
-                "enabled": True,
-                "playlist_url": None,
-                "segments_completed": 0,
-                "segments_total": None,
-                "started_at": None,
-            }
-
-        streaming = job_data["streaming"]
+        # Ensure streaming dict exists (backward compatibility)
+        streaming = self._ensure_streaming_dict(job_data)
         streaming["segments_completed"] = segments_completed
 
         if segments_total is not None:
@@ -154,17 +179,9 @@ class JobService:
         job_data["status"] = JobStatus.STREAMING.value
         job_data["updated_at"] = _utcnow().isoformat()
 
-        if "streaming" not in job_data:
-            job_data["streaming"] = {
-                "enabled": True,
-                "playlist_url": None,
-                "segments_completed": 0,
-                "segments_total": None,
-                "started_at": None,
-            }
-
-        job_data["streaming"]["playlist_url"] = playlist_url
-        job_data["streaming"]["started_at"] = _utcnow().isoformat()
+        streaming = self._ensure_streaming_dict(job_data)
+        streaming["playlist_url"] = playlist_url
+        streaming["started_at"] = _utcnow().isoformat()
 
         self._save_job(user_id, job_id, job_data)
         logger.info("Marked job as streaming", extra={"data": {"job_id": job_id}})
@@ -183,18 +200,14 @@ class JobService:
         job_data["status"] = JobStatus.COMPLETED.value
         job_data["updated_at"] = _utcnow().isoformat()
 
-        if "streaming" in job_data:
-            job_data["streaming"]["segments_completed"] = segments_total
-            job_data["streaming"]["segments_total"] = segments_total
+        # Update streaming info
+        streaming = self._ensure_streaming_dict(job_data)
+        streaming["segments_completed"] = segments_total
+        streaming["segments_total"] = segments_total
 
         # Mark download as available
-        if "download" not in job_data:
-            job_data["download"] = {
-                "available": False,
-                "url": None,
-                "downloaded": False,
-            }
-        job_data["download"]["available"] = True
+        download = self._ensure_download_dict(job_data)
+        download["available"] = True
 
         self._save_job(user_id, job_id, job_data)
         logger.info(
@@ -213,15 +226,9 @@ class JobService:
         if not job_data:
             return
 
-        if "download" not in job_data:
-            job_data["download"] = {
-                "available": False,
-                "url": None,
-                "downloaded": False,
-            }
-
-        job_data["download"]["available"] = True
-        job_data["download"]["url"] = download_url
+        download = self._ensure_download_dict(job_data)
+        download["available"] = True
+        download["url"] = download_url
         job_data["updated_at"] = _utcnow().isoformat()
 
         self._save_job(user_id, job_id, job_data)
@@ -232,11 +239,11 @@ class JobService:
         if not job_data:
             return
 
-        if "download" in job_data:
-            job_data["download"]["downloaded"] = True
-            job_data["updated_at"] = _utcnow().isoformat()
-            self._save_job(user_id, job_id, job_data)
-            logger.info("Marked download completed", extra={"data": {"job_id": job_id}})
+        download = self._ensure_download_dict(job_data)
+        download["downloaded"] = True
+        job_data["updated_at"] = _utcnow().isoformat()
+        self._save_job(user_id, job_id, job_data)
+        logger.info("Marked download completed", extra={"data": {"job_id": job_id}})
 
     def set_tts_cache_key(self, user_id: str, job_id: str, cache_key: str):
         """Set the TTS cache key for retry capability."""

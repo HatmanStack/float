@@ -10,6 +10,7 @@ from ..config.constants import (
     HTTP_FORBIDDEN,
     HTTP_NOT_FOUND,
 )
+from ..exceptions import TTSError, AudioProcessingError
 from ..config.settings import settings
 from ..models.requests import MeditationRequest, SummaryRequest, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
@@ -35,6 +36,7 @@ from .middleware import (
     error_handling_middleware,
     json_middleware,
     method_validation_middleware,
+    request_size_validation_middleware,
     request_validation_middleware,
 )
 
@@ -105,7 +107,7 @@ class LambdaHandler:
         tts_provider = self.get_tts_provider()
         success = tts_provider.synthesize_speech(meditation_text, voice_path)
         if not success:
-            raise Exception("Failed to generate speech audio")
+            raise TTSError("Failed to generate speech audio")
         logger.debug("Voice generation completed")
         return voice_path, combined_path
 
@@ -511,6 +513,7 @@ class LambdaHandler:
         json_middleware,
         method_validation_middleware(["POST"]),
         request_validation_middleware,
+        request_size_validation_middleware,
         error_handling_middleware,
     )
     def handle_request(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:

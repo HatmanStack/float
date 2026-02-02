@@ -8,6 +8,10 @@ from ..config.constants import (
     HTTP_INTERNAL_SERVER_ERROR,
     HTTP_METHOD_NOT_ALLOWED,
     HTTP_OK,
+    MAX_AUDIO_PAYLOAD_BYTES,
+    MAX_INPUT_DATA_ITEMS,
+    MAX_MUSIC_LIST_SIZE,
+    MAX_TEXT_INPUT_LENGTH,
 )
 from ..models.responses import ErrorResponse
 from ..utils.logging_utils import get_logger
@@ -143,13 +147,127 @@ def request_validation_middleware(
     return wrapper
 
 
+def request_size_validation_middleware(
+    handler: Callable[..., Dict[str, Any]],
+) -> Callable[..., Dict[str, Any]]:
+    """Validate request payload sizes before processing.
+
+    This middleware protects against oversized payloads that could:
+    - Exhaust Lambda memory (128MB-3GB depending on config)
+    - Cause excessive processing time
+    - Result in API Gateway 10MB payload limit errors
+
+    Validates:
+    - Audio payload size (base64 encoded)
+    - Text input length
+    - Music list size
+    - Input data array size
+    """
+
+    def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+        method = event.get("requestContext", {}).get("http", {}).get("method", "")
+        if method == "OPTIONS":
+            return handler(event, context)
+
+        parsed_body = event.get("parsed_body", {})
+
+        # Validate audio payload size
+        audio = parsed_body.get("audio", "")
+        if audio and audio != "NotAvailable":
+            audio_size = len(audio) if isinstance(audio, str) else 0
+            if audio_size > MAX_AUDIO_PAYLOAD_BYTES:
+                logger.warning(
+                    "Audio payload too large",
+                    extra={"data": {"size": audio_size, "max": MAX_AUDIO_PAYLOAD_BYTES}},
+                )
+                return create_error_response(
+                    HTTP_BAD_REQUEST,
+                    f"Audio payload exceeds maximum size of {MAX_AUDIO_PAYLOAD_BYTES // (1024 * 1024)}MB",
+                )
+
+        # Validate text input length
+        prompt = parsed_body.get("prompt", "")
+        if prompt and prompt != "NotAvailable":
+            prompt_length = len(prompt) if isinstance(prompt, str) else 0
+            if prompt_length > MAX_TEXT_INPUT_LENGTH:
+                logger.warning(
+                    "Text input too long",
+                    extra={"data": {"length": prompt_length, "max": MAX_TEXT_INPUT_LENGTH}},
+                )
+                return create_error_response(
+                    HTTP_BAD_REQUEST,
+                    f"Text input exceeds maximum length of {MAX_TEXT_INPUT_LENGTH} characters",
+                )
+
+        # Validate music list size
+        music_list = parsed_body.get("music_list", [])
+        if isinstance(music_list, list) and len(music_list) > MAX_MUSIC_LIST_SIZE:
+            logger.warning(
+                "Music list too large",
+                extra={"data": {"size": len(music_list), "max": MAX_MUSIC_LIST_SIZE}},
+            )
+            return create_error_response(
+                HTTP_BAD_REQUEST,
+                f"Music list exceeds maximum size of {MAX_MUSIC_LIST_SIZE} items",
+            )
+
+        # Validate input_data array size (for meditation requests)
+        input_data = parsed_body.get("input_data", {})
+        if isinstance(input_data, list) and len(input_data) > MAX_INPUT_DATA_ITEMS:
+            logger.warning(
+                "Input data too large",
+                extra={"data": {"size": len(input_data), "max": MAX_INPUT_DATA_ITEMS}},
+            )
+            return create_error_response(
+                HTTP_BAD_REQUEST,
+                f"Input data exceeds maximum of {MAX_INPUT_DATA_ITEMS} items",
+            )
+
+        return handler(event, context)
+
+    return wrapper
+
+
 def error_handling_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
+    """Handle exceptions and convert them to appropriate HTTP responses.
+
+    Exception handling priority:
+    1. FloatException hierarchy - use code, message, retriable from exception
+    2. ValueError - treat as bad request (4xx)
+    3. All other exceptions - internal server error (5xx)
+    """
+    from ..exceptions import FloatException, ValidationError, ExternalServiceError
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         try:
             return handler(event, context)
+        except ValidationError as e:
+            logger.warning(
+                "Validation error",
+                extra={"data": {"error": str(e), "code": e.code.value}}
+            )
+            return create_error_response(HTTP_BAD_REQUEST, e.message)
+        except ExternalServiceError as e:
+            logger.error(
+                "External service error",
+                extra={"data": {"error": str(e), "code": e.code.value, "retriable": e.retriable}},
+                exc_info=True
+            )
+            return create_error_response(
+                HTTP_INTERNAL_SERVER_ERROR,
+                e.message,
+                details=f"retriable={e.retriable}"
+            )
+        except FloatException as e:
+            logger.error(
+                "Domain error",
+                extra={"data": {"error": str(e), "code": e.code.value}},
+                exc_info=True
+            )
+            status_code = HTTP_BAD_REQUEST if not e.retriable else HTTP_INTERNAL_SERVER_ERROR
+            return create_error_response(status_code, e.message)
         except ValueError as e:
             logger.warning("ValueError in handler", extra={"data": {"error": str(e)}})
             return create_error_response(HTTP_BAD_REQUEST, str(e))

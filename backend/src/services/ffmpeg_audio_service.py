@@ -16,6 +16,8 @@ from ..config.constants import (
     DEFAULT_VOICE_BOOST,
 )
 from ..config.settings import settings
+from ..exceptions import AudioProcessingError
+from ..utils.cache import music_list_cache
 from ..utils.logging_utils import get_logger
 from .audio_service import AudioService
 from .storage_service import StorageService
@@ -442,7 +444,14 @@ class FFmpegAudioService(AudioService):
             elif not isinstance(used_music, list):
                 used_music = [used_music]
         bucket_name = settings.AWS_AUDIO_BUCKET
-        existing_keys = self.storage_service.list_objects(bucket_name)
+
+        # Use cached music list to avoid repeated S3 API calls
+        cache_key = f"music_list:{bucket_name}"
+        existing_keys = music_list_cache.get(cache_key)
+        if existing_keys is None:
+            existing_keys = self.storage_service.list_objects(bucket_name)
+            music_list_cache.set(cache_key, existing_keys)
+            logger.debug("Cached music list from S3", extra={"data": {"count": len(existing_keys)}})
         filtered_keys = set()
         for key in existing_keys:
             track_duration = self._extract_last_numeric_value(key)
@@ -467,7 +476,10 @@ class FFmpegAudioService(AudioService):
             used_music.append(file_key)
             return used_music
         else:
-            raise Exception(f"Failed to download music file: {file_key}")
+            raise AudioProcessingError(
+                f"Failed to download music file: {file_key}",
+                details=f"bucket={bucket_name}, key={file_key}",
+            )
 
     def _extract_last_numeric_value(self, filename: str) -> Optional[int]:
         matches = re.findall(r"(\d+)(?=\D*$)", filename)

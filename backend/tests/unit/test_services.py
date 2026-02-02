@@ -654,6 +654,8 @@ class TestGeminiAIService:
 
     def test_api_timeout_error_handled(self):
         """Test API timeout errors handled gracefully."""
+        from src.exceptions import AIServiceError
+
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
@@ -663,8 +665,8 @@ class TestGeminiAIService:
 
             service = GeminiAIService()
 
-            # The implementation wraps exceptions in ValueError
-            with pytest.raises(ValueError, match="Failed to analyze text sentiment"):
+            # The implementation wraps exceptions in AIServiceError
+            with pytest.raises(AIServiceError, match="Failed to analyze text sentiment"):
                 service.analyze_sentiment(audio_file=None, user_text="Test")
 
     def test_invalid_api_key_returns_clear_error(self):

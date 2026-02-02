@@ -9,6 +9,8 @@ from google.generativeai.types.safety_types import (  # type: ignore
 from zenquotespy import random as get_random_quote
 
 from ..config.settings import settings
+from ..exceptions import AIServiceError
+from ..utils.circuit_breaker import gemini_circuit, with_circuit_breaker
 from .ai_service import AIService
 
 logger = logging.getLogger(__name__)
@@ -154,16 +156,23 @@ Data for meditation transcript:"""
             20: {"words": 3000, "chars": 15000},
         }
 
+    @with_circuit_breaker(gemini_circuit)
     def analyze_sentiment(
         self, audio_file: str | None = None, user_text: str | None = None
     ) -> str:
         """
         Analyze sentiment from audio and/or text input using Gemini.
+
         Args:
             audio_file: Path to audio file or None if not available
             user_text: Text input or None if not available
+
         Returns:
             JSON string containing sentiment analysis results
+
+        Raises:
+            AIServiceError: If sentiment analysis fails.
+            CircuitBreakerOpenError: If circuit breaker is open.
         """
         logger.info("Starting sentiment analysis")
         model = genai.GenerativeModel(
@@ -183,7 +192,10 @@ Data for meditation transcript:"""
                 text_response = model.generate_content([prompt])
             except Exception as e:
                 logger.error("Error generating text sentiment: %s", str(e))
-                raise ValueError(f"Failed to analyze text sentiment: {str(e)}") from e
+                raise AIServiceError(
+                    f"Failed to analyze text sentiment: {str(e)}",
+                    details=str(e),
+                ) from e
         if audio_file and "NotAvailable" not in audio_file:
             try:
                 audio_data = pathlib.Path(audio_file).read_bytes()
@@ -193,7 +205,10 @@ Data for meditation transcript:"""
                 audio_response = model.generate_content(call)
             except Exception as e:
                 logger.error("Error generating audio sentiment: %s", str(e))
-                raise ValueError(f"Failed to analyze audio sentiment: {str(e)}") from e
+                raise AIServiceError(
+                    f"Failed to analyze audio sentiment: {str(e)}",
+                    details=str(e),
+                ) from e
         try:
             if text_response and audio_response:
                 prompt = (
@@ -210,7 +225,10 @@ Data for meditation transcript:"""
                 response = audio_response
         except Exception as e:
             logger.error("Error synthesizing sentiment results: %s", str(e))
-            raise ValueError(f"Failed to synthesize sentiment results: {str(e)}") from e
+            raise AIServiceError(
+                f"Failed to synthesize sentiment results: {str(e)}",
+                details=str(e),
+            ) from e
         return response.text  # type: ignore[no-any-return]
 
     def _get_inspirational_quote(self) -> tuple[str, str]:
@@ -228,7 +246,21 @@ Data for meditation transcript:"""
             logger.warning("Failed to get quote: %s, using fallback", e)
             return "Peace comes from within. Do not seek it without.", "Buddha"
 
+    @with_circuit_breaker(gemini_circuit)
     def generate_meditation(self, input_data: Dict[str, Any], duration_minutes: int = 5) -> str:
+        """Generate a meditation script from sentiment data.
+
+        Args:
+            input_data: Dictionary containing sentiment analysis results.
+            duration_minutes: Target meditation duration (3, 5, 10, 15, or 20).
+
+        Returns:
+            Generated meditation script text.
+
+        Raises:
+            AIServiceError: If meditation generation fails.
+            CircuitBreakerOpenError: If circuit breaker is open.
+        """
         logger.info("Starting meditation generation for %d minutes", duration_minutes)
         logger.debug("Input data keys: %s", list(input_data.keys()))
 
@@ -266,4 +298,7 @@ Data for meditation transcript:"""
             return meditation_text  # type: ignore[no-any-return]
         except Exception as e:
             logger.error("Error generating meditation: %s", str(e))
-            raise ValueError(f"Failed to generate meditation: {str(e)}") from e
+            raise AIServiceError(
+                f"Failed to generate meditation: {str(e)}",
+                details=str(e),
+            ) from e

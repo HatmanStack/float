@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.config.constants import InferenceType
+from src.exceptions import ValidationError
 from src.handlers.lambda_handler import LambdaHandler
 from src.models.requests import MeditationRequest, SummaryRequest
 
@@ -191,7 +192,7 @@ class TestSummaryRequestRouting:
             "audio": "NotAvailable"  # Both are NotAvailable - invalid
         }
 
-        with pytest.raises(ValueError, match="Invalid request data"):
+        with pytest.raises(ValidationError, match="Invalid request data"):
             parse_request_body(invalid_body)
 
 
@@ -307,7 +308,7 @@ class TestMeditationRequestRouting:
             "music_list": []
         }
 
-        with pytest.raises(ValueError, match="Invalid request data"):
+        with pytest.raises(ValidationError, match="Invalid request data"):
             parse_request_body(invalid_body)
 
 
@@ -324,7 +325,7 @@ class TestRequestTypeDetection:
             "prompt": "Test prompt"
         }
 
-        with pytest.raises(ValueError, match="inference_type is required"):
+        with pytest.raises(ValidationError, match="inference_type is required"):
             parse_request_body(body)
 
     def test_request_with_invalid_type_value(self):
@@ -337,7 +338,7 @@ class TestRequestTypeDetection:
             "prompt": "Test prompt"
         }
 
-        with pytest.raises(ValueError, match="Invalid inference_type"):
+        with pytest.raises(ValidationError, match="Invalid inference_type"):
             parse_request_body(body)
 
     def test_request_with_missing_user_id(self):
@@ -349,7 +350,7 @@ class TestRequestTypeDetection:
             "prompt": "Test prompt"
         }
 
-        with pytest.raises(ValueError, match="user_id is required"):
+        with pytest.raises(ValidationError, match="user_id is required"):
             parse_request_body(body)
 
 
@@ -390,7 +391,7 @@ class TestErrorHandling:
             "audio": "NotAvailable"
         }
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             parse_request_body(body)
 
     def test_unsupported_request_type_raises_error(self):
@@ -399,7 +400,7 @@ class TestErrorHandling:
 
         # An invalid inference_type should raise ValueError during parsing
         body = {"user_id": "test", "inference_type": "unsupported"}
-        with pytest.raises(ValueError, match="Invalid inference_type"):
+        with pytest.raises(ValidationError, match="Invalid inference_type"):
             parse_request_body(body)
 
 

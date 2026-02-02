@@ -28,6 +28,16 @@ DEFAULT_SILENCE_DURATION = 10  # seconds
 DEFAULT_MUSIC_VOLUME_REDUCTION = -15  # dB - background music should be subtle
 DEFAULT_VOICE_BOOST = 3  # dB - slight boost to ensure voice clarity
 SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
+
+# =============================================================================
+# Request Size Limits
+# =============================================================================
+# These limits protect against oversized payloads that could exhaust Lambda memory
+# or cause excessive processing time.
+MAX_AUDIO_PAYLOAD_BYTES = 10 * 1024 * 1024  # 10MB base64 audio (~7.5MB decoded)
+MAX_TEXT_INPUT_LENGTH = 10000  # 10K characters of text input
+MAX_MUSIC_LIST_SIZE = 20  # Maximum tracks in music list
+MAX_INPUT_DATA_ITEMS = 50  # Maximum incidents in meditation input
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
 HTTP_FORBIDDEN = 403

@@ -3,6 +3,7 @@
 import pytest
 
 from src.config.constants import InferenceType
+from src.exceptions import ValidationError
 from src.models.requests import MeditationRequest, SummaryRequest, parse_request_body
 from src.models.responses import (
     create_meditation_response,
@@ -173,7 +174,7 @@ class TestParseRequestBody:
             "prompt": "I feel sad",
             "audio": "NotAvailable",
         }
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             parse_request_body(body)
 
 

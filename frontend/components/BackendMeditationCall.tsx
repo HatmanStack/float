@@ -101,12 +101,15 @@ function getNextPollInterval(elapsedMs: number): number {
 /**
  * Poll for job status until streaming starts, completed, or failed.
  * Returns early when streaming begins to allow immediate playback.
+ *
+ * @param signal - Optional AbortSignal for cancellation support
  */
 async function pollJobStatusForStreaming(
   jobId: string,
   userId: string,
   lambdaUrl: string,
-  onStatusUpdate?: (status: JobStatusResponse) => void
+  onStatusUpdate?: (status: JobStatusResponse) => void,
+  signal?: AbortSignal
 ): Promise<JobStatusResponse> {
   const baseUrl = lambdaUrl.replace(/\/$/, '');
   const statusUrl = `${baseUrl}/job/${jobId}?user_id=${encodeURIComponent(userId)}`;
@@ -115,9 +118,15 @@ async function pollJobStatusForStreaming(
   let pollInterval = INITIAL_POLL_INTERVAL_MS;
 
   while (Date.now() - startTime < MAX_TOTAL_WAIT_MS) {
+    // Check for cancellation before each request
+    if (signal?.aborted) {
+      throw new DOMException('Polling cancelled', 'AbortError');
+    }
+
     const response = await fetch(statusUrl, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
+      signal, // Pass signal to fetch for network-level cancellation
     });
 
     if (!response.ok) {
@@ -144,10 +153,16 @@ async function pollJobStatusForStreaming(
       throw new Error(errorMsg);
     }
 
-    // Wait before next poll
+    // Wait before next poll (with cancellation support)
     const elapsed = Date.now() - startTime;
     pollInterval = getNextPollInterval(elapsed);
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(resolve, pollInterval);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timeout);
+        reject(new DOMException('Polling cancelled', 'AbortError'));
+      }, { once: true });
+    });
   }
 
   throw new Error('Meditation generation timed out');
@@ -156,12 +171,15 @@ async function pollJobStatusForStreaming(
 /**
  * Continue polling until job is fully completed.
  * Used after streaming starts to detect when download is available.
+ *
+ * @param signal - Optional AbortSignal for cancellation support
  */
 async function pollUntilComplete(
   jobId: string,
   userId: string,
   lambdaUrl: string,
-  onStatusUpdate?: (status: JobStatusResponse) => void
+  onStatusUpdate?: (status: JobStatusResponse) => void,
+  signal?: AbortSignal
 ): Promise<JobStatusResponse> {
   const baseUrl = lambdaUrl.replace(/\/$/, '');
   const statusUrl = `${baseUrl}/job/${jobId}?user_id=${encodeURIComponent(userId)}`;
@@ -170,9 +188,15 @@ async function pollUntilComplete(
   let pollInterval = INITIAL_POLL_INTERVAL_MS;
 
   while (Date.now() - startTime < MAX_TOTAL_WAIT_MS) {
+    // Check for cancellation before each request
+    if (signal?.aborted) {
+      throw new DOMException('Polling cancelled', 'AbortError');
+    }
+
     const response = await fetch(statusUrl, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
+      signal,
     });
 
     if (!response.ok) {
@@ -193,10 +217,16 @@ async function pollUntilComplete(
       throw new Error(errorMsg);
     }
 
-    // Wait before next poll
+    // Wait before next poll (with cancellation support)
     const elapsed = Date.now() - startTime;
     pollInterval = getNextPollInterval(elapsed);
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(resolve, pollInterval);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timeout);
+        reject(new DOMException('Polling cancelled', 'AbortError'));
+      }, { once: true });
+    });
   }
 
   throw new Error('Meditation generation timed out');
@@ -299,6 +329,10 @@ function toMeditationResult(jobData: JobStatusResponse): MeditationResult {
 /**
  * Streaming meditation call with HLS support.
  * Returns immediately when streaming starts, with functions to wait for completion.
+ *
+ * @param signal - Optional AbortSignal for cancellation support. When aborted,
+ *                 polling stops and throws AbortError. The backend job continues
+ *                 running (cancellation is client-side only).
  */
 export async function BackendMeditationCallStreaming(
   selectedIndexes: number[],
@@ -307,7 +341,8 @@ export async function BackendMeditationCallStreaming(
   userId: string,
   lambdaUrl: string = LAMBDA_FUNCTION_URL,
   onStatusUpdate?: (status: JobStatusResponse) => void,
-  durationMinutes: number = 5
+  durationMinutes: number = 5,
+  signal?: AbortSignal
 ): Promise<StreamingMeditationResponse> {
   const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
 
@@ -344,18 +379,18 @@ export async function BackendMeditationCallStreaming(
     const jobId = submitResponse.job_id;
 
     // Step 2: Poll until streaming starts or completed
-    const initialStatus = await pollJobStatusForStreaming(jobId, userId, lambdaUrl, onStatusUpdate);
+    const initialStatus = await pollJobStatusForStreaming(jobId, userId, lambdaUrl, onStatusUpdate, signal);
 
     // Check if this is a streaming job
     const isStreaming = initialStatus.status === 'streaming' || !!initialStatus.streaming;
     const playlistUrl = initialStatus.streaming?.playlist_url || null;
 
-    // Create continuation functions
+    // Create continuation functions (capture signal for cancellation support)
     const waitForCompletion = async (): Promise<MeditationResult> => {
       if (initialStatus.status === 'completed') {
         return toMeditationResult(initialStatus);
       }
-      const finalStatus = await pollUntilComplete(jobId, userId, lambdaUrl, onStatusUpdate);
+      const finalStatus = await pollUntilComplete(jobId, userId, lambdaUrl, onStatusUpdate, signal);
       return toMeditationResult(finalStatus);
     };
 
@@ -363,7 +398,7 @@ export async function BackendMeditationCallStreaming(
       // Ensure job is completed first
       // Don't pass onStatusUpdate - we don't want to re-trigger streaming UI
       if (initialStatus.status !== 'completed') {
-        await pollUntilComplete(jobId, userId, lambdaUrl);
+        await pollUntilComplete(jobId, userId, lambdaUrl, undefined, signal);
       }
       return fetchDownloadUrl(jobId, userId, lambdaUrl);
     };
