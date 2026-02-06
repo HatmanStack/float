@@ -190,7 +190,7 @@ def with_circuit_breaker(breaker: CircuitBreaker):
             except CircuitBreakerOpenError:
                 # Don't count circuit breaker errors as failures
                 raise
-            except Exception as e:
+            except Exception:
                 breaker.record_failure()
                 raise
 

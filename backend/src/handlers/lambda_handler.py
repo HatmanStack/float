@@ -10,8 +10,8 @@ from ..config.constants import (
     HTTP_FORBIDDEN,
     HTTP_NOT_FOUND,
 )
-from ..exceptions import TTSError, AudioProcessingError
 from ..config.settings import settings
+from ..exceptions import TTSError
 from ..models.requests import MeditationRequest, SummaryRequest, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
 from ..providers.openai_tts import OpenAITTSProvider

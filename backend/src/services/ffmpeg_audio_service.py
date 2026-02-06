@@ -577,9 +577,11 @@ class FFmpegAudioService(AudioService):
                 if seg_duration == 0:
                     seg_duration = float(HLS_SEGMENT_DURATION)
 
-                self.hls_service.upload_segment_from_file(
+                success = self.hls_service.upload_segment_from_file(
                     user_id, job_id, segment_index, fade_segment
                 )
+                if not success:
+                    raise Exception(f"Failed to upload fade segment {segment_index}")
                 segment_durations.append(seg_duration)
                 logger.info(f"Uploaded fade segment {segment_index}")
 

@@ -1,7 +1,6 @@
 """Unit tests for the circuit breaker implementation."""
 
 import time
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -9,10 +8,10 @@ from src.exceptions import CircuitBreakerOpenError
 from src.utils.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
-    with_circuit_breaker,
     gemini_circuit,
     openai_circuit,
     s3_circuit,
+    with_circuit_breaker,
 )
 
 

@@ -1145,7 +1145,7 @@ class TestFFmpegAudioServiceHLS:
         ss_index = ffmpeg_args.index("-ss")
         assert ffmpeg_args[ss_index + 1] == "15.0"  # 15.0 % 120.0 = 15.0
         assert "-t" in ffmpeg_args
-        assert "afade=t=out:st=0:d=20" in " ".join(ffmpeg_args)
+        assert "afade=t=out:st=0:d=10" in " ".join(ffmpeg_args)
 
     def test_append_fade_segments_music_offset_calculation(self, mock_storage_service):
         """Test music offset uses modular arithmetic correctly."""
