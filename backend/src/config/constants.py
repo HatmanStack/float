@@ -29,6 +29,11 @@ DEFAULT_MUSIC_VOLUME_REDUCTION = -15  # dB - background music should be subtle
 DEFAULT_VOICE_BOOST = 3  # dB - slight boost to ensure voice clarity
 SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
 
+# HLS Streaming Fade Configuration
+HLS_TRAILING_PAD_BASE_SECONDS = 7  # base music-only buffer after voice ends
+HLS_TRAILING_PAD_PER_TIER = 5  # additional padding per duration tier (3, 5, 10, 15, 20 min)
+HLS_FADE_DURATION_SECONDS = 10  # duration of the appended fade-out segments
+
 # =============================================================================
 # Request Size Limits
 # =============================================================================

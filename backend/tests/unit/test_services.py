@@ -1104,3 +1104,151 @@ class TestFFmpegAudioServiceHLS:
         from src.services.ffmpeg_audio_service import HLS_SEGMENT_DURATION
 
         assert HLS_SEGMENT_DURATION == 5
+
+    def test_append_fade_segments_happy_path(self, mock_storage_service):
+        """Test _append_fade_segments generates and uploads fade segments."""
+        mock_hls_service = MagicMock()
+        mock_hls_service.upload_segment_from_file.return_value = True
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+
+        segment_durations = [5.0, 5.0, 5.0]  # 3 existing segments
+
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("glob.glob", return_value=["/tmp/fade/segment_000.ts", "/tmp/fade/segment_001.ts"]),
+            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch.object(service, "get_audio_duration", return_value=5.0),
+            patch("tempfile.mkdtemp", return_value="/tmp/fade"),
+            patch("shutil.rmtree"),
+        ):
+            result = service._append_fade_segments(
+                music_path="/tmp/music.mp3",
+                total_streamed_duration=15.0,  # sum of segment_durations
+                user_id="user1",
+                job_id="job1",
+                total_segments=3,
+                segment_durations=segment_durations,
+            )
+
+        # Should have uploaded 2 new fade segments
+        assert result == 5  # 3 original + 2 fade
+        assert len(segment_durations) == 5
+        assert mock_hls_service.upload_segment_from_file.call_count == 2
+
+        # Verify segments uploaded at correct indices (3 and 4)
+        calls = mock_hls_service.upload_segment_from_file.call_args_list
+        assert calls[0][0][2] == 3  # segment_index for first fade segment
+        assert calls[1][0][2] == 4  # segment_index for second fade segment
+
+        # Verify FFmpeg was called with correct args
+        ffmpeg_args = mock_run.call_args[0][0]
+        ss_index = ffmpeg_args.index("-ss")
+        assert ffmpeg_args[ss_index + 1] == "15.0"  # 15.0 % 120.0 = 15.0
+        assert "-t" in ffmpeg_args
+        assert "afade=t=out:st=0:d=20" in " ".join(ffmpeg_args)
+
+    def test_append_fade_segments_music_offset_calculation(self, mock_storage_service):
+        """Test music offset uses modular arithmetic correctly."""
+        mock_hls_service = MagicMock()
+        mock_hls_service.upload_segment_from_file.return_value = True
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+
+        segment_durations = [5.0] * 30  # 150 seconds total
+
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("glob.glob", return_value=[]),
+            patch.object(service, "_get_audio_duration_from_file", return_value=60.0),
+            patch("tempfile.mkdtemp", return_value="/tmp/fade"),
+            patch("shutil.rmtree"),
+        ):
+            service._append_fade_segments(
+                music_path="/tmp/music.mp3",
+                total_streamed_duration=150.0,
+                user_id="user1",
+                job_id="job1",
+                total_segments=30,
+                segment_durations=segment_durations,
+            )
+
+        # 150 % 60 = 30.0 offset
+        ffmpeg_args = mock_run.call_args[0][0]
+        ss_index = ffmpeg_args.index("-ss")
+        assert ffmpeg_args[ss_index + 1] == "30.0"
+
+    def test_append_fade_segments_skips_when_music_duration_unknown(self, mock_storage_service):
+        """Test graceful skip when music duration cannot be determined."""
+        mock_hls_service = MagicMock()
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+
+        segment_durations = [5.0, 5.0]
+
+        with patch.object(service, "_get_audio_duration_from_file", return_value=0.0):
+            result = service._append_fade_segments(
+                music_path="/tmp/music.mp3",
+                total_streamed_duration=10.0,
+                user_id="user1",
+                job_id="job1",
+                total_segments=2,
+                segment_durations=segment_durations,
+            )
+
+        assert result == 2  # unchanged
+        assert len(segment_durations) == 2  # no segments appended
+        mock_hls_service.upload_segment_from_file.assert_not_called()
+
+    def test_append_fade_segments_handles_ffmpeg_failure(self, mock_storage_service):
+        """Test graceful degradation when FFmpeg fails."""
+        mock_hls_service = MagicMock()
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+
+        segment_durations = [5.0, 5.0, 5.0]
+
+        with (
+            patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ffmpeg")),
+            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch("tempfile.mkdtemp", return_value="/tmp/fade"),
+            patch("shutil.rmtree"),
+        ):
+            result = service._append_fade_segments(
+                music_path="/tmp/music.mp3",
+                total_streamed_duration=15.0,
+                user_id="user1",
+                job_id="job1",
+                total_segments=3,
+                segment_durations=segment_durations,
+            )
+
+        assert result == 3  # unchanged, graceful failure
+        mock_hls_service.upload_segment_from_file.assert_not_called()
+
+    def test_append_fade_segments_explicit_codec_params(self, mock_storage_service):
+        """Test that fade command includes explicit codec params for segment boundary matching."""
+        mock_hls_service = MagicMock()
+        mock_hls_service.upload_segment_from_file.return_value = True
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls_service)
+
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("glob.glob", return_value=[]),
+            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch("tempfile.mkdtemp", return_value="/tmp/fade"),
+            patch("shutil.rmtree"),
+        ):
+            service._append_fade_segments(
+                music_path="/tmp/music.mp3",
+                total_streamed_duration=15.0,
+                user_id="user1",
+                job_id="job1",
+                total_segments=3,
+                segment_durations=[5.0, 5.0, 5.0],
+            )
+
+        ffmpeg_args = mock_run.call_args[0][0]
+        # Verify explicit codec params
+        assert "-ar" in ffmpeg_args
+        assert "44100" in ffmpeg_args
+        assert "-ac" in ffmpeg_args
+        assert "2" in ffmpeg_args
+        assert "-b:a" in ffmpeg_args
+        assert "128k" in ffmpeg_args
