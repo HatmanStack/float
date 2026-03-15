@@ -36,6 +36,7 @@ HLS_SEGMENT_DURATION = 5  # seconds
 # FFmpeg timeout configuration (seconds)
 FFMPEG_STEP_TIMEOUT = 120  # 2 minutes per individual step
 FFMPEG_HLS_TIMEOUT = 300   # 5 minutes for full HLS generation
+FFMPEG_STREAM_TIMEOUT = 600  # 10 minutes for full streaming pipeline
 
 
 class FFmpegAudioService(AudioService):
@@ -766,12 +767,17 @@ class FFmpegAudioService(AudioService):
                     voice_file.write(chunk)  # Save for fade processing
 
             process.stdin.close()
-            process.wait()
+            process.wait(timeout=FFMPEG_STREAM_TIMEOUT)
 
             if process.returncode != 0:
                 stderr = process.stderr.read().decode()
                 raise Exception(f"FFmpeg failed: {stderr}")
 
+        except subprocess.TimeoutExpired:
+            logger.error(f"FFmpeg streaming process timed out after {FFMPEG_STREAM_TIMEOUT}s")
+            process.kill()
+            process.wait()  # Reap the process
+            raise AudioProcessingError(f"FFmpeg streaming timed out after {FFMPEG_STREAM_TIMEOUT}s")
         except BrokenPipeError as e:
             stderr = process.stderr.read().decode() if process.stderr else "unknown"
             logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
