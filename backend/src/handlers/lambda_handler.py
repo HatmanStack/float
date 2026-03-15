@@ -48,6 +48,15 @@ ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() ==
 # Maximum retry attempts for HLS generation
 MAX_GENERATION_ATTEMPTS = 3
 
+# Estimated TTS speaking rate for calm meditation voice with pauses.
+# Based on observation: meditation TTS averages ~80 words/minute
+# (slower than conversational ~150 wpm due to intentional pauses).
+TTS_WORDS_PER_MINUTE = 80
+
+# Extra seconds of background music after TTS speech ends,
+# allowing the meditation to fade out naturally.
+MUSIC_TRAILING_BUFFER_SECONDS = 90
+
 
 class LambdaHandler:
 
@@ -320,8 +329,8 @@ class LambdaHandler:
                 # Estimate TTS duration from text length
                 # Using ~80 words/min for calm meditation voice with pauses (conservative)
                 word_count = len(meditation_text.split())
-                estimated_tts_duration = (word_count / 80) * 60  # seconds
-                music_duration = estimated_tts_duration + 90  # Add 90s buffer for trailing music
+                estimated_tts_duration = (word_count / TTS_WORDS_PER_MINUTE) * 60  # seconds
+                music_duration = estimated_tts_duration + MUSIC_TRAILING_BUFFER_SECONDS
 
                 # Select and download background music
                 music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
