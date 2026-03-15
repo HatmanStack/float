@@ -2,7 +2,83 @@
 
 ## Active Feedback
 
-(No open items.)
+### CODE_REVIEW-1: Phase 9 — All 8 tasks verified, no issues found
+
+**Reviewer:** Doc Reviewer (Senior Engineer)
+**Scope:** Phase 9 implementation (8 commits: 2d0cb2a through 5fb17f7)
+
+**Verification results:**
+
+1. **API.md summary response fields** — Match `backend/src/models/responses.py` `SummaryResponse` exactly: `sentiment_label`, `intensity` (str), `speech_to_text`, `added_text`, `summary`, `user_summary`, `user_short_summary`. No stale `timestamp` or `sentiment` fields.
+
+2. **API.md text limit** — Says 10000, matches `backend/src/config/constants.py` line 43 `MAX_TEXT_INPUT_LENGTH = 10000`.
+
+3. **API.md CORS methods** — Says `OPTIONS, POST, GET`, matches `constants.py` line 79 `"OPTIONS,POST,GET"` (whitespace difference is cosmetic, acceptable for documentation readability).
+
+4. **CLAUDE.md pytest markers** — Lists `unit`, `integration`, `slow` (no `e2e`). Matches `backend/pyproject.toml` lines 70-74 exactly.
+
+5. **README.md install command** — `npm install --legacy-peer-deps` present in root README.md (lines 38, 180) and docs/README.md (line 32).
+
+6. **Integration test README** — Zero occurrences of `__tests__/integration/` in `tests/frontend/integration/README.md`. All paths use `tests/frontend/integration/`. Non-existent `IncidentCreator`/`IncidentList` replaced with `AudioRecording`/`History`.
+
+7. **E2E test README** — `.detoxrc.js` reference corrected to `frontend/.detoxrc.js` (line 314). Integration test cross-reference uses correct path (line 325).
+
+8. **Backend env vars** — `ENABLE_HLS_STREAMING`, `LOG_LEVEL`, `ENVIRONMENT` documented in both `backend/.env.example` and `docs/README.md`.
+
+9. **Prior feedback items addressed** — Download endpoint correctly uses query parameter format (PLAN_REVIEW-12). JSX uses `<History />` uppercase (PLAN_REVIEW-13). CLAUDE.md CI line includes `dockerfile-lint` (PLAN_REVIEW-14).
+
+10. **No breakage** — `npm run check` passes: lint clean, 25 test suites, 255 tests all passing.
+
+---
+
+PHASE_APPROVED
+
+### PLAN_REVIEW-12: Phase 9 Task 1 Step 9 — Download endpoint documentation shows wrong request format
+
+The plan instructs the engineer to document the download endpoint as taking a JSON **request body** with `user_id`:
+
+```json
+{
+  "user_id": "user@example.com"
+}
+```
+
+However, the actual implementation at `backend/src/handlers/lambda_handler.py` lines 656-658 gets `user_id` from **query parameters**, not a POST body:
+
+```python
+query_params = event.get("queryStringParameters", {}) or {}
+user_id = query_params.get("user_id", "")
+```
+
+The documented endpoint should show:
+
+```
+POST /job/{job_id}/download?user_id=user@example.com
+```
+
+with no request body, matching the actual code.
+
+---
+
+### PLAN_REVIEW-13: Phase 9 Task 6 Step 3 — Replacement JSX uses lowercase `<history />` which is invalid React
+
+The plan replaces `<IncidentList />` with `<history />` (lowercase). In JSX, lowercase tags are treated as HTML elements, not React components. The actual component file is `frontend/components/history.tsx` but React convention (and existing usage in the same README at lines 96-97) renders it as `<History />` (uppercase import). The replacement code must use `<History />` to be valid React/JSX.
+
+Additionally, the plan says the component reference comes from `components/history.tsx` -- the plan should note that the import would be `import History from '@/components/history'` (or similar), not that the JSX tag should literally match the filename casing.
+
+---
+
+### PLAN_REVIEW-14: Phase 9 Task 2 — CLAUDE.md CI description at line 79 omits `dockerfile-lint` job
+
+CLAUDE.md line 79 states: "frontend-lint, frontend-tests, backend-tests run on every push/PR." However, CI (`.github/workflows/ci.yml` line 95) also includes a `dockerfile-lint` job in the required checks. After Phases 7-8 added this job, the CLAUDE.md CI line is stale. Phase 9 should add a step to update line 79 to include `dockerfile-lint`:
+
+```
+GitHub Actions (`.github/workflows/ci.yml`): frontend-lint, frontend-tests, backend-tests, dockerfile-lint run on every push/PR. All four must pass.
+```
+
+---
+
+REVISION_REQUIRED
 
 ## Resolved Feedback
 

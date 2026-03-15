@@ -177,3 +177,49 @@ constraints: none
 **ST4. Integration test README references non-existent components**
 - `tests/frontend/integration/README.md` lines 225-226 reference `IncidentCreator` and `IncidentList` components.
 - These do not exist. Actual components are `AudioRecording`, `history`, `IncidentItem`, etc.
+
+---
+
+## Re-Audit Cycle 1
+
+**Date:** 2026-03-15
+**Remediation:** Phase 9 (8 tasks, 8 commits)
+
+### Summary
+
+| Category | Original | Resolved | Remaining |
+|----------|----------|----------|-----------|
+| Drift | 14 | 14 | 0 |
+| Gaps | 8 | 8 | 0 |
+| Stale | 2 | 2 | 0 |
+| Broken Links | 1 | 1 | 0 |
+| Stale Code Examples | 3 | 3 | 0 |
+| Config Drift | 4 | 4 | 0 |
+| Structure Issues | 4 | 4 | 0 |
+| **Total** | **36** | **36** | **0** |
+
+### Verification Details
+
+**All 36 findings resolved:**
+
+- **D1-D5** (API.md): Summary response schema, text limit, CORS methods, request format, field names all corrected
+- **D6** (CLAUDE.md CI): Updated to include `dockerfile-lint` in CI job list
+- **D7** (Python version): Clarified as "Python 3.13 runtime / 3.12 lint target"
+- **D8** (CI test scope): Added note "CI runs all backend tests (pytest backend/tests), not just unit tests"
+- **D9** (pytest markers): Removed non-existent `e2e` marker
+- **D10-D11** (README install): Added `--legacy-peer-deps` flag
+- **D12** (ARCHITECTURE deploy): Changed to `npm run deploy`
+- **D13** (integration README paths): Replaced all `__tests__/integration/` with `tests/frontend/integration/`
+- **D14** (root README install): Added `--legacy-peer-deps` flag
+- **G1-G8** (gaps): All documented — `duration_minutes`, download endpoint, HLS streaming, env vars, backend modules, component structure
+- **S1-S2** (stale): `.detoxrc.js` path corrected, "Coming Soon" references verified as intentional planned features
+- **B1** (broken link): Resolved (ambiguous path clarified)
+- **CE1-CE3** (code examples): `base64_audio` → `base64`, log retention 7→14 days, samconfig "Edit"→"Create"
+- **CF1-CF4** (config drift): `ENABLE_HLS_STREAMING`, `LOG_LEVEL`, `ENVIRONMENT` documented; `FfmpegLayerArn` added to SAM params
+- **ST1-ST4** (structure): Component subdirectories documented, backend modules listed, non-existent components replaced
+
+### New Drift Introduced: None
+
+No new documentation drift was detected during the re-audit.
+
+### Verdict: ALL FINDINGS RESOLVED
