@@ -41,11 +41,11 @@ Remove dead code, fix trivial operational bugs, and clean up hygiene issues iden
 5. Also add `capture_output=True,` to each call to match the style in `_prepare_mixed_audio()`. This ensures stderr is captured rather than printed to Lambda logs
 
 **Verification Checklist:**
-- [ ] All 5 `subprocess.run()` calls in `combine_voice_and_music()` have `timeout=FFMPEG_STEP_TIMEOUT`
-- [ ] All 5 calls also have `capture_output=True`
-- [ ] No other changes to the method
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] All 5 `subprocess.run()` calls in `combine_voice_and_music()` have `timeout=FFMPEG_STEP_TIMEOUT`
+- [x] All 5 calls also have `capture_output=True`
+- [x] No other changes to the method
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run existing backend tests: `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -79,11 +79,11 @@ from consuming the full Lambda timeout.
 4. Apply the same fix in `backend/src/providers/gemini_tts.py` line 44: remove `traceback.print_exc()`. Also remove the `import traceback` on line 2 if `traceback` is no longer used anywhere in that file
 
 **Verification Checklist:**
-- [ ] `traceback.print_exc()` removed from `openai_tts.py`
-- [ ] `traceback` import retained in `openai_tts.py` (still used by `format_exc()`)
-- [ ] `traceback.print_exc()` removed from `gemini_tts.py`
-- [ ] `import traceback` removed from `gemini_tts.py` if no longer used
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] `traceback.print_exc()` removed from `openai_tts.py`
+- [x] `traceback` import retained in `openai_tts.py` (still used by `format_exc()`)
+- [x] `traceback.print_exc()` removed from `gemini_tts.py`
+- [x] `import traceback` removed from `gemini_tts.py` if no longer used
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -114,10 +114,10 @@ includes the formatted traceback in its details.
 3. Check if `backend/src/utils/__init__.py` re-exports anything from `color_utils` and remove if so
 
 **Verification Checklist:**
-- [ ] No file in `backend/` imports from `color_utils`
-- [ ] `backend/src/utils/color_utils.py` is deleted
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] No file in `backend/` imports from `color_utils`
+- [x] `backend/src/utils/color_utils.py` is deleted
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -149,10 +149,10 @@ of this module exist anywhere in the backend.
 4. Check if `backend/src/models/__init__.py` re-exports anything from `domain` and remove if so
 
 **Verification Checklist:**
-- [ ] No file imports from `domain.py`
-- [ ] `backend/src/models/domain.py` is deleted
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] No file imports from `domain.py`
+- [x] `backend/src/models/domain.py` is deleted
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -186,12 +186,12 @@ The codebase uses raw dicts for all data flow.
 6. Remove `MUSIC_LIST_TOO_LARGE` and `INVALID_DURATION` from the `ErrorCode` enum (lines 23-24)
 
 **Verification Checklist:**
-- [ ] `StorageError` class removed
-- [ ] `EncodingError` class removed
-- [ ] `MUSIC_LIST_TOO_LARGE` and `INVALID_DURATION` enum values removed
-- [ ] No remaining references to these names in `backend/`
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] `StorageError` class removed
+- [x] `EncodingError` class removed
+- [x] `MUSIC_LIST_TOO_LARGE` and `INVALID_DURATION` enum values removed
+- [x] No remaining references to these names in `backend/`
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -233,10 +233,10 @@ MUSIC_LIST_TOO_LARGE/INVALID_DURATION error codes (never referenced).
    The `setRenderKey` function from `useState` is a stable reference, so the exhaustive-deps rule should be satisfied with just `colorChangeArrayOfArrays`.
 
 **Verification Checklist:**
-- [ ] Empty `useEffect` removed
-- [ ] `eslint-disable-next-line` comment removed
-- [ ] `npm run lint` passes
-- [ ] `npm test` passes
+- [x] Empty `useEffect` removed
+- [x] `eslint-disable-next-line` comment removed
+- [x] `npm run lint` passes
+- [x] `npm test` passes
 
 **Testing Instructions:**
 - Run `npm run lint`
@@ -290,11 +290,11 @@ function reference is stable so exhaustive-deps is satisfied.
 4. Replace `alert(...)` on line 56 with `console.warn(...)` since `alert()` provides poor UX on mobile and this is a non-critical notification. (Do NOT add a new UI component -- that would be additive. `console.warn` is the minimal fix.)
 
 **Verification Checklist:**
-- [ ] `expo-permissions` import removed
-- [ ] Permission calls use `Notifications.getPermissionsAsync()` and `Notifications.requestPermissionsAsync()`
-- [ ] `alert()` replaced with `console.warn()`
-- [ ] `npm run lint` passes
-- [ ] `npm test` passes
+- [x] `expo-permissions` import removed
+- [x] Permission calls use `Notifications.getPermissionsAsync()` and `Notifications.requestPermissionsAsync()`
+- [x] `alert()` replaced with `console.warn()`
+- [x] `npm run lint` passes
+- [x] `npm test` passes
 
 **Testing Instructions:**
 - Run `npm run lint`
