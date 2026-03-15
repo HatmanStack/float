@@ -72,10 +72,10 @@ Items explicitly **deferred** (too large for health remediation, require dedicat
 3. The error handling structure stays the same -- just add the pagination loop inside the try block
 
 **Verification Checklist:**
-- [ ] `list_objects()` uses `IsTruncated` and `ContinuationToken` for pagination
-- [ ] Error handling is preserved
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x]`list_objects()` uses `IsTruncated` and `ContinuationToken` for pagination
+- [x]Error handling is preserved
+- [x]`cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x]`cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run existing backend tests: `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -130,12 +130,12 @@ truncated at the S3 API limit.
    ```
 
 **Verification Checklist:**
-- [ ] `FFMPEG_STREAM_TIMEOUT` constant defined
-- [ ] `process.wait()` has `timeout=FFMPEG_STREAM_TIMEOUT`
-- [ ] `subprocess.TimeoutExpired` is caught with a clear error message
-- [ ] Process is killed and reaped on timeout
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x]`FFMPEG_STREAM_TIMEOUT` constant defined
+- [x]`process.wait()` has `timeout=FFMPEG_STREAM_TIMEOUT`
+- [x]`subprocess.TimeoutExpired` is caught with a clear error message
+- [x]Process is killed and reaped on timeout
+- [x]`cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x]`cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -260,12 +260,12 @@ TTS streams.
 6. Also delete `fetchDownloadUrl` only if it's unused -- search for its call sites first
 
 **Verification Checklist:**
-- [ ] Only ONE `pollJobStatus` function exists
-- [ ] All three original call sites updated
-- [ ] Abort signal support works for callers that pass it
-- [ ] `returnOnStreaming` flag controls early return on playlist_url
-- [ ] `npm run lint` passes
-- [ ] `npm test` passes
+- [x]Only ONE `pollJobStatus` function exists
+- [x]All three original call sites updated
+- [x]Abort signal support works for callers that pass it
+- [x]`returnOnStreaming` flag controls early return on playlist_url
+- [x]`npm run lint` passes
+- [x]`npm test` passes
 
 **Testing Instructions:**
 - Run `npm run lint`
@@ -300,10 +300,10 @@ The returnOnStreaming flag controls early return behavior. Eliminates
 4. Do a find-and-replace across the file. The pattern is consistent: `cors_middleware(lambda e, c: response)` becomes `cors_middleware(lambda e, _: response)`
 
 **Verification Checklist:**
-- [ ] No remaining `lambda e, c:` patterns in the file
-- [ ] All replacements use `lambda e, _:`
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x]No remaining `lambda e, c:` patterns in the file
+- [x]All replacements use `lambda e, _:`
+- [x]`cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x]`cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -342,11 +342,11 @@ closures. Clears Vulture dead code findings at 100% confidence.
 7. Pay close attention to the method signatures and temp file naming. Both methods use `timestamp` for unique file names but `combine_voice_and_music` receives file paths as parameters while `_prepare_mixed_audio` constructs them internally. You may need to pass the voice path through.
 
 **Verification Checklist:**
-- [ ] `combine_voice_and_music()` delegates FFmpeg steps to `_prepare_mixed_audio()`
-- [ ] No duplicated subprocess calls remain
-- [ ] Return value of `combine_voice_and_music()` is unchanged for callers
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x]`combine_voice_and_music()` delegates FFmpeg steps to `_prepare_mixed_audio()`
+- [x]No duplicated subprocess calls remain
+- [x]Return value of `combine_voice_and_music()` is unchanged for callers
+- [x]`cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x]`cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
