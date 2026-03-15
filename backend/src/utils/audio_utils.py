@@ -3,6 +3,10 @@ import os
 import tempfile
 from typing import Optional
 
+from .logging_utils import get_logger
+
+logger = get_logger(__name__)
+
 
 def decode_audio_base64(audio_base64: str, suffix: str = ".mp3") -> str:
     """Decode a base64-encoded audio string and save to a temporary file.
@@ -41,7 +45,7 @@ def cleanup_temp_file(file_path: str) -> bool:
             return True
         return True
     except Exception as e:
-        print(f"Error removing temporary file {file_path}: {e}")
+        logger.warning("Error removing temporary file", extra={"data": {"path": file_path, "error": str(e)}})
         return False
 
 
@@ -76,7 +80,7 @@ def encode_audio_to_base64_streaming(
                 chunks.append(base64.b64encode(chunk).decode("utf-8"))
         return "".join(chunks)
     except Exception as e:
-        print(f"Error encoding audio file {file_path}: {e}")
+        logger.error("Error encoding audio file", extra={"data": {"path": file_path, "error": str(e)}})
         return None
 
 
