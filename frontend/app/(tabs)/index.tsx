@@ -76,58 +76,38 @@ function useSummarySubmission(
   separateTextPrompt: string,
   onSubmitSuccess: () => void
 ) {
-  const [summaryCall, setSummaryCall] = useState(false);
   const [submitActivity, setSubmitActivity] = useState(false);
   const { setIncidentList } = useIncident();
   const { user } = useAuth();
   const router = useRouter();
 
   const handleSummaryCall = useCallback(async () => {
-    setSummaryCall(true);
     setSubmitActivity(true);
-  }, []);
-
-  useEffect(() => {
-    if (summaryCall) {
-      setSummaryCall(false);
-      const fetchData = async () => {
-        if (!URI && !separateTextPrompt) {          setSubmitActivity(false);
-          return;
-        }
-        try {
-          let response: SummaryResponse;
-          if (recording) {
-            const base64_file = await StopRecording(recording);
-            response = await BackendSummaryCall(
-              base64_file ?? '',
-              separateTextPrompt,
-              user?.id ?? ''
-            );
-          } else {
-            response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
-          }
-          setIncidentList((prevList) => [response as Incident, ...prevList]);
-          onSubmitSuccess();
-        } catch (error) {
-          console.error('Failed to call summary lambda:', error);
-        } finally {
-          setSubmitActivity(false);
-          router.push('/explore');
-        }
-      };
-
-      fetchData();
+    if (!URI && !separateTextPrompt) {
+      setSubmitActivity(false);
+      return;
     }
-  }, [
-    summaryCall,
-    URI,
-    separateTextPrompt,
-    recording,
-    setIncidentList,
-    user?.id,
-    router,
-    onSubmitSuccess,
-  ]);
+    try {
+      let response: SummaryResponse;
+      if (recording) {
+        const base64_file = await StopRecording(recording);
+        response = await BackendSummaryCall(
+          base64_file ?? '',
+          separateTextPrompt,
+          user?.id ?? ''
+        );
+      } else {
+        response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
+      }
+      setIncidentList((prevList) => [response as Incident, ...prevList]);
+      onSubmitSuccess();
+    } catch (error) {
+      console.error('Failed to call summary lambda:', error);
+    } finally {
+      setSubmitActivity(false);
+      router.push('/explore');
+    }
+  }, [URI, separateTextPrompt, recording, setIncidentList, user?.id, router, onSubmitSuccess]);
 
   return {
     submitActivity,
