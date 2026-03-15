@@ -8,8 +8,8 @@ import RecordButton from '@/components/ScreenComponents/RecordButton';
 import SubmitButton from '@/components/ScreenComponents/SubmitButton';
 import { StartRecording, StopRecording } from '@/components/AudioRecording';
 import FloatNotifications from '@/components/Notifications';
-import { BackendSummaryCall, SummaryResponse } from '@/components/BackendSummaryCall';
-import { useIncident, Incident } from '@/context/IncidentContext';
+import { BackendSummaryCall, SummaryResponse, toIncident } from '@/components/BackendSummaryCall';
+import { useIncident } from '@/context/IncidentContext';
 import { Audio } from 'expo-av';
 import useStyles from '@/constants/StylesConstants';
 import { Platform, useWindowDimensions } from 'react-native';
@@ -99,7 +99,7 @@ function useSummarySubmission(
       } else {
         response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
       }
-      setIncidentList((prevList) => [response as Incident, ...prevList]);
+      setIncidentList((prevList) => [toIncident(response), ...prevList]);
       onSubmitSuccess();
     } catch (error) {
       console.error('Failed to call summary lambda:', error);
