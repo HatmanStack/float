@@ -56,11 +56,14 @@ describe('IncidentSave', () => {
   it('should handle load errors gracefully', async () => {
     (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Load failed'));
 
-    renderHook(() => IncidentSave());
+    const { result } = renderHook(() => IncidentSave());
 
     await new Promise((resolve) => setTimeout(resolve, 100));
-    // Should not crash
-    expect(true).toBe(true);
+    // Hook returns null even when AsyncStorage fails
+    expect(result.current).toBeNull();
+    // Context setters should not be called when loading fails
+    expect(mockSetIncidentList).not.toHaveBeenCalled();
+    expect(mockSetMusicList).not.toHaveBeenCalled();
   });
 
   it('should return null', () => {
