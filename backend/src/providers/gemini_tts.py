@@ -1,5 +1,4 @@
 import logging
-import traceback
 from typing import Iterator
 
 from google import genai
@@ -41,7 +40,6 @@ class GeminiTTSProvider(TTSService):
                         yield part.inline_data.data
         except Exception as e:
             logger.error(f"Error in Gemini TTS streaming: {e}")
-            traceback.print_exc()
             raise
 
     def synthesize_speech(self, text: str, output_path: str) -> bool:

@@ -47,7 +47,6 @@ class OpenAITTSProvider(TTSService):
 
         except Exception as e:
             logger.error(f"Error in OpenAI TTS streaming: {e}")
-            traceback.print_exc()
             raise TTSError(
                 f"OpenAI TTS streaming failed: {str(e)}",
                 details=traceback.format_exc(),
