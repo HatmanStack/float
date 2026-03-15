@@ -78,7 +78,7 @@ def create_summary_response(
             user_short_summary=data.get("user_short_summary", ""),
         )
     except (json.JSONDecodeError, KeyError, IndexError) as e:
-        raise ValueError(f"Failed to parse summary result: {e}")
+        raise ValueError(f"Failed to parse summary result: {e}") from e
 
 
 def create_meditation_response(

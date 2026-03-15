@@ -206,11 +206,11 @@ def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
 
     try:
         inference_enum = InferenceType(inference_type)
-    except ValueError:
+    except ValueError as err:
         raise ValidationError(
             f"Invalid inference_type: {inference_type}",
             ErrorCode.INVALID_INFERENCE_TYPE,
-        )
+        ) from err
 
     return user_id, inference_enum
 

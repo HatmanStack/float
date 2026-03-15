@@ -685,11 +685,11 @@ class FFmpegAudioService(AudioService):
                 stderr = process.stderr.read().decode()
                 raise Exception(f"FFmpeg failed: {stderr}")
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as err:
             logger.error(f"FFmpeg streaming process timed out after {FFMPEG_STREAM_TIMEOUT}s")
             process.kill()
             process.wait()  # Reap the process
-            raise AudioProcessingError(f"FFmpeg streaming timed out after {FFMPEG_STREAM_TIMEOUT}s")
+            raise AudioProcessingError(f"FFmpeg streaming timed out after {FFMPEG_STREAM_TIMEOUT}s") from err
         except BrokenPipeError as e:
             stderr = process.stderr.read().decode() if process.stderr else "unknown"
             logger.error(f"FFmpeg broken pipe - stderr: {stderr}")

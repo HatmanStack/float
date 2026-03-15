@@ -236,7 +236,7 @@ def validate_json_response():
         try:
             data = json.loads(response_str)
         except json.JSONDecodeError as e:
-            raise AssertionError(f"Invalid JSON response: {e}")
+            raise AssertionError(f"Invalid JSON response: {e}") from e
 
         # Check required fields
         missing_fields = [field for field in required_fields if field not in data]

@@ -50,7 +50,7 @@ class OpenAITTSProvider(TTSService):
             raise TTSError(
                 f"OpenAI TTS streaming failed: {str(e)}",
                 details=traceback.format_exc(),
-            )
+            ) from e
 
     def synthesize_speech(self, text: str, output_path: str) -> bool:
         """Synthesize speech to a file using streaming.
