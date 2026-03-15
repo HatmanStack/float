@@ -154,7 +154,13 @@ class JobService:
             streaming["started_at"] = _utcnow().isoformat()
 
         job_data["updated_at"] = _utcnow().isoformat()
-        self._save_job(user_id, job_id, job_data)
+        try:
+            self._save_job(user_id, job_id, job_data)
+        except Exception:
+            logger.warning(
+                "Non-critical: failed to save job progress update",
+                extra={"data": {"job_id": job_id, "method": "update_streaming_progress"}},
+            )
 
         logger.debug(
             "Updated streaming progress",
@@ -183,7 +189,13 @@ class JobService:
         streaming["playlist_url"] = playlist_url
         streaming["started_at"] = _utcnow().isoformat()
 
-        self._save_job(user_id, job_id, job_data)
+        try:
+            self._save_job(user_id, job_id, job_data)
+        except Exception:
+            logger.warning(
+                "Non-critical: failed to save job progress update",
+                extra={"data": {"job_id": job_id, "method": "mark_streaming_started"}},
+            )
         logger.info("Marked job as streaming", extra={"data": {"job_id": job_id}})
 
     def mark_streaming_complete(
@@ -231,7 +243,13 @@ class JobService:
         download["url"] = download_url
         job_data["updated_at"] = _utcnow().isoformat()
 
-        self._save_job(user_id, job_id, job_data)
+        try:
+            self._save_job(user_id, job_id, job_data)
+        except Exception:
+            logger.warning(
+                "Non-critical: failed to save job progress update",
+                extra={"data": {"job_id": job_id, "method": "mark_download_ready"}},
+            )
 
     def mark_download_completed(self, user_id: str, job_id: str):
         """Mark download as completed (for cleanup tracking)."""
@@ -242,7 +260,13 @@ class JobService:
         download = self._ensure_download_dict(job_data)
         download["downloaded"] = True
         job_data["updated_at"] = _utcnow().isoformat()
-        self._save_job(user_id, job_id, job_data)
+        try:
+            self._save_job(user_id, job_id, job_data)
+        except Exception:
+            logger.warning(
+                "Non-critical: failed to save job progress update",
+                extra={"data": {"job_id": job_id, "method": "mark_download_completed"}},
+            )
         logger.info("Marked download completed", extra={"data": {"job_id": job_id}})
 
     def set_tts_cache_key(self, user_id: str, job_id: str, cache_key: str):
@@ -253,7 +277,13 @@ class JobService:
 
         job_data["tts_cache_key"] = cache_key
         job_data["updated_at"] = _utcnow().isoformat()
-        self._save_job(user_id, job_id, job_data)
+        try:
+            self._save_job(user_id, job_id, job_data)
+        except Exception:
+            logger.warning(
+                "Non-critical: failed to save job progress update",
+                extra={"data": {"job_id": job_id, "method": "set_tts_cache_key"}},
+            )
 
     def increment_generation_attempt(self, user_id: str, job_id: str) -> int:
         """Increment and return the generation attempt count."""
@@ -264,7 +294,13 @@ class JobService:
         attempt = job_data.get("generation_attempt", 1) + 1
         job_data["generation_attempt"] = attempt
         job_data["updated_at"] = _utcnow().isoformat()
-        self._save_job(user_id, job_id, job_data)
+        try:
+            self._save_job(user_id, job_id, job_data)
+        except Exception:
+            logger.warning(
+                "Non-critical: failed to save job progress update",
+                extra={"data": {"job_id": job_id, "method": "increment_generation_attempt"}},
+            )
         return attempt
 
     def get_job(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
@@ -363,6 +399,17 @@ class JobService:
         return deleted_jobs
 
     def _save_job(self, user_id: str, job_id: str, job_data: Dict[str, Any]):
-        """Save job data to S3."""
+        """Save job data to S3.
+
+        Raises:
+            ExternalServiceError: If the S3 upload fails.
+        """
         key = f"jobs/{user_id}/{job_id}.json"
-        self.storage_service.upload_json(self.bucket, key, job_data)
+        success = self.storage_service.upload_json(self.bucket, key, job_data)
+        if not success:
+            from ..exceptions import ErrorCode, ExternalServiceError
+            raise ExternalServiceError(
+                f"Failed to save job {job_id} to S3",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"key={key}",
+            )
