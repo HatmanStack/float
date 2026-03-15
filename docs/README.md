@@ -29,7 +29,7 @@ Float is a cross-platform meditation app that generates personalized sessions fr
 
 ```bash
 # Frontend
-npm install
+npm install --legacy-peer-deps
 
 # Backend (for local testing)
 cd backend
@@ -103,7 +103,7 @@ npm run deploy
 
 ### Configuration
 
-Edit `backend/samconfig.toml`:
+Create `backend/samconfig.toml` (this file is gitignored — each developer creates their own):
 
 ```toml
 version = 0.1
@@ -111,7 +111,7 @@ version = 0.1
 stack_name = "float-backend"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Environment=production"
+parameter_overrides = "Environment=production GeminiApiKey=your-key OpenAIApiKey=your-key FfmpegLayerArn=arn:aws:lambda:..."
 resolve_s3 = true
 ```
 
@@ -127,6 +127,7 @@ Set these via SAM parameter overrides during deployment:
 | `S3AudioBucket` | S3 bucket for background music |
 | `IncludeDevOrigins` | Set to `true` for local dev (CORS wildcard) |
 | `ProductionOrigins` | Comma-separated production origins for CORS |
+| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer (auto-created by deploy script) |
 
 ## Project Structure
 
@@ -135,6 +136,10 @@ float/
 ├── frontend/           # Expo/React Native app
 │   ├── app/           # Expo Router pages
 │   ├── components/    # React components
+│   │   ├── HLSPlayer/       # HLS audio player
+│   │   ├── DownloadButton/  # Download meditation button
+│   │   ├── ScreenComponents/ # UI controls (record, meditation, incidents)
+│   │   └── navigation/      # Navigation components
 │   ├── context/       # React Context providers
 │   ├── constants/     # App constants
 │   └── hooks/         # Custom React hooks
@@ -142,10 +147,14 @@ float/
 │   ├── src/           # Python source
 │   │   ├── handlers/  # Lambda handlers
 │   │   ├── services/  # Business logic
-│   │   └── providers/ # External API clients
+│   │   ├── providers/ # External API clients
+│   │   ├── config/    # Settings and constants
+│   │   ├── models/    # Pydantic request/response models
+│   │   ├── utils/     # Circuit breaker, caching, logging, audio utilities
+│   │   └── exceptions.py  # Custom exception hierarchy
 │   ├── tests/         # Backend tests
 │   ├── template.yaml  # SAM template
-│   └── samconfig.toml # SAM deployment config
+│   └── samconfig.toml # SAM deployment config (gitignored, create from template)
 ├── tests/             # Frontend tests
 │   └── frontend/
 │       ├── unit/
@@ -160,7 +169,7 @@ float/
 
 ```bash
 rm -rf node_modules package-lock.json
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### Python import errors
