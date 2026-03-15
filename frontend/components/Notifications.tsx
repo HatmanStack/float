@@ -3,7 +3,6 @@ import { View, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
 export default function FloatNotifications() {
-  // TODO: Implement push notification display UI
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
