@@ -87,116 +87,28 @@ class FFmpegAudioService(AudioService):
     ) -> List[str]:
         """Combine voice and music into a single MP3 file."""
         logger.info("Combining audio")
-        music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
-        music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
-        music_length_reduced_path = (
-            f"{settings.TEMP_DIR}/music_length_reduced_{timestamp}.mp3"
-        )
-        silence_path = f"{settings.TEMP_DIR}/silence_{timestamp}.mp3"
-        voice_with_silence_path = (
-            f"{settings.TEMP_DIR}/voice_with_silence_{timestamp}.mp3"
-        )
-        temp_paths = [
-            music_path,
-            music_volume_reduced_path,
-            music_length_reduced_path,
-            silence_path,
-            voice_with_silence_path,
-            output_path,
-        ]
-        for path in temp_paths:
-            if os.path.exists(path):
-                os.remove(path)
-        voice_duration = self.get_audio_duration(voice_path)
-        logger.debug(f"Voice duration: {voice_duration}")
-        total_duration = voice_duration + 30  # Add 30 seconds buffer
-        new_music = self.select_background_music(music_list, total_duration, music_path)
-        logger.debug(f"Selected music: {new_music}")
+        mixed_audio_path = None
         try:
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    music_path,
-                    "-filter:a",
-                    f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
-                    music_volume_reduced_path,
-                ],
-                check=True,
-                capture_output=True,
-                timeout=FFMPEG_STEP_TIMEOUT,
+            mixed_audio_path, updated_music_list = self._prepare_mixed_audio(
+                voice_path, music_list, timestamp
             )
-            logger.debug("Step 1: Music volume reduced")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-f",
-                    "lavfi",
-                    "-i",
-                    f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
-                    "-t",
-                    str(DEFAULT_SILENCE_DURATION),
-                    silence_path,
-                ],
-                check=True,
-                capture_output=True,
-                timeout=FFMPEG_STEP_TIMEOUT,
-            )
-            logger.debug("Step 2: Silence created")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    f"concat:{silence_path}|{voice_path}",
-                    "-c",
-                    "copy",
-                    voice_with_silence_path,
-                ],
-                check=True,
-                capture_output=True,
-                timeout=FFMPEG_STEP_TIMEOUT,
-            )
-            logger.debug("Step 3: Voice with silence")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    music_volume_reduced_path,
-                    "-t",
-                    str(total_duration),
-                    music_length_reduced_path,
-                ],
-                check=True,
-                capture_output=True,
-                timeout=FFMPEG_STEP_TIMEOUT,
-            )
-            logger.debug("Step 4: Music length adjusted")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    music_length_reduced_path,
-                    "-i",
-                    voice_with_silence_path,
-                    "-filter_complex",
-                    "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2:normalize=0",
-                    output_path,
-                ],
-                check=True,
-                capture_output=True,
-                timeout=FFMPEG_STEP_TIMEOUT,
-            )
-            logger.debug("Step 5: Audio combined")
-            for path in temp_paths[:-1]:  # Keep output_path
-                if os.path.exists(path):
-                    os.remove(path)
-            return new_music
+            # Move the mixed output to the caller's expected output_path
+            if os.path.exists(mixed_audio_path):
+                shutil.move(mixed_audio_path, output_path)
+                mixed_audio_path = None  # Prevent cleanup since it's been moved
+            return updated_music_list
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg command failed: {e.cmd}, return code: {e.returncode}")
             raise
         except Exception as e:
             logger.error(f"Error in audio combination: {e}")
             raise
+        finally:
+            if mixed_audio_path and os.path.exists(mixed_audio_path):
+                try:
+                    os.remove(mixed_audio_path)
+                except OSError:
+                    pass
 
     def combine_voice_and_music_hls(
         self,
