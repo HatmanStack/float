@@ -2,7 +2,61 @@
 
 ## Active Feedback
 
-_No open items._
+### PLAN_REVIEW-9: Phase 5 Task 2 — Local import and constructor call at lambda_handler.py:169-171 not addressed
+
+**Severity:** Medium
+**Phase:** 5, Task 2, Steps 8-9
+
+The plan's step 8 shows updating the top-level import at line 15 from `SummaryRequest, MeditationRequest` to `SummaryRequestModel, MeditationRequestModel`. Step 9 says "Any `MeditationRequest` type hints -> `MeditationRequestModel`" and "Any `isinstance` checks -> update to new classes."
+
+However, there is a **local import** at `lambda_handler.py:169`:
+```python
+from ..models.requests import MeditationRequest
+```
+and a constructor call at line 171:
+```python
+request = MeditationRequest(**request_dict)
+```
+
+A zero-context engineer following the step-by-step instructions will likely miss this because step 8 only shows the top-level import pattern, and step 9's "any type hints" is too vague for a local import buried inside `process_meditation_async`. This local import reconstructs a `MeditationRequest` from a raw dict -- with the Pydantic model, this becomes `MeditationRequestModel(**request_dict)` which validates on construction (different behavior from the legacy class). The plan should add an explicit step between 9 and 10 calling out this local import and noting the behavioral change (Pydantic will raise `ValidationError` on invalid data whereas the legacy class silently accepts anything).
+
+**Suggested fix:** Add a step 9.5: "Update the local import at line ~169 inside `process_meditation_async`: change `from ..models.requests import MeditationRequest` to `from ..models.requests import MeditationRequestModel`, and update line ~171 to `request = MeditationRequestModel(**request_dict)`. Note: Pydantic validates on construction, so invalid `request_dict` data will now raise `ValidationError` rather than silently constructing an invalid object. This is the desired behavior."
+
+---
+
+### PLAN_REVIEW-10: Phase 5 Task 2 — Test update scope is underspecified (Step 12)
+
+**Severity:** Medium
+**Phase:** 5, Task 2, Step 12
+
+Step 12 says: "Update any test files that import the old classes" and provides a grep command. The actual scope is ~50+ references across 5 files:
+- `conftest.py` (imports + 2 fixtures constructing legacy classes)
+- `test_lambda_handler.py` (~30 references, including `TestSummaryRequest` and `TestMeditationRequest` test classes that construct legacy objects)
+- `test_models.py` (~20 references, entire test classes `TestSummaryRequestModel` and `TestMeditationRequestModel` that directly test legacy class construction and validation)
+- `test_meditation_flow.py` (6 references, e2e tests)
+- `test_summary_flow.py` (6 references, e2e tests)
+- `test_hls_integration.py` (1 reference)
+
+The plan provides no guidance on what the updates look like. Key questions an implementer will face:
+1. `test_models.py` tests legacy class behavior (e.g., `.validate()` method). After deleting the legacy classes, should these tests be deleted, rewritten to test Pydantic validation, or something else?
+2. `conftest.py` fixtures (`valid_summary_request`, `valid_meditation_request`) return legacy class instances. The constructor signatures differ between legacy and Pydantic (e.g., legacy `SummaryRequest` takes `user_id, audio, prompt` as positional-ish kwargs; Pydantic `SummaryRequestModel` requires `inference_type` as a literal discriminator field).
+3. E2e tests construct legacy classes from raw dicts -- Pydantic will validate on construction, potentially breaking test setups that use intentionally partial data.
+
+**Suggested fix:** Expand step 12 into sub-steps: (a) Update `conftest.py` fixtures to construct `SummaryRequestModel`/`MeditationRequestModel` with `inference_type` discriminator field included. (b) Update `test_models.py` to remove tests for legacy `.validate()` method and test Pydantic validation instead (e.g., `pytest.raises(ValidationError)` for invalid data). (c) Update `test_lambda_handler.py` class names and constructors. (d) Note that e2e/integration tests also need updating but are run separately (`pytest tests/e2e` / `pytest tests/integration`).
+
+---
+
+### PLAN_REVIEW-11: Phase 7 — Success criteria still references `.pre-commit-config.yaml`
+
+**Severity:** Low
+**Phase:** 7, line 10
+
+The Phase 7 success criteria (line 10) still says:
+> `.pre-commit-config.yaml` with ruff, eslint, prettier hooks
+
+This was not updated when PLAN_REVIEW-5 was resolved. The body correctly uses husky + lint-staged (no `.pre-commit-config.yaml`). A zero-context engineer reading the success criteria first will be confused by the contradiction with the task body.
+
+**Suggested fix:** Change line 10 to: "`.husky/pre-commit` hook with lint-staged running ruff (backend) and eslint/prettier (frontend)"
 
 ## Resolved Feedback
 
