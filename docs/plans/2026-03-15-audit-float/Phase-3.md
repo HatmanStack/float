@@ -79,12 +79,12 @@ Add automated guardrails that enforce the clean state achieved by Phases 1-2. Th
 6. The key rule to verify works: `S603` / `S607` for subprocess -- these should be intentionally suppressed since the FFmpeg calls use controlled inputs, BUT `S603` would flag subprocess calls, making future reviewers aware. If the team prefers to keep `S603` active with per-line `# noqa: S603` on the FFmpeg calls, that's an alternative approach. Choose the suppress-globally approach for simplicity.
 
 **Verification Checklist:**
-- [ ] `select` includes `"UP"`, `"B"`, `"S"` rules
-- [ ] `per-file-ignores` section exists with `"tests/**" = ["S101"]`
-- [ ] `cd backend && uvx ruff check .` passes with zero violations
-- [ ] Any new `ignore` entries have comments explaining the reason
-- [ ] `S101` is NOT in the global `ignore` list (it must only be in `per-file-ignores`)
-- [ ] No code changes -- only `pyproject.toml` config changes (exception: `B904` fixes if applied)
+- [x] `select` includes `"UP"`, `"B"`, `"S"` rules
+- [x] `per-file-ignores` section exists with `"tests/**" = ["S101"]`
+- [x] `cd backend && uvx ruff check .` passes with zero violations
+- [x] Any new `ignore` entries have comments explaining the reason
+- [x] `S101` is NOT in the global `ignore` list (it must only be in `per-file-ignores`)
+- [x] No code changes -- only `pyproject.toml` config changes (exception: `B904` fixes if applied)
 
 **Testing Instructions:**
 - Run `cd backend && uvx ruff check .` -- must return 0 violations
@@ -134,9 +134,9 @@ subprocess calls. Adds per-file-ignores to exempt tests/ from S101
 3. No other changes to the workflow
 
 **Verification Checklist:**
-- [ ] `push` trigger added for `main` branch
-- [ ] `pull_request` trigger unchanged
-- [ ] YAML is valid (proper indentation)
+- [x] `push` trigger added for `main` branch
+- [x] `pull_request` trigger unchanged
+- [x] YAML is valid (proper indentation)
 
 **Testing Instructions:**
 - Validate YAML syntax: `python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`
@@ -178,9 +178,9 @@ This is a verification-only task. The existing config is correct. The audit flag
 3. Run `npm run lint` to confirm zero lint errors.
 
 **Verification Checklist:**
-- [ ] `no-console` rule is `["warn", { "allow": ["warn", "error"] }]`
-- [ ] `npm run lint` passes with zero errors
-- [ ] `eslint-disable` comment count recorded
+- [x] `no-console` rule is `["warn", { "allow": ["warn", "error"] }]`
+- [x] `npm run lint` passes with zero errors
+- [x] `eslint-disable` comment count recorded: 9 comments across 7 files
 
 **Testing Instructions:**
 - Run `npm run lint`
