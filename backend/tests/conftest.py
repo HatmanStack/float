@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.models.requests import MeditationRequest, SummaryRequest
+from src.models.requests import MeditationRequestModel, SummaryRequestModel
 from tests.integration.test_config import test_config
 
 
@@ -66,8 +66,8 @@ def mock_tts_provider():
 @pytest.fixture
 def valid_summary_request():
     """Valid summary request fixture."""
-    return SummaryRequest(
-        type="summary",
+    return SummaryRequestModel(
+        inference_type="summary",
         user_id="test-user-123",
         prompt="I had a difficult day at work",
         audio="NotAvailable",
@@ -77,8 +77,8 @@ def valid_summary_request():
 @pytest.fixture
 def valid_meditation_request():
     """Valid meditation request fixture."""
-    return MeditationRequest(
-        type="meditation",
+    return MeditationRequestModel(
+        inference_type="meditation",
         user_id="test-user-123",
         input_data={
             "sentiment_label": ["Sad"],

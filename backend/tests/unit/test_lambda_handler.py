@@ -5,10 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.config.constants import InferenceType
 from src.exceptions import ValidationError
 from src.handlers.lambda_handler import LambdaHandler
-from src.models.requests import MeditationRequest, SummaryRequest
+from src.models.requests import MeditationRequestModel, SummaryRequestModel
 
 # Check if ffmpeg is available for tests that need audio processing
 FFMPEG_AVAILABLE = shutil.which("ffmpeg") is not None
@@ -39,25 +38,26 @@ class TestSummaryRequest:
 
     def test_summary_request_valid(self):
         """Test creating valid summary request."""
-        req = SummaryRequest(
+        req = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="I had a bad day",
             audio="NotAvailable",
         )
         assert req.user_id == "user-123"
         assert req.prompt == "I had a bad day"
-        assert req.inference_type == InferenceType.SUMMARY
+        assert req.inference_type == "summary"
 
-    def test_summary_request_validation(self):
-        """Test summary request validation."""
-        req = SummaryRequest(
+    def test_summary_request_construction_validates(self):
+        """Test summary request validates on construction (Pydantic)."""
+        # Valid request should not raise
+        req = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="I had a bad day",
             audio="NotAvailable",
         )
-        assert req.validate() is True
+        assert req.user_id == "user-123"
 
 
 @pytest.mark.unit
@@ -66,9 +66,9 @@ class TestMeditationRequest:
 
     def test_meditation_request_valid(self):
         """Test creating valid meditation request."""
-        req = MeditationRequest(
+        req = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data={
                 "sentiment_label": ["Sad"],
                 "intensity": [4],
@@ -81,7 +81,7 @@ class TestMeditationRequest:
             music_list=[],
         )
         assert req.user_id == "user-123"
-        assert req.inference_type == InferenceType.MEDITATION
+        assert req.inference_type == "meditation"
         assert "sentiment_label" in req.input_data
 
 
@@ -145,9 +145,9 @@ class TestSummaryRequestRouting:
         handler.storage_service = mock_storage_service
         handler.tts_provider = mock_tts_provider
 
-        request = SummaryRequest(
+        request = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="NotAvailable",
             audio="dGVzdCBhdWRpbyBkYXRh"  # base64 encoded test data
         )
@@ -165,9 +165,9 @@ class TestSummaryRequestRouting:
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
 
-        request = SummaryRequest(
+        request = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="I had a difficult day",
             audio="NotAvailable"
         )
@@ -192,7 +192,7 @@ class TestSummaryRequestRouting:
             "audio": "NotAvailable"  # Both are NotAvailable - invalid
         }
 
-        with pytest.raises(ValidationError, match="Invalid request data"):
+        with pytest.raises(ValidationError):
             parse_request_body(invalid_body)
 
 
@@ -238,9 +238,9 @@ class TestMeditationRequestRouting:
         # Mock the audio file operations
         handler.tts_provider.synthesize_speech = MagicMock(return_value=True)
 
-        request = MeditationRequest(
+        request = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data={
                 "sentiment_label": ["Sad"],
                 "intensity": [4],
@@ -276,9 +276,9 @@ class TestMeditationRequestRouting:
 
         handler.tts_provider.synthesize_speech = MagicMock(return_value=True)
 
-        request = MeditationRequest(
+        request = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data={"sentiment_label": ["Happy"]},
             music_list=["Ambient-Peaceful_300.wav", "Nature-Birds_180.wav"]
         )
@@ -308,7 +308,7 @@ class TestMeditationRequestRouting:
             "music_list": []
         }
 
-        with pytest.raises(ValidationError, match="Invalid request data"):
+        with pytest.raises(ValidationError):
             parse_request_body(invalid_body)
 
 
@@ -369,9 +369,9 @@ class TestErrorHandling:
         # Make AI service raise an exception
         mock_ai_service.analyze_sentiment.side_effect = Exception("AI service error")
 
-        request = SummaryRequest(
+        request = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="Test",
             audio="NotAvailable"
         )
@@ -424,9 +424,9 @@ class TestDependencyInjection:
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
 
-        request = SummaryRequest(
+        request = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="Test prompt",
             audio="NotAvailable"
         )

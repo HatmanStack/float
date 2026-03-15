@@ -350,12 +350,12 @@ class TestMeditationFlowErrorHandling:
     ):
         """Test meditation flow with missing input_data."""
         # Arrange
-        from src.models.requests import MeditationRequest
+        from src.models.requests import MeditationRequestModel
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            request = MeditationRequest(
-                type="meditation",
+            request = MeditationRequestModel(
+                inference_type="meditation",
                 user_id=test_user_id,
                 input_data=None,  # Invalid - input_data required
                 music_list=[],
@@ -367,12 +367,12 @@ class TestMeditationFlowErrorHandling:
     def test_invalid_request_missing_user_id(self):
         """Test meditation flow with missing user_id."""
         # Arrange
-        from src.models.requests import MeditationRequest
+        from src.models.requests import MeditationRequestModel
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            MeditationRequest(
-                type="meditation",
+            MeditationRequestModel(
+                inference_type="meditation",
                 user_id=None,  # Invalid - user_id required
                 input_data={"sentiment_label": ["Sad"]},
                 music_list=[],
@@ -451,7 +451,7 @@ class TestMeditationFlowPerformance:
 
 # Helper function to parse meditation request from dict
 def parse_meditation_request_from_dict(request_dict):
-    """Parse request dict into MeditationRequest object."""
-    from src.models.requests import MeditationRequest
+    """Parse request dict into MeditationRequestModel object."""
+    from src.models.requests import MeditationRequestModel
 
-    return MeditationRequest(**request_dict)
+    return MeditationRequestModel(**request_dict)

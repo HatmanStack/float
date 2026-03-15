@@ -309,12 +309,12 @@ class TestSummaryFlowErrorHandling:
     ):
         """Test summary flow with missing prompt field."""
         # Arrange - create request missing prompt
-        from src.models.requests import SummaryRequest
+        from src.models.requests import SummaryRequestModel
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            request = SummaryRequest(
-                type="summary",
+            request = SummaryRequestModel(
+                inference_type="summary",
                 user_id=test_user_id,
                 prompt=None,  # Invalid - prompt required
                 audio="NotAvailable",
@@ -326,12 +326,12 @@ class TestSummaryFlowErrorHandling:
     def test_invalid_request_missing_user_id(self):
         """Test summary flow with missing user_id."""
         # Arrange
-        from src.models.requests import SummaryRequest
+        from src.models.requests import SummaryRequestModel
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            SummaryRequest(
-                type="summary",
+            SummaryRequestModel(
+                inference_type="summary",
                 user_id=None,  # Invalid - user_id required
                 prompt="Test prompt",
                 audio="NotAvailable",
@@ -416,7 +416,7 @@ class TestSummaryFlowPerformance:
 
 # Helper function to parse request from dict
 def parse_request_from_dict(request_dict):
-    """Parse request dict into SummaryRequest object."""
-    from src.models.requests import SummaryRequest
+    """Parse request dict into SummaryRequestModel object."""
+    from src.models.requests import SummaryRequestModel
 
-    return SummaryRequest(**request_dict)
+    return SummaryRequestModel(**request_dict)

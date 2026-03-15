@@ -12,7 +12,7 @@ from ..config.constants import (
 )
 from ..config.settings import settings
 from ..exceptions import TTSError
-from ..models.requests import MeditationRequest, SummaryRequest, parse_request_body
+from ..models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
 from ..providers.openai_tts import OpenAITTSProvider
 from ..services.ai_service import AIService
@@ -75,7 +75,7 @@ class LambdaHandler:
     def get_tts_provider(self):
         return self.tts_provider
 
-    def handle_summary_request(self, request: SummaryRequest) -> Dict[str, Any]:
+    def handle_summary_request(self, request: SummaryRequestModel) -> Dict[str, Any]:
         logger.info("Processing summary request", extra={"data": {"user_id": request.user_id}})
         audio_file = None
         if request.audio and request.audio != "NotAvailable":
@@ -111,7 +111,7 @@ class LambdaHandler:
         logger.debug("Voice generation completed")
         return voice_path, combined_path
 
-    def handle_meditation_request(self, request: MeditationRequest) -> Dict[str, Any]:
+    def handle_meditation_request(self, request: MeditationRequestModel) -> Dict[str, Any]:
         """Create job and invoke async processing, return job_id immediately."""
         logger.info(
             "Processing meditation request",
@@ -146,7 +146,7 @@ class LambdaHandler:
 
         return response
 
-    def _invoke_async_meditation(self, request: MeditationRequest, job_id: str):
+    def _invoke_async_meditation(self, request: MeditationRequestModel, job_id: str):
         """Invoke this Lambda asynchronously to process meditation."""
         lambda_client = boto3.client("lambda")
         function_name = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "")
@@ -166,9 +166,9 @@ class LambdaHandler:
 
     def process_meditation_async(self, job_id: str, request_dict: Dict[str, Any]):
         """Process meditation in async Lambda invocation."""
-        from ..models.requests import MeditationRequest
+        from ..models.requests import MeditationRequestModel
 
-        request = MeditationRequest(**request_dict)
+        request = MeditationRequestModel(**request_dict)
         logger.info(
             "Processing async meditation",
             extra={"data": {"job_id": job_id, "user_id": request.user_id}}
@@ -187,7 +187,7 @@ class LambdaHandler:
         else:
             self._process_meditation_base64(job_id, request)
 
-    def _process_meditation_base64(self, job_id: str, request: MeditationRequest):
+    def _process_meditation_base64(self, job_id: str, request: MeditationRequestModel):
         """Process meditation with base64 output (legacy mode)."""
         voice_path = None
         combined_path = None
@@ -253,7 +253,7 @@ class LambdaHandler:
             if combined_path:
                 cleanup_temp_file(combined_path)
 
-    def _process_meditation_hls(self, job_id: str, request: MeditationRequest):
+    def _process_meditation_hls(self, job_id: str, request: MeditationRequestModel):
         """Process meditation with HLS streaming output."""
         voice_path = None
         try:
@@ -483,7 +483,7 @@ class LambdaHandler:
         }
 
     def _store_summary_results(
-        self, request: SummaryRequest, response, has_audio: bool
+        self, request: SummaryRequestModel, response, has_audio: bool
     ):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         object_key = f"{request.user_id}/summary/{timestamp}.json"
@@ -501,7 +501,7 @@ class LambdaHandler:
                 bucket=settings.AWS_S3_BUCKET, key=audio_key, data=audio_data
             )
 
-    def _store_meditation_results(self, request: MeditationRequest, response):
+    def _store_meditation_results(self, request: MeditationRequestModel, response):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         object_key = f"{request.user_id}/meditation/{timestamp}.json"
         self.storage_service.upload_json(
@@ -520,9 +520,9 @@ class LambdaHandler:
         try:
             parsed_body = event.get("parsed_body", {})
             request = parse_request_body(parsed_body)
-            if isinstance(request, SummaryRequest):
+            if isinstance(request, SummaryRequestModel):
                 result = self.handle_summary_request(request)
-            elif isinstance(request, MeditationRequest):
+            elif isinstance(request, MeditationRequestModel):
                 result = self.handle_meditation_request(request)
             else:
                 return create_error_response(
