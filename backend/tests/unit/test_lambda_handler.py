@@ -1,5 +1,6 @@
 """Unit tests for Lambda handler."""
 
+import json
 import shutil
 from unittest.mock import MagicMock, patch
 
@@ -478,3 +479,46 @@ class TestDependencyInjection:
 
         # Default AI service should be created
         assert handler.ai_service is not None
+
+
+@pytest.mark.unit
+class TestEndToEndSummaryFlow:
+    """Test the full handle_request -> middleware -> handler path.
+
+    Unlike other tests that mock handle_summary_request, these tests
+    mock only external services (AI, storage) and let the full
+    request flow execute.
+    """
+
+    @pytest.fixture
+    def handler_with_mock_services(self, mock_ai_service):
+        """Create handler with mocked external services but real routing."""
+        handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+        handler.storage_service = MagicMock()
+        handler.storage_service.upload_json.return_value = True
+        return handler
+
+    def test_summary_request_full_flow(self, handler_with_mock_services, mock_lambda_context):
+        """Exercise the full handle_request path for a summary request."""
+        event = {
+            "httpMethod": "POST",
+            "headers": {
+                "Content-Type": "application/json",
+                "Origin": "https://float-app.fun",
+            },
+            "body": json.dumps({
+                "inference_type": "summary",
+                "user_id": "test-user-e2e",
+                "prompt": "I had a stressful day",
+                "audio": "NotAvailable",
+            }),
+        }
+
+        response = handler_with_mock_services.handle_request(event, mock_lambda_context)
+
+        assert response["statusCode"] == 200
+        body = json.loads(response["body"])
+        assert "sentiment_label" in body
+        assert "intensity" in body
+        # Verify AI service was actually called (not mocked at handler level)
+        handler_with_mock_services.ai_service.analyze_sentiment.assert_called_once()
