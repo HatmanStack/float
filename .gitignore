@@ -9,7 +9,7 @@ expo-env.d.ts
 
 # IDE
 .vscode/
-.claude/
+.claude/settings*
 
 # OS
 .DS_Store
