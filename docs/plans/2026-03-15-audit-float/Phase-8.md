@@ -32,7 +32,7 @@ Enforce commit quality and add final guardrails. Address Git Hygiene (6 -> 9) wi
 - `package.json` (add devDependencies)
 - `.husky/commit-msg` (commit-msg hook)
 
-**Prerequisites:** Phase 7 Task 3 complete (pre-commit or husky installed)
+**Prerequisites:** Phase 7 Task 3 complete (husky installed)
 
 **Implementation Steps:**
 
@@ -75,30 +75,13 @@ Enforce commit quality and add final guardrails. Address Git Hygiene (6 -> 9) wi
    ```
    Note: `scope-enum` is set to level `1` (warning) not `2` (error), allowing scope-less commits like `ci: add push trigger`.
 
-3. Set up the commit-msg hook. If using husky (from Phase 7):
+3. Set up the commit-msg hook using husky (installed in Phase 7 Task 3). Create `.husky/commit-msg`:
    ```bash
-   npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
-   ```
-   Or if husky was already initialized, create `.husky/commit-msg`:
-   ```bash
-   #!/usr/bin/env sh
-   . "$(dirname -- "$0")/_/husky.sh"
-
    npx --no -- commitlint --edit "$1"
    ```
-
-   If using `pre-commit` (Python) from Phase 7 instead of husky, add commitlint as a local hook in `.pre-commit-config.yaml`:
-   ```yaml
-   - repo: local
-     hooks:
-       - id: commitlint
-         name: commitlint
-         entry: npx --no -- commitlint --edit
-         language: node
-         stages: [commit-msg]
-         additional_dependencies:
-           - "@commitlint/cli"
-           - "@commitlint/config-conventional"
+   If `npx husky add` is available in your husky version, you can also run:
+   ```bash
+   npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
    ```
 
 4. Verify the hook works:
@@ -113,7 +96,7 @@ Enforce commit quality and add final guardrails. Address Git Hygiene (6 -> 9) wi
 **Verification Checklist:**
 - [ ] `commitlint.config.js` exists at repo root
 - [ ] `@commitlint/cli` and `@commitlint/config-conventional` in devDependencies
-- [ ] Commit-msg hook is installed (husky or pre-commit)
+- [ ] Commit-msg hook is installed (`.husky/commit-msg` exists)
 - [ ] Valid messages pass: `echo "chore(backend): test" | npx commitlint`
 - [ ] Invalid messages fail: `echo "ordering" | npx commitlint`
 
@@ -216,7 +199,7 @@ testing checklist, and notes sections.
    | Performance (7->9) | `grep "FFMPEG_STEP_TIMEOUT\|FFMPEG_STREAM_TIMEOUT" backend/src/services/ffmpeg_audio_service.py` | Found |
    | Type Rigor (7->9) | `grep "class BaseRequest" backend/src/models/requests.py` | Not found |
    | Test Value (7->9) | `grep "expect(true)" tests/frontend/unit/LocalFileLoadAndSave-test.tsx` | Not found |
-   | Reproducibility (6->9) | `ls frontend/.env.example backend/.env.example .pre-commit-config.yaml docker-compose.yml` | All exist |
+   | Reproducibility (6->9) | `ls frontend/.env.example backend/.env.example .husky/pre-commit docker-compose.yml` and `grep dockerfile-lint .github/workflows/ci.yml` | All exist; hadolint CI job present |
    | Git Hygiene (6->9) | `echo "bad" \| npx commitlint` | Fails |
    | Onboarding (7->9) | `ls CONTRIBUTING.md .github/pull_request_template.md` | Both exist |
 
@@ -261,7 +244,7 @@ After completing all 3 tasks:
 4. Final file inventory:
    ```bash
    ls -la frontend/.env.example backend/.env.example \
-          CONTRIBUTING.md .pre-commit-config.yaml \
+          CONTRIBUTING.md .husky/pre-commit \
           docker-compose.yml backend/Dockerfile \
           commitlint.config.js .github/pull_request_template.md
    ```

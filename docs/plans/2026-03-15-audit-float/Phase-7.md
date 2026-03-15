@@ -163,71 +163,88 @@ copy these files and fill in their credentials.
    "test:backend:docker": "docker compose run --rm backend"
    ```
 
+5. Add a hadolint CI step to `.github/workflows/ci.yml` to lint the Dockerfile in CI. This ensures the Dockerfile does not silently break. Add a new job after `backend-tests`:
+   ```yaml
+   dockerfile-lint:
+     name: Dockerfile Lint
+     runs-on: ubuntu-latest
+
+     steps:
+       - uses: actions/checkout@v4
+
+       - name: Lint Dockerfile with hadolint
+         uses: hadolint/hadolint-action@v3.1.0
+         with:
+           dockerfile: backend/Dockerfile
+   ```
+   Also add `dockerfile-lint` to the `needs` array of the `status-check` job:
+   ```yaml
+   needs: [frontend-lint, frontend-tests, backend-tests, dockerfile-lint]
+   ```
+   And update the status-check script to include the new job:
+   ```yaml
+   if [ "${{ needs.dockerfile-lint.result }}" != "success" ] || ...
+   ```
+
 **Verification Checklist:**
 - [ ] `backend/Dockerfile` builds successfully: `docker build -t float-backend ./backend`
 - [ ] `docker-compose.yml` is valid YAML
 - [ ] Container runs tests: `docker compose run --rm backend`
 - [ ] FFmpeg is available in the container
+- [ ] `dockerfile-lint` job added to `.github/workflows/ci.yml`
+- [ ] `status-check` job includes `dockerfile-lint` in its `needs` array
 
 **Testing Instructions:**
-- Build and run: `docker compose build backend && docker compose run --rm backend`
-- If Docker is not available in CI, this is a local-only verification
+- Local: `docker compose build backend && docker compose run --rm backend` (Docker required locally)
+- CI: The `dockerfile-lint` job runs hadolint automatically on every push/PR. Docker build/run is NOT executed in CI (too slow); only the Dockerfile syntax is validated.
 
 **Commit Message Template:**
 ```
 chore: add Docker setup for backend development
 
 Add Dockerfile (Python 3.13 + FFmpeg) and docker-compose.yml for
-containerized backend development. New contributors can run tests
+containerized backend development. Add hadolint CI job to validate
+Dockerfile syntax on every push/PR. New contributors can run tests
 without installing Python or FFmpeg locally.
 ```
 
 ---
 
-### Task 3: Add pre-commit hooks
+### Task 3: Add pre-commit hooks with husky + lint-staged
 
 **Goal:** Enforce code quality checks before commit. The eval flags this under Reproducibility (Day 2: 6/10).
 
-**Files to Create:**
-- `.pre-commit-config.yaml` (at repo root)
+**Approach:** Use `husky` + `lint-staged` (npm-native). This is the correct choice for this repo because:
+- The repo is npm-workspace-based with `package.json` at root
+- Phase 8 Task 1 installs `commitlint` (an npm tool) with a `.husky/commit-msg` hook
+- No `.husky` directory or `pre-commit` config exists currently -- this is a fresh setup
+- Keeps all git hooks in one ecosystem (npm) rather than mixing Python `pre-commit` with npm tooling
+
+**Files to Create/Modify:**
+- `.husky/pre-commit` (hook script)
+- `package.json` (root) — add `lint-staged` config and devDependencies
 
 **Prerequisites:** None
 
 **Implementation Steps:**
 
-1. Create `.pre-commit-config.yaml` at repo root:
-   ```yaml
-   # Install: pip install pre-commit && pre-commit install
-   # Or: npx husky (for npm-based hooks)
-   repos:
-     - repo: https://github.com/astral-sh/ruff-pre-commit
-       rev: v0.8.0
-       hooks:
-         - id: ruff
-           args: [--fix]
-           files: ^backend/
-         - id: ruff-format
-           files: ^backend/
-
-     - repo: https://github.com/pre-commit/mirrors-eslint
-       rev: v9.16.0
-       hooks:
-         - id: eslint
-           files: ^frontend/.*\.(ts|tsx)$
-           additional_dependencies:
-             - eslint@9.16.0
-             - typescript
-
-     - repo: https://github.com/pre-commit/mirrors-prettier
-       rev: v4.0.0-alpha.8
-       hooks:
-         - id: prettier
-           files: ^frontend/.*\.(ts|tsx|json)$
+1. Install husky and lint-staged:
+   ```bash
+   npm install --save-dev husky lint-staged --legacy-peer-deps
    ```
 
-2. **Alternative approach (simpler, npm-native):** If the team prefers npm tooling, use `husky` + `lint-staged` instead of `pre-commit`:
+2. Initialize husky:
+   ```bash
+   npx husky init
+   ```
+   This creates the `.husky/` directory and adds a `prepare` script to `package.json`.
 
-   a. Add to root `package.json`:
+3. Create `.husky/pre-commit` with the following content:
+   ```bash
+   npx lint-staged
+   ```
+
+4. Add `lint-staged` configuration to root `package.json`:
    ```json
    "lint-staged": {
      "frontend/**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
@@ -235,36 +252,28 @@ without installing Python or FFmpeg locally.
    }
    ```
 
-   b. Install husky:
-   ```bash
-   npx husky init
-   ```
-
-   c. Create `.husky/pre-commit`:
+5. Verify the hooks work by staging a file and running lint-staged:
    ```bash
    npx lint-staged
    ```
 
-3. **Decision for implementer:** Choose ONE approach. The `pre-commit` (Python) approach is more standard for repos with both Python and JS. The `husky` approach is more familiar to JS developers. Use whichever is already partially set up in the repo, or default to `pre-commit` since the backend is Python-heavy.
-
-4. Document the installation in `CONTRIBUTING.md` (Task 5).
-
 **Verification Checklist:**
-- [ ] Pre-commit config file exists
-- [ ] Hooks cover ruff (backend) and eslint/prettier (frontend)
-- [ ] `pre-commit run --all-files` passes (or `npx lint-staged` on staged files)
+- [ ] `.husky/pre-commit` exists and contains `npx lint-staged`
+- [ ] `husky` and `lint-staged` are in `devDependencies`
+- [ ] `lint-staged` config in `package.json` covers both frontend (eslint/prettier) and backend (ruff)
+- [ ] `npx lint-staged` runs without errors on staged files
 
 **Testing Instructions:**
-- Install and run: `pip install pre-commit && pre-commit install && pre-commit run --all-files`
-- Or: `npm install && npx lint-staged`
+- Stage a Python file and a TypeScript file, then run `npx lint-staged` to verify both linters execute
+- Make a test commit to verify the pre-commit hook fires
 
 **Commit Message Template:**
 ```
-chore: add pre-commit hooks for ruff, eslint, and prettier
+chore: add husky + lint-staged pre-commit hooks
 
-Add .pre-commit-config.yaml with hooks for ruff (backend Python
-linting/formatting) and eslint/prettier (frontend TypeScript).
-Enforces code quality checks before every commit.
+Install husky and lint-staged with pre-commit hooks for ruff
+(backend Python linting/formatting) and eslint/prettier (frontend
+TypeScript). Enforces code quality checks before every commit.
 ```
 
 ---
@@ -312,9 +321,8 @@ Enforces code quality checks before every commit.
    pip install -r requirements.txt -r requirements-dev.txt
    cd ..
 
-   # Install pre-commit hooks
-   pip install pre-commit
-   pre-commit install
+   # Install git hooks (husky)
+   npm run prepare
 
    # Verify everything works
    npm run check
@@ -375,7 +383,7 @@ Enforces code quality checks before every commit.
    This runs backend tests in a container with Python 3.13 and FFmpeg pre-installed.
    ```
 
-2. Adjust the content if the pre-commit approach from Task 3 used husky instead.
+2. The CONTRIBUTING.md above already reflects the husky approach (Task 3 uses husky + lint-staged). No conditional adjustment needed.
 
 **Verification Checklist:**
 - [ ] `CONTRIBUTING.md` exists at repo root
@@ -415,10 +423,7 @@ setup. Enables new contributors to self-serve on day one.
    "setup": "npm install --legacy-peer-deps && cd backend && pip install -r requirements.txt -r requirements-dev.txt && cd .. && echo 'Setup complete. Copy .env.example files to .env and fill in your API keys.'"
    ```
 
-3. If pre-commit was chosen in Task 3, add it to the setup:
-   ```json
-   "setup": "npm install --legacy-peer-deps && cd backend && pip install -r requirements.txt -r requirements-dev.txt && cd .. && pip install pre-commit && pre-commit install && echo 'Setup complete. Copy .env.example files to .env and fill in your API keys.'"
-   ```
+3. The setup script already includes `npm install --legacy-peer-deps` which installs husky (added as a devDependency in Task 3). Husky's `prepare` script runs automatically during `npm install`, so git hooks are set up automatically. No additional step needed for hooks.
 
 4. Update `CONTRIBUTING.md` to reference `npm run setup` as the primary setup command.
 
@@ -454,7 +459,7 @@ After completing all 5 tasks:
 
 2. Verify new files exist:
    ```bash
-   ls frontend/.env.example backend/.env.example CONTRIBUTING.md .pre-commit-config.yaml docker-compose.yml backend/Dockerfile
+   ls frontend/.env.example backend/.env.example CONTRIBUTING.md .husky/pre-commit docker-compose.yml backend/Dockerfile
    ```
 
 3. Verify setup script:
@@ -463,9 +468,9 @@ After completing all 5 tasks:
    # Or just: grep "setup" package.json
    ```
 
-4. Verify pre-commit:
+4. Verify husky hooks:
    ```bash
-   pre-commit run --all-files
+   ls .husky/pre-commit && npx lint-staged --verbose
    ```
 
 All checks must pass before proceeding to Phase 8.

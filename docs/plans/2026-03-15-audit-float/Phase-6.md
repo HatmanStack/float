@@ -47,25 +47,47 @@ Improve test quality and address creativity findings. Address Test Value (7 -> 9
      expect(true).toBe(true);
    });
    ```
-3. The test verifies that `IncidentSave()` doesn't throw when `AsyncStorage.getItem` fails. Replace the placeholder with a meaningful assertion. The hook likely returns a value or updates state. Check what `IncidentSave` returns:
+3. The test verifies that `IncidentSave()` doesn't throw when `AsyncStorage.getItem` fails. Before writing a replacement assertion, first determine what the hook actually returns under error conditions:
+
+   a. Check what `IncidentSave` returns:
+      ```bash
+      grep -n "IncidentSave\|export" frontend/hooks/ --include="*.ts" --include="*.tsx" -r | head -10
+      ```
+
+   b. **Run the existing test** to see the current behavior:
+      ```bash
+      npm test -- --testPathPattern="LocalFileLoadAndSave" --verbose
+      ```
+      The test should pass (since `expect(true).toBe(true)` always passes). This confirms the test infrastructure works.
+
+   c. **Temporarily modify the test** to observe `result.current` by adding a `console.log`:
+      ```tsx
+      it('should handle load errors gracefully', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Load failed'));
+        const { result } = renderHook(() => IncidentSave());
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        console.log('result.current under error:', result.current);
+        expect(true).toBe(true); // temporary, will be replaced
+      });
+      ```
+      Run the test again:
+      ```bash
+      npm test -- --testPathPattern="LocalFileLoadAndSave" --verbose
+      ```
+      Observe the logged value of `result.current`.
+
+   d. **Write the assertion based on the observed value:**
+      - If `result.current` is `null`, use `expect(result.current).toBeNull()`
+      - If `result.current` is `undefined`, use `expect(result.current).toBeUndefined()`
+      - If `result.current` is an object (e.g., with default/empty state), assert on its shape: `expect(result.current).toEqual(expectedDefaultValue)`
+      - If `result.current` is a function or tuple, assert it is defined: `expect(result.current).toBeDefined()`
+
+   e. Remove the `console.log` and replace the placeholder with the correct assertion. The key requirement: **no `expect(true).toBe(true)`**.
+
+4. Run the test one final time to confirm it passes with the real assertion:
    ```bash
-   grep -n "IncidentSave\|export" frontend/hooks/ --include="*.ts" --include="*.tsx" -r | head -10
+   npm test -- --testPathPattern="LocalFileLoadAndSave" --verbose
    ```
-4. Replace the test with:
-   ```tsx
-   it('should handle load errors gracefully', async () => {
-     (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Load failed'));
-
-     const { result } = renderHook(() => IncidentSave());
-
-     await new Promise((resolve) => setTimeout(resolve, 100));
-     // Hook should return null without crashing on load error
-     expect(result.current).toBeNull();
-   });
-   ```
-   This uses the same pattern as the next test (`should return null`) but specifically tests the error-handling path.
-
-5. If `result.current` is not `null` in the error case, use `expect(result.current).toBeDefined()` or another assertion that verifies the hook recovered gracefully. The key is: **no `expect(true).toBe(true)`**.
 
 **Verification Checklist:**
 - [ ] No `expect(true).toBe(true)` in the file
@@ -153,7 +175,18 @@ fixtures to K shared fixtures.
 
 1. Open `backend/tests/unit/test_lambda_handler.py`
 2. Read the existing test structure to understand the test class hierarchy and fixtures used
-3. Add a new test class at the end of the file:
+
+3. **Inspect the `LambdaHandler.__init__` signature** before writing the fixture. Run:
+   ```bash
+   grep -A 15 "class LambdaHandler" backend/src/handlers/lambda_handler.py | head -20
+   ```
+   As of this writing, the constructor is:
+   ```python
+   def __init__(self, ai_service: Optional[AIService] = None, validate_config: bool = True):
+   ```
+   This confirms it accepts `ai_service` and `validate_config` as keyword arguments. If the signature has changed since this plan was written, adapt the fixture below to match the actual constructor API.
+
+4. Add a new test class at the end of the file:
 
    ```python
    class TestEndToEndSummaryFlow:
@@ -167,6 +200,8 @@ fixtures to K shared fixtures.
        @pytest.fixture
        def handler_with_mock_services(self, mock_ai_service):
            """Create handler with mocked external services but real routing."""
+           # NOTE: Verify LambdaHandler.__init__ accepts these kwargs.
+           # If the constructor signature differs, adapt accordingly.
            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
            handler.storage_service = MagicMock()
            handler.storage_service.upload_json.return_value = True
@@ -198,13 +233,13 @@ fixtures to K shared fixtures.
            handler_with_mock_services.ai_service.analyze_sentiment.assert_called_once()
    ```
 
-4. Add the necessary imports at the top of the test file if not already present:
+5. Add the necessary imports at the top of the test file if not already present:
    ```python
    import json
    from unittest.mock import MagicMock
    ```
 
-5. Verify the test passes by running it specifically:
+6. Verify the test passes by running it specifically:
    ```bash
    cd backend && PYTHONPATH=. pytest tests/unit/test_lambda_handler.py::TestEndToEndSummaryFlow -v --tb=short
    ```

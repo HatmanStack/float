@@ -60,13 +60,36 @@ Harden error handling and type safety. Address the Defensiveness (7 -> 9) and Ty
                details=f"key={key}",
            )
    ```
-4. Verify all callers of `_save_job` are inside try/except blocks that can handle this. Search for `self._save_job(` in `job_service.py`:
-   - `create_job` (line ~103) — called by `handle_meditation_request` which has error handling
-   - `update_job_status` (line ~123) — called during processing, has error handling
-   - `update_streaming_progress` (line ~157) — called during streaming, has error handling
-   - Any other callers — verify they handle exceptions
+4. `_save_job` has **9 call sites** in `job_service.py`. Each must be classified as **fatal** (S3 failure should propagate as an error) or **non-fatal** (S3 failure should be logged and swallowed). Classify as follows:
 
-5. Verify the `STORAGE_FAILURE` error code exists in `exceptions.py` — it does (line 27)
+   **Fatal callers** — the `ExternalServiceError` should propagate. These are on the critical path where a failed save means the job state is lost:
+   - `create_job` (line ~103) — if the initial job record fails to save, the job effectively doesn't exist. **Fatal.** The caller in `lambda_handler.py` (line ~122) is inside a try/except that returns an error response.
+   - `update_job_status` (line ~123) — status transitions (e.g., `PROCESSING` -> `COMPLETED`) are critical. **Fatal.** Callers in `lambda_handler.py` (lines ~195, ~236, ~247, ~260, ~412) are inside try/except blocks.
+   - `mark_streaming_complete` (line ~212) — marks job as `COMPLETED` and enables download. If this fails, the user can never get results. **Fatal.** Called from `lambda_handler.py` line ~375 inside try/except.
+
+   **Non-fatal callers** — a failed S3 write is unfortunate but should not crash the Lambda invocation. These update progress or metadata that can be reconstructed:
+   - `update_streaming_progress` (line ~157) — progress update only; the next segment upload will retry. **Non-fatal.**
+   - `mark_streaming_started` (line ~186) — sets initial playlist URL; the next progress update will also write this. **Non-fatal.**
+   - `mark_download_ready` (line ~234) — sets download URL; can be regenerated. **Non-fatal.**
+   - `mark_download_completed` (line ~245) — cleanup tracking only. **Non-fatal.**
+   - `set_tts_cache_key` (line ~256) — optimization hint for retries. **Non-fatal.**
+   - `increment_generation_attempt` (line ~267) — attempt counter; defaults to 1 if missing. **Non-fatal.**
+
+5. For the **non-fatal callers**, wrap the `_save_job` call in a try/except that logs and continues. Add this to each of the 6 non-fatal methods listed above. Example for `update_streaming_progress`:
+   ```python
+   try:
+       self._save_job(user_id, job_id, job_data)
+   except Exception:
+       logger.warning(
+           "Non-critical: failed to save job progress update",
+           extra={"data": {"job_id": job_id, "method": "update_streaming_progress"}},
+       )
+   ```
+   Apply the same pattern to `mark_streaming_started`, `mark_download_ready`, `mark_download_completed`, `set_tts_cache_key`, and `increment_generation_attempt`, changing the `"method"` value in each.
+
+6. For the **fatal callers** (`create_job`, `update_job_status`, `mark_streaming_complete`), no change is needed — the `ExternalServiceError` will propagate up to the caller's existing try/except in `lambda_handler.py`.
+
+7. Verify the `STORAGE_FAILURE` error code exists in `exceptions.py` — it does (line 27)
 
 **Verification Checklist:**
 - [ ] `_save_job` checks return value of `upload_json`
@@ -224,10 +247,37 @@ duplicated validation layer.
    ```typescript
    import { Incident } from '@/context/IncidentContext';
    ```
-3. Add a mapping function after the `SummaryResponse` interface:
+3. First, verify the full set of fields on both types. The backend `SummaryResponse` dataclass (`backend/src/models/responses.py`) returns `user_summary` and `user_short_summary` fields. The frontend `SummaryResponse` interface does NOT currently declare these fields, but they are present in the JSON response and are needed by `IncidentItem.tsx` (which reads `incident.user_summary` and `incident.user_short_summary`). Update the `SummaryResponse` interface to include them:
+   ```typescript
+   export interface SummaryResponse {
+     sentiment_label: string;
+     intensity: number;
+     speech_to_text?: string;
+     added_text?: string;
+     summary?: string;
+     notification_id?: string;
+     timestamp: string;
+     color_key?: number;
+     /** First-person summary for user reference (from AI) */
+     user_summary?: string;
+     /** Brief description of the incident (from AI) */
+     user_short_summary?: string;
+   }
+   ```
+
+4. Add a mapping function after the `SummaryResponse` interface:
    ```typescript
    /**
     * Convert a SummaryResponse from the API into an Incident for local state.
+    *
+    * Field mapping notes:
+    * - notification_id -> notificationId (snake_case to camelCase)
+    * - user_summary, user_short_summary: carried through as-is (used by IncidentItem.tsx)
+    * - color_key: intentionally dropped — not part of Incident type. It is set on
+    *   SummaryResponse at line 137 of this file but is only used for color mapping
+    *   in the parent component, not stored on the Incident.
+    * - request_id, user_id, inference_type: not present on SummaryResponse interface
+    *   (filtered out by the frontend before this point).
     */
    export function toIncident(response: SummaryResponse): Incident {
      return {
@@ -238,19 +288,21 @@ duplicated validation layer.
        speech_to_text: response.speech_to_text,
        added_text: response.added_text,
        notificationId: response.notification_id,
+       user_summary: response.user_summary,
+       user_short_summary: response.user_short_summary,
      };
    }
    ```
 
-4. Open `frontend/app/(tabs)/index.tsx`
-5. Update the import:
+5. Open `frontend/app/(tabs)/index.tsx`
+6. Update the import:
    ```typescript
    // Before:
    import { BackendSummaryCall, SummaryResponse } from '@/components/BackendSummaryCall';
    // After:
    import { BackendSummaryCall, SummaryResponse, toIncident } from '@/components/BackendSummaryCall';
    ```
-6. Replace line 109:
+7. Replace line 109:
    ```typescript
    // Before:
    setIncidentList((prevList) => [response as Incident, ...prevList]);
@@ -259,8 +311,10 @@ duplicated validation layer.
    ```
 
 **Verification Checklist:**
+- [ ] `SummaryResponse` interface includes `user_summary` and `user_short_summary` fields
 - [ ] `toIncident` function exists in `BackendSummaryCall.tsx`
-- [ ] Maps all `SummaryResponse` fields to corresponding `Incident` fields
+- [ ] Maps ALL overlapping `SummaryResponse` fields to corresponding `Incident` fields (including `user_summary`, `user_short_summary`, and `notificationId`)
+- [ ] `color_key` is intentionally NOT mapped, with a comment in the function explaining why
 - [ ] `as Incident` cast removed from `index.tsx`
 - [ ] `npm run lint` passes
 - [ ] `npm test` passes
@@ -293,15 +347,21 @@ field names.
 
 **Implementation Steps:**
 
-1. Check if `pydantic-settings` is in requirements:
+1. Add `pydantic-settings` to `backend/requirements.txt`. Check current state:
    ```bash
    grep -n "pydantic" backend/requirements.txt
    ```
-   If `pydantic-settings` is not listed, add it. If only `pydantic` is listed, add `pydantic-settings` on the next line.
+   If `pydantic-settings` is not listed, add it immediately after the `pydantic` line:
+   ```
+   pydantic-settings>=2.0
+   ```
+   This MUST be done first, before any code changes, because the new `settings.py` imports from `pydantic_settings`.
 
 2. Open `backend/src/config/settings.py`
-3. Replace the entire file with:
+
+3. Replace the entire file with this single, definitive version. This is the ONLY version to use -- do not modify it:
    ```python
+   from pydantic import AliasChoices, Field
    from pydantic_settings import BaseSettings
 
 
@@ -314,7 +374,13 @@ field names.
 
        AWS_S3_BUCKET: str = "float-cust-data"
        AWS_AUDIO_BUCKET: str = "audio-er-lambda"
-       GEMINI_API_KEY: str = ""
+       # Support both GEMINI_API_KEY and legacy G_KEY env var names.
+       # AliasChoices with validation_alias is the pydantic-settings v2 way
+       # to accept multiple env var names for the same field.
+       GEMINI_API_KEY: str = Field(
+           default="",
+           validation_alias=AliasChoices("GEMINI_API_KEY", "G_KEY"),
+       )
        OPENAI_API_KEY: str = ""
        FFMPEG_PATH: str = "/opt/bin/ffmpeg"
        TEMP_DIR: str = "/tmp"
@@ -326,8 +392,6 @@ field names.
            "env_file_encoding": "utf-8",
            "extra": "ignore",
            "case_sensitive": True,
-           # Map G_KEY env var to GEMINI_API_KEY field
-           "env_prefix": "",
        }
 
        @classmethod
@@ -354,34 +418,13 @@ field names.
    settings = Settings()
    ```
 
-4. **Important:** The current code maps `G_KEY` env var to `GEMINI_API_KEY`. Pydantic BaseSettings looks for env vars matching the field name by default. To support the `G_KEY` alias, use a `Field` with `validation_alias`:
-   ```python
-   from pydantic import Field
+4. Remove the `import os` and `from dotenv import load_dotenv` and `load_dotenv()` call — Pydantic BaseSettings handles `.env` files natively.
 
-   class Settings(BaseSettings):
-       GEMINI_API_KEY: str = Field(default="", validation_alias="G_KEY")
-   ```
-   However, `validation_alias` only applies to input data, not env vars. For env var aliases in pydantic-settings v2, use `alias`:
-   ```python
-   from pydantic import AliasChoices, Field
-
-   class Settings(BaseSettings):
-       GEMINI_API_KEY: str = Field(
-           default="",
-           validation_alias=AliasChoices("GEMINI_API_KEY", "G_KEY"),
-       )
-   ```
-   Test this locally to ensure `G_KEY` env var is properly read.
-
-5. Remove the `import os` and `from dotenv import load_dotenv` and `load_dotenv()` call — Pydantic BaseSettings handles `.env` files natively.
-
-6. Check if `dotenv` is still used elsewhere in the backend:
+5. Check if `dotenv` is still used elsewhere in the backend:
    ```bash
    grep -rn "dotenv\|load_dotenv" backend/src/ --include="*.py" | grep -v settings.py
    ```
    If not used, it can stay in requirements (removing it is a separate concern).
-
-7. Update `requirements.txt` to add `pydantic-settings` if missing.
 
 **Verification Checklist:**
 - [ ] `Settings` extends `pydantic_settings.BaseSettings`
