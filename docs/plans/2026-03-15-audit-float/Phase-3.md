@@ -39,7 +39,7 @@ Add automated guardrails that enforce the clean state achieved by Phases 1-2. Th
    select = ["E", "F", "W", "I"]
    ignore = ["E501"]  # Line too long (handled by black)
    ```
-3. Expand the `select` list to include additional rule sets:
+3. Expand the `select` list to include additional rule sets, add `per-file-ignores` for test files, and suppress known pre-existing violations:
    ```toml
    [tool.ruff.lint]
    select = [
@@ -55,18 +55,36 @@ Add automated guardrails that enforce the clean state achieved by Phases 1-2. Th
        "E501",   # Line too long (handled by black)
        "S603",   # subprocess call - check for execution of untrusted input (too noisy for FFmpeg)
        "S607",   # starting a process with a partial executable path
+       "S108",   # /tmp usage — Lambda runs in /tmp by design, cannot use tempfile module
+       "S311",   # pseudo-random generators — used for non-security purposes (jitter, IDs)
+       "UP006",  # use builtin type (e.g., `list` instead of `List`) — pre-existing, cosmetic only
+       "UP045",  # use `X | None` instead of `Optional[X]` — pre-existing, cosmetic only
+       "UP035",  # deprecated import (e.g., `typing.List`) — pre-existing, cosmetic only
+       "B017",   # `assertRaises(Exception)` too broad — pre-existing in tests
    ]
    ```
 
-4. Run `cd backend && uvx ruff check .` and review output
-5. If there are new violations from `UP`, `B`, or `S` rules that are **pre-existing** issues outside the scope of this remediation, add specific rule codes to the `ignore` list with a comment explaining why. Do NOT fix existing code in this phase -- only suppress pre-existing violations that are outside scope.
+4. Add a `per-file-ignores` section immediately after the `ignore` list to exempt test files from assert-related bandit warnings:
+   ```toml
+   [tool.ruff.lint.per-file-ignores]
+   "tests/**" = ["S101"]  # assert is expected in test files
+   ```
+   **Why:** `S101` flags every use of `assert`. In production code this is a valid finding (asserts can be stripped with `python -O`), but test files use `assert` as their primary mechanism. There are 700+ `assert` statements in `tests/`. This must NOT be added to the global `ignore` list.
+
+5. Run `cd backend && uvx ruff check .` and review output. At this point there should be zero violations. If any remain, they will likely be one of these known pre-existing rule codes:
+   - **`B904`** — `raise X` inside `except` block should use `raise X from err` (4 instances in source). Fix these by adding `from err` (or `from None` if re-raising intentionally) to the raise statements. These are small, mechanical fixes that improve traceability.
+   - **`B023`** — function uses loop variable (1 instance). If present, add a `# noqa: B023` inline comment with explanation.
+   - **`UP007`**, **`UP017`**, **`UP024`**, **`UP028`**, **`UP015`**, **`UP046`** — minor Python modernization suggestions (< 15 total). These are cosmetic pre-existing issues. If they appear, add the specific rule codes to the global `ignore` list with the comment `# pre-existing, cosmetic modernization — out of scope`.
+   Do NOT fix existing code in this phase -- only suppress pre-existing violations that are outside scope, or apply the minimal `B904` fix if the implementer prefers (since it is a one-line `from err` addition per site).
 6. The key rule to verify works: `S603` / `S607` for subprocess -- these should be intentionally suppressed since the FFmpeg calls use controlled inputs, BUT `S603` would flag subprocess calls, making future reviewers aware. If the team prefers to keep `S603` active with per-line `# noqa: S603` on the FFmpeg calls, that's an alternative approach. Choose the suppress-globally approach for simplicity.
 
 **Verification Checklist:**
 - [ ] `select` includes `"UP"`, `"B"`, `"S"` rules
+- [ ] `per-file-ignores` section exists with `"tests/**" = ["S101"]`
 - [ ] `cd backend && uvx ruff check .` passes with zero violations
 - [ ] Any new `ignore` entries have comments explaining the reason
-- [ ] No code changes -- only `pyproject.toml` config changes
+- [ ] `S101` is NOT in the global `ignore` list (it must only be in `per-file-ignores`)
+- [ ] No code changes -- only `pyproject.toml` config changes (exception: `B904` fixes if applied)
 
 **Testing Instructions:**
 - Run `cd backend && uvx ruff check .` -- must return 0 violations
@@ -78,7 +96,8 @@ ci(backend): expand ruff rules to catch dead code and security patterns
 
 Add UP (pyupgrade), B (bugbear), and S (bandit) rule sets to ruff
 configuration. Suppresses S603/S607 globally for controlled FFmpeg
-subprocess calls.
+subprocess calls. Adds per-file-ignores to exempt tests/ from S101
+(assert usage). Suppresses pre-existing cosmetic UP and B violations.
 ```
 
 ---
@@ -190,10 +209,11 @@ After completing all 3 tasks:
    grep -A3 "^on:" .github/workflows/ci.yml
    ```
 
-4. Verify ruff config includes new rules:
+4. Verify ruff config includes new rules and per-file-ignores:
    ```bash
-   grep -A8 "\[tool.ruff.lint\]" backend/pyproject.toml
+   grep -A20 "\[tool.ruff.lint\]" backend/pyproject.toml
    ```
+   Confirm output includes `per-file-ignores` with `"tests/**" = ["S101"]`.
 
 5. Run frontend lint:
    ```bash
