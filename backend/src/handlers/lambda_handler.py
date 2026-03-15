@@ -593,12 +593,12 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
         response = create_error_response(
             HTTP_BAD_REQUEST, "Missing job_id or user_id parameter"
         )
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     job_data = handler.handle_job_status(user_id, job_id)
     if not job_data:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     # =========================================================================
     # Authorization Check
@@ -623,10 +623,10 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
         response = create_error_response(
             HTTP_FORBIDDEN, "Access denied: you do not own this job"
         )
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     response = create_success_response(job_data)
-    return cors_middleware(lambda e, c: response)(event, None)
+    return cors_middleware(lambda e, _: response)(event, None)
 
 
 def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
@@ -652,30 +652,30 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
         response = create_error_response(
             HTTP_BAD_REQUEST, "Missing job_id or user_id parameter"
         )
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     # Authorization check
     job_data = handler.job_service.get_job(user_id, job_id)
     if not job_data:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     job_owner = job_data.get("user_id", "")
     if job_owner and job_owner != user_id:
         response = create_error_response(
             HTTP_FORBIDDEN, "Access denied: you do not own this job"
         )
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     # Handle download (pass job_data to avoid duplicate lookup)
     result = handler.handle_download_request(user_id, job_id, job_data)
     if result is None:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     if "error" in result:
         response = create_error_response(HTTP_BAD_REQUEST, result["error"]["message"])
-        return cors_middleware(lambda e, c: response)(event, None)
+        return cors_middleware(lambda e, _: response)(event, None)
 
     response = create_success_response(result)
-    return cors_middleware(lambda e, c: response)(event, None)
+    return cors_middleware(lambda e, _: response)(event, None)
