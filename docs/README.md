@@ -129,6 +129,14 @@ Set these via SAM parameter overrides during deployment:
 | `ProductionOrigins` | Comma-separated production origins for CORS |
 | `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer (auto-created by deploy script) |
 
+The following environment variables are set automatically in Lambda via the SAM template but are useful for local development:
+
+| Variable | Description |
+|----------|-------------|
+| `ENABLE_HLS_STREAMING` | Enable HLS streaming for meditation audio (default: `true`) |
+| `LOG_LEVEL` | Log level (default: `INFO`) |
+| `ENVIRONMENT` | Deployment environment (default: `production`) |
+
 ## Project Structure
 
 ```text
