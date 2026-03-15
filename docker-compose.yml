@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    command: python -m pytest tests/unit -v --tb=short

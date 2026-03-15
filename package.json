@@ -13,6 +13,7 @@
     "lint": "cd frontend && npm run lint",
     "lint:backend": "cd backend && uvx ruff check .",
     "check": "npm run lint && npm run lint:backend && npm test",
+    "test:backend:docker": "docker compose run --rm backend",
     "deploy": "node ./backend/scripts/deploy.mjs"
   },
   "jest": {
