@@ -21,6 +21,49 @@ pillar_overrides: none
 
 ---
 
+## Calibration
+
+### Cross-Evaluator Divergences
+- Architecture (Hire: 8/10) vs Defensiveness (Stress: 7/10): Both flag `lambda_handler.py` coupling and S3 storage patterns. Stress is more critical of error propagation gaps. **Use lower score (7) for planning priority.**
+- Code Quality (Hire: 7/10) vs Type Rigor (Stress: 7/10): Both flag dual request model layer and `as any` casts. Aligned at 7. **Consistent signal.**
+- Creativity (Hire: 8/10) vs Pragmatism (Stress: 8/10): Both appreciate HLS streaming design. Aligned. **No conflict.**
+- Reproducibility (Day 2: 6/10) is the lowest score across all lenses — no `.env.example`, no Docker, no pre-commit hooks.
+
+### Effective Thresholds
+| Pillar | Lens | Current | Target | Source |
+|--------|------|---------|--------|--------|
+| Problem-Solution Fit | Hire | 8 | 9 | default |
+| Architecture | Hire | 8 | 9 | default |
+| Code Quality | Hire | 7 | 9 | default |
+| Creativity | Hire | 8 | 9 | default |
+| Pragmatism | Stress | 8 | 9 | default |
+| Defensiveness | Stress | 7 | 9 | default |
+| Performance | Stress | 7 | 9 | default |
+| Type Rigor | Stress | 7 | 9 | default |
+| Test Value | Day 2 | 7 | 9 | default |
+| Reproducibility | Day 2 | 6 | 9 | default |
+| Git Hygiene | Day 2 | 6 | 9 | default |
+| Onboarding | Day 2 | 7 | 9 | default |
+
+### Pillars Requiring Remediation (all 12)
+Priority order (lowest scores first):
+1. Reproducibility (6/10) — no .env.example, no Docker, no pre-commit
+2. Git Hygiene (6/10) — vague commits, no commitlint
+3. Code Quality (7/10) — print() calls, dual request models, boolean-flag useEffect
+4. Defensiveness (7/10) — S3 silent failures, missing error feedback
+5. Performance (7/10) — legacy FFmpeg timeouts, S3 pagination
+6. Type Rigor (7/10) — dual Pydantic layer, as any casts, Settings pattern
+7. Test Value (7/10) — placeholder test, mock-heavy tests
+8. Onboarding (7/10) — no CONTRIBUTING.md, no setup automation
+9. Problem-Solution Fit (8/10) — TODO stubs, polling duplication
+10. Architecture (8/10) — god module, leaky abstraction
+11. Pragmatism (8/10) — dead code, unused ServiceFactory
+12. Creativity (8/10) — magic numbers, filename-based music selection
+
+**Note:** Many items from pillars 3-12 were already addressed by the repo-health flow (FFmpeg timeouts, S3 pagination, polling consolidation, dead code removal, ruff expansion). The planner should verify current state before planning.
+
+---
+
 ## HIRE EVALUATION — The Pragmatist
 
 ### VERDICT
