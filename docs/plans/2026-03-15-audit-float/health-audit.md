@@ -141,3 +141,60 @@ goal: general-health-check
 
 **Git Hygiene:**
 - Clean: no untracked files, recent commit history shows regular feature work with PRs and code review. CI runs on all PRs (frontend-lint, frontend-tests, backend-tests).
+
+---
+
+## Re-Audit Cycle 1
+
+### PRIOR FINDINGS STATUS
+
+| # | Prior Finding | Severity | Status | Notes |
+|---|--------------|----------|--------|-------|
+| C1 | FFmpeg subprocess.run() without timeout | CRITICAL | **RESOLVED** | `combine_voice_and_music()` now delegates to `_prepare_mixed_audio()` with timeouts |
+| C2 | S3 list_objects_v2 without pagination | CRITICAL | **RESOLVED** | Pagination loop with `IsTruncated`/`ContinuationToken` added |
+| H1 | lambda_handler.py 682-line god module | HIGH | DEFERRED | Architectural refactor — out of scope for health remediation |
+| H2 | process_stream_to_hls() Popen without timeout | HIGH | **RESOLVED** | `process.wait(timeout=FFMPEG_STREAM_TIMEOUT)` added with kill handler |
+| H3 | Colors.ts 3,888 lines | HIGH | DEFERRED | Structural refactor — out of scope |
+| H4 | Duplicated authorization + ad-hoc CORS | HIGH | DEFERRED | Architectural refactor — out of scope |
+| H5 | Frontend polling duplication | HIGH | **RESOLVED** | Consolidated into single `pollJobStatus()` with `PollOptions` |
+| H6 | S3 GET+PUT per streaming progress | HIGH | DEFERRED | Operational optimization — out of scope |
+| H7 | domain.py unused model layer | HIGH | **RESOLVED** | File deleted |
+| M1 | Unused lambda variables `c` | MEDIUM | **RESOLVED** | Changed to `_` |
+| M2 | color_utils.py dead code | MEDIUM | **RESOLVED** | File deleted |
+| M3 | Deprecated expo-permissions | MEDIUM | **RESOLVED** | Migrated to expo-notifications API |
+| M4 | Settings class untestable pattern | MEDIUM | REMAINS | Not in remediation scope |
+| M5 | Duplicate FFmpeg pipelines | MEDIUM | **RESOLVED** | `combine_voice_and_music()` delegates to `_prepare_mixed_audio()` |
+| M6 | Leaky StorageService abstraction | MEDIUM | REMAINS | Not in remediation scope |
+| M7 | Unused StorageError/EncodingError | MEDIUM | **RESOLVED** | Classes and error codes removed |
+| M8 | traceback.print_exc() in TTS | MEDIUM | **RESOLVED** | Replaced with structured logging |
+| M9 | Unused GeminiTTSProvider | MEDIUM | REMAINS | Kept as potential future provider; has broken settings ref |
+| L1 | Frontend console.error in production | LOW | REMAINS | Not in remediation scope |
+| L2 | Empty useEffect | LOW | **RESOLVED** | Removed |
+| L3 | eslint-disable suppression | LOW | **RESOLVED** | Updated to correct rule target |
+| L4 | Test files as any casts | LOW | REMAINS | Not in remediation scope |
+| L5 | Embedded prompt strings | LOW | REMAINS | Not in remediation scope |
+| L6 | G_KEY naming inconsistency | LOW | REMAINS | Not in remediation scope |
+
+### RE-AUDIT EXECUTIVE SUMMARY
+
+- **Overall health:** FAIR → GOOD (improved)
+- **Prior findings:** 24 total → 13 resolved, 4 deferred (architectural), 7 remaining (MEDIUM/LOW)
+- **New findings:** 1 (GeminiTTSProvider references missing `GEMINI_TTS_MODEL` setting)
+- **CRITICAL remaining:** 0
+- **HIGH remaining:** 4 (all deferred architectural refactors)
+- **MEDIUM remaining:** 4
+- **LOW remaining:** 4
+
+### GUARDRAILS INSTALLED
+
+- ruff rules expanded: UP (pyupgrade), B (bugbear), S (bandit) with per-file-ignores for S101 in tests
+- CI push trigger added for main branch
+- All subprocess calls now have timeouts
+- S3 pagination prevents silent data truncation
+
+### DEFERRED ITEMS (Architectural — Require Separate Initiative)
+
+1. `lambda_handler.py` god module decomposition (682 lines)
+2. `Colors.ts` programmatic generation (3,888 lines)
+3. Authorization middleware extraction from lambda_handler.py
+4. S3 progress tracking optimization (batch/cache updates)
