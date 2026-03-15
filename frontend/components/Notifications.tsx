@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import * as Permissions from 'expo-permissions';
 
 export default function FloatNotifications() {
   // TODO: Implement push notification display UI
@@ -46,14 +45,14 @@ async function registerForPushNotificationsAsync() {
     });
   }
 
-  const { status: existingStatus } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
   if (existingStatus !== 'granted') {
-    const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+    const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
   if (finalStatus !== 'granted') {
-    alert('Failed to get push token for push notification!');
+    console.warn('Failed to get push token for push notification!');
     return;
   }
   const token = (await Notifications.getExpoPushTokenAsync()).data;
