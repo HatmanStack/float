@@ -29,6 +29,8 @@ npm run lint:backend       # ruff check (cd backend && uvx ruff check .)
 # Run specific backend test
 cd backend && PYTHONPATH=. pytest tests/unit/test_middleware.py -v --tb=short
 
+# Note: CI runs all backend tests (pytest backend/tests), not just unit tests
+
 # Deploy (do NOT run unless explicitly asked)
 npm run deploy
 ```
@@ -46,7 +48,7 @@ npm run deploy
 
 - **Routing**: Expo Router file-based routing in `app/` (tabs layout in `app/(tabs)/`)
 - **State**: React Context API — `context/AuthContext.tsx` (auth), `context/IncidentContext.tsx` (floats)
-- **Components**: `components/` — HLS player, meditation controls, auth screen, download button
+- **Components**: `components/` — organized in subdirectories: `HLSPlayer/`, `DownloadButton/`, `ScreenComponents/` (meditation controls, record button, incident items), `navigation/`
 - **Hooks**: `hooks/` — platform-specific hooks (e.g., `useHLSPlayer.ts` / `useHLSPlayer.web.ts`)
 - **Path alias**: `@/` maps to `frontend/`
 - **Config**: `app.config.js`, `.eslintrc.json`, `.prettierrc.json` (100 char width)
@@ -61,7 +63,7 @@ npm run deploy
 - **Providers** (`src/providers/`): OpenAI TTS, Gemini TTS implementations
 - **Models** (`src/models/`): Pydantic request/response validation
 - **Config**: `pyproject.toml` (ruff, black, pytest, mypy), `template.yaml` (SAM), `samconfig.toml` (deploy params)
-- **Tests**: `tests/unit/`, `tests/integration/`, `tests/e2e/` with pytest markers: `unit`, `integration`, `e2e`, `slow`
+- **Tests**: `tests/unit/`, `tests/integration/`, `tests/e2e/` with pytest markers: `unit`, `integration`, `slow`
 
 ### API Flow
 
@@ -72,8 +74,8 @@ npm run deploy
 ## Code Style
 
 - **Frontend**: ESLint + Prettier, 100 char width, TypeScript strict mode, `no-explicit-any: warn`
-- **Backend**: ruff + black, 100 char line length, Python 3.12+ target
+- **Backend**: ruff + black, 100 char line length, Python 3.13 runtime / 3.12 lint target
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`): frontend-lint, frontend-tests, backend-tests run on every push/PR. All three must pass.
+GitHub Actions (`.github/workflows/ci.yml`): frontend-lint, frontend-tests, backend-tests, dockerfile-lint run on every push/PR. All four must pass.
