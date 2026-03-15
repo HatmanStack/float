@@ -1,27 +1,48 @@
-import os
-
-from dotenv import load_dotenv
-
-load_dotenv()
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings
 
 
-class Settings:
-    AWS_S3_BUCKET: str = os.getenv("AWS_S3_BUCKET", "float-cust-data")
-    AWS_AUDIO_BUCKET: str = os.getenv("AWS_AUDIO_BUCKET", "audio-er-lambda")
-    GEMINI_API_KEY: str = os.getenv("G_KEY", "")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    FFMPEG_PATH: str = os.getenv("FFMPEG_PATH", "/opt/bin/ffmpeg")
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables.
+
+    Pydantic BaseSettings automatically reads from environment variables
+    and .env files, with proper type coercion and validation.
+    """
+
+    AWS_S3_BUCKET: str = "float-cust-data"
+    AWS_AUDIO_BUCKET: str = "audio-er-lambda"
+    # Support both GEMINI_API_KEY and legacy G_KEY env var names.
+    # AliasChoices with validation_alias is the pydantic-settings v2 way
+    # to accept multiple env var names for the same field.
+    GEMINI_API_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices("GEMINI_API_KEY", "G_KEY"),
+    )
+    OPENAI_API_KEY: str = ""
+    FFMPEG_PATH: str = "/opt/bin/ffmpeg"
     TEMP_DIR: str = "/tmp"
     AUDIO_SAMPLE_RATE: int = 44100
     GEMINI_SAFETY_LEVEL: int = 4
 
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+        "case_sensitive": True,
+    }
+
     @classmethod
     def validate(cls, require_keys: bool = True) -> bool:
+        """Validate that required API keys are present.
+
+        Kept for backward compatibility with existing callers.
+        """
         if not require_keys:
             return True
+        instance = settings
         required_vars = [
-            ("GEMINI_API_KEY", cls.GEMINI_API_KEY),
-            ("OPENAI_API_KEY", cls.OPENAI_API_KEY),
+            ("GEMINI_API_KEY", instance.GEMINI_API_KEY),
+            ("OPENAI_API_KEY", instance.OPENAI_API_KEY),
         ]
         missing = [name for name, value in required_vars if not value]
         if missing:
