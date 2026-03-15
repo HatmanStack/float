@@ -13,6 +13,40 @@ from src.models.requests import MeditationRequestModel, SummaryRequestModel
 FFMPEG_AVAILABLE = shutil.which("ffmpeg") is not None
 
 
+@pytest.fixture
+def mock_audio_service():
+    """Mock audio service for testing."""
+    service = MagicMock()
+    service.combine_voice_and_music.return_value = ["Ambient-Peaceful-Meditation_300.wav"]
+    return service
+
+
+@pytest.fixture
+def mock_tts_provider():
+    """Mock TTS provider for testing."""
+    provider = MagicMock()
+    provider.synthesize_speech.return_value = True
+    provider.get_provider_name.return_value = "openai"
+    return provider
+
+
+@pytest.fixture
+def mock_lambda_context():
+    """Mock Lambda context object."""
+    context = MagicMock()
+    context.function_name = "float-meditation"
+    context.function_version = "$LATEST"
+    context.invoked_function_arn = (
+        "arn:aws:lambda:us-east-1:123456789012:function:float-meditation"
+    )
+    context.memory_limit_in_mb = 512
+    context.aws_request_id = "test-request-id-12345"
+    context.log_group_name = "/aws/lambda/float-meditation"
+    context.log_stream_name = "2024/10/31/[$LATEST]abc123def456"
+    context.get_remaining_time_in_millis = MagicMock(return_value=30000)
+    return context
+
+
 @pytest.mark.unit
 class TestLambdaHandlerInitialization:
     """Test Lambda handler initialization."""
