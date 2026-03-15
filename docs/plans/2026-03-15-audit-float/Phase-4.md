@@ -102,10 +102,10 @@ Address the lowest-hanging remaining eval findings: stray `print()` calls, the u
     ```
 
 **Verification Checklist:**
-- [ ] Zero `print()` calls remain in `backend/src/` (verify with `grep -rn "print(" backend/src/ --include="*.py"`)
-- [ ] All replacements use the structured `extra={"data": {...}}` format matching `logging_utils`
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] Zero `print()` calls remain in `backend/src/` (verify with `grep -rn "print(" backend/src/ --include="*.py"`)
+- [x] All replacements use the structured `extra={"data": {...}}` format matching `logging_utils`
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -151,10 +151,10 @@ sensitive-data-redacting structured logger.
 4. Check `backend/src/services/__init__.py` — if it re-exports `ServiceFactory` or `service_factory`, remove that line
 
 **Verification Checklist:**
-- [ ] No references to `ServiceFactory` or `service_factory` in `backend/src/` or `backend/tests/`
-- [ ] `backend/src/services/service_factory.py` is deleted
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] `cd backend && uvx ruff check .` passes
+- [x] No references to `ServiceFactory` or `service_factory` in `backend/src/` or `backend/tests/`
+- [x] `backend/src/services/service_factory.py` is deleted
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
 
 **Testing Instructions:**
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`
@@ -192,10 +192,10 @@ other module. LambdaHandler directly instantiates all services.
 4. The empty `<View />` is intentional — this component exists to register the notification handlers, not to render UI. No further changes needed.
 
 **Verification Checklist:**
-- [ ] TODO comment removed
-- [ ] No other changes to the file
-- [ ] `npm run lint` passes
-- [ ] `npm test` passes
+- [x] TODO comment removed
+- [x] No other changes to the file
+- [x] `npm run lint` passes
+- [x] `npm test` passes
 
 **Testing Instructions:**
 - Run `npm run lint`
@@ -281,12 +281,12 @@ display is handled by the OS, not this component.
 6. Remove the `useState` import for `summaryCall` only if no other `useState` calls remain (they will — `submitActivity` still uses it)
 
 **Verification Checklist:**
-- [ ] No `summaryCall` state variable exists
-- [ ] No `useEffect` triggered by `summaryCall` flag
-- [ ] `handleSummaryCall` directly calls the async logic
-- [ ] All dependencies are in the `useCallback` dependency array
-- [ ] `npm run lint` passes (especially exhaustive-deps)
-- [ ] `npm test` passes
+- [x] No `summaryCall` state variable exists
+- [x] No `useEffect` triggered by `summaryCall` flag
+- [x] `handleSummaryCall` directly calls the async logic
+- [x] All dependencies are in the `useCallback` dependency array
+- [x] `npm run lint` passes (especially exhaustive-deps)
+- [x] `npm test` passes
 
 **Testing Instructions:**
 - Run `npm run lint` — verify no exhaustive-deps warnings
