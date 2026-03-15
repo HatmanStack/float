@@ -35,7 +35,7 @@
 ## Quick Start
 
 ```bash
-npm install     # Install dependencies
+npm install --legacy-peer-deps  # Install dependencies
 npm run deploy  # Deploy backend
 npm start       # Start Expo dev server
 npm run check   # Run all lint and tests
@@ -65,6 +65,10 @@ Deploys the backend Lambda using AWS SAM. Configuration in `backend/samconfig.to
 | `GeminiApiKey` | Google Gemini API key |
 | `OpenAIApiKey` | OpenAI API key |
 | `ProductionOrigins` | Comma-separated allowed origins for CORS (e.g., `https://float-app.fun`) |
+| `S3DataBucket` | S3 bucket for user data (default: `float-cust-data`) |
+| `S3AudioBucket` | S3 bucket for background music |
+| `IncludeDevOrigins` | Set to `true` for local dev CORS wildcard |
+| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer |
 
 See [docs/README.md](docs/README.md) for full documentation.
 
