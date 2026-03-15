@@ -122,6 +122,8 @@ class FFmpegAudioService(AudioService):
                     music_volume_reduced_path,
                 ],
                 check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
             )
             logger.debug("Step 1: Music volume reduced")
             subprocess.run(
@@ -136,6 +138,8 @@ class FFmpegAudioService(AudioService):
                     silence_path,
                 ],
                 check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
             )
             logger.debug("Step 2: Silence created")
             subprocess.run(
@@ -148,6 +152,8 @@ class FFmpegAudioService(AudioService):
                     voice_with_silence_path,
                 ],
                 check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
             )
             logger.debug("Step 3: Voice with silence")
             subprocess.run(
@@ -160,6 +166,8 @@ class FFmpegAudioService(AudioService):
                     music_length_reduced_path,
                 ],
                 check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
             )
             logger.debug("Step 4: Music length adjusted")
             subprocess.run(
@@ -174,6 +182,8 @@ class FFmpegAudioService(AudioService):
                     output_path,
                 ],
                 check=True,
+                capture_output=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
             )
             logger.debug("Step 5: Audio combined")
             for path in temp_paths[:-1]:  # Keep output_path
