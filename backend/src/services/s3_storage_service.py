@@ -84,11 +84,15 @@ class S3StorageService(StorageService):
             kwargs = {"Bucket": bucket}
             if prefix:
                 kwargs["Prefix"] = prefix
-            response = self.s3_client.list_objects_v2(**kwargs)
-            if "Contents" in response:
-                return [obj["Key"] for obj in response["Contents"]]
-            else:
-                return []
+            keys = []
+            while True:
+                response = self.s3_client.list_objects_v2(**kwargs)
+                if "Contents" in response:
+                    keys.extend(obj["Key"] for obj in response["Contents"])
+                if not response.get("IsTruncated"):
+                    break
+                kwargs["ContinuationToken"] = response["NextContinuationToken"]
+            return keys
         except ClientError as e:
             logger.error(
                 "Error listing objects",

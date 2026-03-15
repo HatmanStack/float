@@ -1,0 +1,149 @@
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from ..config.constants import SentimentLabel, TTSProvider
+
+
+@dataclass
+class SentimentAnalysis:
+    sentiment_label: SentimentLabel
+    intensity: int  # 1-5 scale
+    confidence: Optional[float] = None
+    summary: Optional[str] = None
+
+    def validate(self) -> bool:
+        return (
+            isinstance(self.sentiment_label, SentimentLabel)
+            and 1 <= self.intensity <= 5
+        )
+
+
+@dataclass
+class AudioTrack:
+    key: str
+    duration: Optional[float] = None
+    format: Optional[str] = None
+    size_bytes: Optional[int] = None
+
+    def __post_init__(self):
+        if self.format is None and "." in self.key:
+            self.format = self.key.split(".")[-1].lower()
+
+
+@dataclass
+class UserIncident:
+    user_id: str
+    timestamp: datetime
+    sentiment: SentimentAnalysis
+    speech_text: Optional[str] = None
+    added_text: Optional[str] = None
+    user_summary: Optional[str] = None
+    short_summary: Optional[str] = None
+
+    def to_meditation_data(self) -> Dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "sentiment_label": [self.sentiment.sentiment_label.value],
+            "intensity": [str(self.sentiment.intensity)],
+            "speech_to_text": [self.speech_text or "NotAvailable"],
+            "added_text": [self.added_text or "NotAvailable"],
+            "summary": [self.sentiment.summary or ""],
+            "user_summary": [self.user_summary or ""],
+            "user_short_summary": [self.short_summary or ""],
+        }
+
+
+@dataclass
+class MeditationSession:
+    user_id: str
+    transcript: str
+    audio_path: Optional[str] = None
+    background_music: Optional[AudioTrack] = None
+    duration: Optional[float] = None
+    tts_provider: Optional[TTSProvider] = None
+
+    def validate(self) -> bool:
+        return bool(self.user_id and self.transcript)
+
+
+@dataclass
+class StreamingInfo:
+    """HLS streaming metadata for meditation jobs."""
+    enabled: bool = False
+    playlist_url: Optional[str] = None
+    segments_completed: int = 0
+    segments_total: Optional[int] = None
+    started_at: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "playlist_url": self.playlist_url,
+            "segments_completed": self.segments_completed,
+            "segments_total": self.segments_total,
+            "started_at": self.started_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict[str, Any]]) -> "StreamingInfo":
+        if not data:
+            return cls()
+        return cls(
+            enabled=data.get("enabled", False),
+            playlist_url=data.get("playlist_url"),
+            segments_completed=data.get("segments_completed", 0),
+            segments_total=data.get("segments_total"),
+            started_at=data.get("started_at"),
+        )
+
+
+@dataclass
+class DownloadInfo:
+    """Download metadata for completed meditation jobs."""
+    available: bool = False
+    url: Optional[str] = None
+    downloaded: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "available": self.available,
+            "url": self.url,
+            "downloaded": self.downloaded,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict[str, Any]]) -> "DownloadInfo":
+        if not data:
+            return cls()
+        return cls(
+            available=data.get("available", False),
+            url=data.get("url"),
+            downloaded=data.get("downloaded", False),
+        )
+
+
+@dataclass
+class ProcessingJob:
+    job_id: str
+    user_id: str
+    job_type: str  # 'summary', 'meditation', etc.
+    status: str  # 'pending', 'processing', 'streaming', 'completed', 'failed'
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    result_data: Optional[Dict[str, Any]] = None
+    streaming: Optional[StreamingInfo] = None
+    download: Optional[DownloadInfo] = None
+    tts_cache_key: Optional[str] = None
+    generation_attempt: int = 1
+
+    def mark_completed(self, result: Dict[str, Any]):
+        self.status = "completed"
+        self.completed_at = datetime.now()
+        self.result_data = result
+
+    def mark_failed(self, error: str):
+        self.status = "failed"
+        self.completed_at = datetime.now()
+        self.error_message = error
