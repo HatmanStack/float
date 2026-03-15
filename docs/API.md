@@ -16,7 +16,7 @@ Currently, the API does not require authentication. Future versions may add API 
 
 ## Request Format
 
-All requests must be POST with `Content-Type: application/json`.
+Requests use POST for submissions and GET for job status polling. All POST requests require `Content-Type: application/json`.
 
 **Common Headers**:
 
@@ -68,7 +68,7 @@ Analyze emotion from audio and/or text input.
 
 - At least one of `audio` or `prompt` must be provided and not "NotAvailable"
 - Audio should be base64 encoded MP3/WAV
-- Text input maximum 5000 characters
+- Text input maximum 10000 characters
 
 **Response (200 OK)**:
 
@@ -76,26 +76,34 @@ Analyze emotion from audio and/or text input.
 {
   "statusCode": 200,
   "body": {
-    "request_id": "req_abc123def456",
+    "request_id": 12345,
     "user_id": "user@example.com",
-    "sentiment": "anxious",
-    "intensity": 0.78,
-    "reasoning": "User expressed worry about upcoming presentation and stress about deadline.",
-    "timestamp": "2024-10-31T12:34:56Z"
+    "inference_type": "summary",
+    "sentiment_label": "Fearful",
+    "intensity": "high",
+    "speech_to_text": "I'm worried about my presentation tomorrow",
+    "added_text": "NotAvailable",
+    "summary": "User is experiencing anxiety about an upcoming presentation.",
+    "user_summary": "You're feeling fearful about your presentation. This is a common stress response.",
+    "user_short_summary": "Presentation anxiety"
   }
 }
 ```
 
 **Response Fields**:
 
-| Field        | Type   | Description                                               |
-| ------------ | ------ | --------------------------------------------------------- |
-| `request_id` | string | Unique request identifier for tracking                    |
-| `user_id`    | string | Echo of user ID                                           |
-| `sentiment`  | string | Detected emotion (anxious, sad, happy, angry, calm, etc.) |
-| `intensity`  | number | Emotion intensity from 0.0 (weak) to 1.0 (strong)         |
-| `reasoning`  | string | AI explanation of why this emotion was detected           |
-| `timestamp`  | string | ISO 8601 timestamp of analysis                            |
+| Field | Type | Description |
+|---|---|---|
+| `request_id` | number | Unique request identifier for tracking |
+| `user_id` | string | Echo of user ID |
+| `inference_type` | string | Always `"summary"` |
+| `sentiment_label` | string | Detected emotion (Angry, Disgusted, Fearful, Happy, Neutral, Sad, Surprised) |
+| `intensity` | string | Emotion intensity level (e.g., "high", "medium", "low") |
+| `speech_to_text` | string | Transcription of audio input, or `"NotAvailable"` |
+| `added_text` | string | Additional text context, or `"NotAvailable"` |
+| `summary` | string | AI-generated summary of the emotional state |
+| `user_summary` | string | User-facing explanation of detected emotion |
+| `user_short_summary` | string | Brief label for the float |
 
 **Error Examples**:
 
@@ -163,6 +171,7 @@ Generate a personalized meditation from selected floats (emotions/incidents). Us
 | `inference_type` | string          | Yes      | Must be `"meditation"`              |
 | `input_data`     | object or array | Yes      | Float data (dict or list of dicts)  |
 | `music_list`     | array           | Yes      | List of background music file names |
+| `duration_minutes` | number | No | Meditation length: 3, 5, 10, 15, or 20 (default: 5) |
 
 **Constraints**:
 
@@ -183,6 +192,19 @@ Generate a personalized meditation from selected floats (emotions/incidents). Us
   }
 }
 ```
+
+When HLS streaming is enabled (default), the response also includes:
+
+```json
+{
+  "streaming": {
+    "enabled": true,
+    "playlist_url": null
+  }
+}
+```
+
+The `playlist_url` becomes available once streaming processing begins. Poll `/job/{job_id}` to get the updated URL.
 
 **Step 2: Poll for Status**
 
@@ -305,6 +327,18 @@ Job not found:
 }
 ```
 
+### 3. Download Meditation
+
+Download a completed meditation as an audio file.
+
+**Endpoint**: `POST /job/{job_id}/download?user_id=user@example.com`
+
+The `user_id` is passed as a query parameter. No request body is required.
+
+**Response (200 OK)**:
+
+Returns the audio file as a downloadable response.
+
 ## Common Error Codes
 
 | Code | Error                  | Meaning                     | Solution                      |
@@ -381,7 +415,7 @@ const result = await generateMeditation(
 );
 
 // Decode and play audio
-const audioData = result.body.base64_audio;
+const audioData = result.body.base64;
 const blob = new Blob([Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0))], {
   type: 'audio/mp3',
 });
@@ -396,7 +430,7 @@ The API includes CORS headers to allow requests from web clients:
 
 ```
 Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: POST, OPTIONS
+Access-Control-Allow-Methods: OPTIONS, POST, GET
 Access-Control-Allow-Headers: Content-Type
 ```
 
@@ -424,14 +458,13 @@ Currently no rate limiting. Future versions may add:
 
 - **User Floats**: Stored in S3 indefinitely
 - **Meditation Requests**: Stored in S3 for 30 days
-- **Logs**: CloudWatch logs retained for 7 days
+- **Logs**: CloudWatch logs retained for 14 days
 
 ## Future Enhancements
 
 - [ ] API versioning (v1, v2)
 - [ ] Batch meditation generation
 - [ ] Custom voice selection
-- [ ] Duration preference parameter
 - [ ] Background music selection UI
 - [ ] Meditation history retrieval
 - [ ] User preferences/settings
