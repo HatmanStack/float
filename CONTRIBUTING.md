@@ -10,15 +10,24 @@
 ## Quick Start
 
 ```bash
-# Clone and install
+# Clone and install everything (frontend + backend + git hooks)
 git clone <repo-url>
 cd float
-npm install --legacy-peer-deps
+npm run setup
 
 # Set up environment
 cp frontend/.env.example frontend/.env
 cp backend/.env.example backend/.env
 # Edit .env files with your API keys
+
+# Verify everything works
+npm run check
+```
+
+If you prefer manual setup:
+
+```bash
+npm install --legacy-peer-deps
 
 # Backend setup
 cd backend
@@ -29,9 +38,6 @@ cd ..
 
 # Install git hooks (husky)
 npm run prepare
-
-# Verify everything works
-npm run check
 ```
 
 ## Running Tests
