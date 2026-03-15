@@ -7,7 +7,7 @@ Make the repo self-service for new contributors. Address Reproducibility (6 -> 9
 **Success criteria:**
 - `.env.example` files exist for frontend and backend
 - `docker-compose.yml` defines backend service with Python 3.13 + FFmpeg
-- `.pre-commit-config.yaml` with ruff, eslint, prettier hooks
+- `.husky/pre-commit` hook with lint-staged running ruff (backend) and eslint/prettier (frontend)
 - `CONTRIBUTING.md` with local setup, branch naming, PR template
 - `npm run setup` or Makefile target for one-command setup
 - `npm run check` passes

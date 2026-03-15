@@ -193,22 +193,81 @@ a stale job status indefinitely.
    - Any `MeditationRequest` type hints -> `MeditationRequestModel`
    - Any `isinstance` checks against the old classes -> update to new classes
 
-10. Check if `request.to_dict()` is called anywhere. The Pydantic `MeditationRequestModel` has `to_dict()` but it uses `self.inference_type` (string) rather than `self.inference_type.value` (the legacy version converts InferenceType enum). Verify that downstream consumers expect a string or enum value. If they expect a string like `"meditation"`, the Pydantic version is correct.
+10. Update the **local import** inside `process_meditation_async` (line ~169). This is a separate import from the top-level one fixed in step 8 and is easy to miss:
+    ```python
+    # Before (line ~169):
+    from ..models.requests import MeditationRequest
+    # After:
+    from ..models.requests import MeditationRequestModel
+    ```
+    Also update the constructor call at line ~171:
+    ```python
+    # Before:
+    request = MeditationRequest(**request_dict)
+    # After:
+    request = MeditationRequestModel(**request_dict)
+    ```
+    **Behavioral change:** The legacy `MeditationRequest` class silently accepted any kwargs without validation. The Pydantic `MeditationRequestModel` validates on construction and will raise `pydantic.ValidationError` if `request_dict` contains invalid data (e.g., missing `inference_type`, invalid `duration_minutes`). This is the desired behavior — invalid data should fail fast here rather than propagating silently.
 
-11. Check if `request.validate()` is called anywhere. Pydantic models validate on construction, so explicit `.validate()` calls can be removed.
+11. Check if `request.to_dict()` is called anywhere. The Pydantic `MeditationRequestModel` has `to_dict()` but it uses `self.inference_type` (string) rather than `self.inference_type.value` (the legacy version converts InferenceType enum). Verify that downstream consumers expect a string or enum value. If they expect a string like `"meditation"`, the Pydantic version is correct.
 
-12. Update any test files that import the old classes:
+12. Check if `request.validate()` is called anywhere. Pydantic models validate on construction, so explicit `.validate()` calls can be removed.
+
+13. Update test files that import the old classes. Run this grep first to see the full scope:
     ```bash
     grep -rn "SummaryRequest\|MeditationRequest\|BaseRequest" backend/tests/ --include="*.py"
     ```
+    There are ~50+ references across 6 files. Update each as follows:
+
+    **(a) `backend/tests/conftest.py`** — Update imports and both fixture constructors. The legacy classes use `type=` as the constructor kwarg; the Pydantic models use `inference_type=` (a `Literal` discriminator field). Change:
+    ```python
+    # Before:
+    from src.models.requests import MeditationRequest, SummaryRequest
+
+    # fixture valid_summary_request:
+    return SummaryRequest(type="summary", user_id=..., prompt=..., audio=...)
+
+    # fixture valid_meditation_request:
+    return MeditationRequest(type="meditation", user_id=..., input_data=..., ...)
+
+    # After:
+    from src.models.requests import MeditationRequestModel, SummaryRequestModel
+
+    # fixture valid_summary_request:
+    return SummaryRequestModel(inference_type="summary", user_id=..., prompt=..., audio=...)
+
+    # fixture valid_meditation_request:
+    return MeditationRequestModel(inference_type="meditation", user_id=..., input_data=..., ...)
+    ```
+
+    **(b) `backend/tests/unit/test_models.py`** — This file tests legacy class construction and the `.validate()` method (~20 references). Update as follows:
+    - Change import: `from src.models.requests import MeditationRequest, SummaryRequest, parse_request_body` -> `from src.models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body`
+    - In `TestSummaryRequestModel` and `TestMeditationRequestModel` test classes: replace all `SummaryRequest(` with `SummaryRequestModel(` and `MeditationRequest(` with `MeditationRequestModel(`. Change `type=` kwarg to `inference_type=` in every constructor call.
+    - Remove any tests that call `.validate()` on the legacy classes. Pydantic validates on construction, so test invalid-data cases with `pytest.raises(pydantic.ValidationError)` around the constructor instead. Add `from pydantic import ValidationError as PydanticValidationError` at the top of the file.
+    - Update `isinstance` checks: `isinstance(req, SummaryRequest)` -> `isinstance(req, SummaryRequestModel)`, same for `MeditationRequest`.
+
+    **(c) `backend/tests/unit/test_lambda_handler.py`** — ~30 references. Update as follows:
+    - Change import: `from src.models.requests import MeditationRequest, SummaryRequest` -> `from src.models.requests import MeditationRequestModel, SummaryRequestModel`
+    - In all test classes (`TestSummaryRequest`, `TestMeditationRequest`, `TestSummaryRequestRouting`, `TestMeditationRequestRouting`): replace all `SummaryRequest(` constructors with `SummaryRequestModel(` and `MeditationRequest(` with `MeditationRequestModel(`. Change `type=` kwarg to `inference_type=` in every constructor call.
+
+    **(d) `backend/tests/e2e/test_summary_flow.py`** and **`backend/tests/e2e/test_meditation_flow.py`** — ~6 references each. These use local imports inside test methods. Update each:
+    - `from src.models.requests import SummaryRequest` -> `from src.models.requests import SummaryRequestModel`
+    - `from src.models.requests import MeditationRequest` -> `from src.models.requests import MeditationRequestModel`
+    - Replace all constructor calls: `SummaryRequest(` -> `SummaryRequestModel(`, `MeditationRequest(` -> `MeditationRequestModel(`. Change `type=` kwarg to `inference_type=`.
+    - Note: These are e2e tests run separately (`pytest tests/e2e`), not by `pytest tests/unit`. They should still be updated for consistency, but will not block the unit test verification step.
+
+    **(e) `backend/tests/integration/test_hls_integration.py`** — 1 local import reference. Update:
+    - `from src.models.requests import MeditationRequest` -> `from src.models.requests import MeditationRequestModel`
+    - Update the constructor call accordingly (`type=` -> `inference_type=`). This is an integration test run separately.
 
 **Verification Checklist:**
 - [ ] `BaseRequest`, `SummaryRequest`, `MeditationRequest` classes deleted from `requests.py`
 - [ ] `_parse_json_field` and `_validate_request_fields` helper functions deleted
 - [ ] `parse_request_body` uses Pydantic `TypeAdapter` with `RequestBody` discriminated union
-- [ ] `lambda_handler.py` imports and uses `SummaryRequestModel` / `MeditationRequestModel`
+- [ ] `lambda_handler.py` top-level import uses `SummaryRequestModel` / `MeditationRequestModel`
+- [ ] `lambda_handler.py` local import in `process_meditation_async` uses `MeditationRequestModel`
 - [ ] No `request.validate()` calls remain (Pydantic validates on construction)
-- [ ] All test files updated to use new model names
+- [ ] All test files updated to use new model names (conftest.py, test_models.py, test_lambda_handler.py, e2e tests, integration tests)
 - [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
 - [ ] `cd backend && uvx ruff check .` passes
 
