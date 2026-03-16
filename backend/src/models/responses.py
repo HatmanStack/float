@@ -2,6 +2,8 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, ConfigDict
+
 from ..config.constants import InferenceType
 
 
@@ -20,8 +22,14 @@ class BaseResponse:
         return json.dumps(self.to_dict())
 
 
-@dataclass
-class SummaryResponse(BaseResponse):
+class SummaryResponse(BaseModel):
+    """Pydantic model for summary responses — validates AI output fields."""
+
+    model_config = ConfigDict(use_enum_values=True, coerce_numbers_to_str=True)
+
+    request_id: int
+    user_id: str
+    inference_type: InferenceType = InferenceType.SUMMARY
     sentiment_label: str
     intensity: str
     speech_to_text: str
@@ -30,8 +38,15 @@ class SummaryResponse(BaseResponse):
     user_summary: str
     user_short_summary: str
 
-    def __post_init__(self):
-        self.inference_type = InferenceType.SUMMARY
+    def to_dict(self) -> Dict[str, Any]:
+        data = self.model_dump()
+        # Ensure enum values are serialized as strings
+        if isinstance(data.get("inference_type"), InferenceType):
+            data["inference_type"] = data["inference_type"].value
+        return data
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
 
 
 @dataclass
@@ -55,9 +70,7 @@ class ErrorResponse:
         return json.dumps(self.to_dict())
 
 
-def create_summary_response(
-    request_id: int, user_id: str, summary_result: str
-) -> SummaryResponse:
+def create_summary_response(request_id: int, user_id: str, summary_result: str) -> SummaryResponse:
     try:
         json_start = summary_result.find("{")
         json_end = summary_result.rfind("}") + 1
@@ -68,7 +81,6 @@ def create_summary_response(
         return SummaryResponse(
             request_id=request_id,
             user_id=user_id,
-            inference_type=InferenceType.SUMMARY,
             sentiment_label=data.get("sentiment_label", ""),
             intensity=data.get("intensity", ""),
             speech_to_text=data.get("speech_to_text", "NotAvailable"),

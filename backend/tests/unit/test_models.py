@@ -194,7 +194,7 @@ class TestSummaryResponse:
         assert resp.request_id == 123
         assert resp.user_id == "user-123"
         assert resp.sentiment_label == "Sad"
-        assert resp.intensity == 4
+        assert resp.intensity == "4"
 
     def test_response_to_dict(self):
         """Test converting response to dictionary."""

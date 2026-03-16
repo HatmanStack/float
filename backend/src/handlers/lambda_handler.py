@@ -68,7 +68,7 @@ class LambdaHandler:
         self.tts_provider = OpenAITTSProvider()
         self.job_service = JobService(self.storage_service)
         if validate_config:
-            settings.validate()
+            settings.validate_keys()
 
     @staticmethod
     def _create_ai_service() -> AIService:

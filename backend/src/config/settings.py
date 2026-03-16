@@ -31,24 +31,17 @@ class Settings(BaseSettings):
         "case_sensitive": True,
     }
 
-    @classmethod
-    def validate(cls, require_keys: bool = True) -> bool:
-        """Validate that required API keys are present.
-
-        Kept for backward compatibility with existing callers.
-        """
+    def validate_keys(self, require_keys: bool = True) -> bool:
+        """Validate that required API keys are present on this instance."""
         if not require_keys:
             return True
-        instance = settings
         required_vars = [
-            ("GEMINI_API_KEY", instance.GEMINI_API_KEY),
-            ("OPENAI_API_KEY", instance.OPENAI_API_KEY),
+            ("GEMINI_API_KEY", self.GEMINI_API_KEY),
+            ("OPENAI_API_KEY", self.OPENAI_API_KEY),
         ]
         missing = [name for name, value in required_vars if not value]
         if missing:
-            raise ValueError(
-                f"Missing required environment variables: {', '.join(missing)}"
-            )
+            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
         return True
 
 

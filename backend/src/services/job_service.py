@@ -183,11 +183,13 @@ class JobService:
         """
         job_data = self.get_job(user_id, job_id)
         if not job_data:
-            logger.warning(
-                "Cannot mark streaming started: job not found",
-                extra={"data": {"job_id": job_id, "user_id": user_id}},
+            from ..exceptions import ErrorCode, ExternalServiceError
+
+            raise ExternalServiceError(
+                f"Cannot mark streaming started: job {job_id} not found",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"user_id={user_id}",
             )
-            return
 
         job_data["status"] = JobStatus.STREAMING.value
         job_data["updated_at"] = _utcnow().isoformat()

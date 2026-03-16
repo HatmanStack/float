@@ -60,19 +60,24 @@ class TestLambdaHandlerInitialization:
         handler = LambdaHandler(validate_config=False)
 
         # Act & Assert - verify service methods are callable
-        assert hasattr(handler.ai_service, "analyze_sentiment"), \
+        assert hasattr(handler.ai_service, "analyze_sentiment"), (
             "AI service should have analyze_sentiment method"
-        assert hasattr(handler.ai_service, "generate_meditation"), \
+        )
+        assert hasattr(handler.ai_service, "generate_meditation"), (
             "AI service should have generate_meditation method"
+        )
 
-        assert hasattr(handler.storage_service, "upload_json"), \
+        assert hasattr(handler.storage_service, "upload_json"), (
             "Storage service should have upload_json method"
+        )
 
-        assert hasattr(handler.audio_service, "combine_voice_and_music"), \
+        assert hasattr(handler.audio_service, "combine_voice_and_music"), (
             "Audio service should have combine_voice_and_music method"
+        )
 
-        assert hasattr(handler.tts_provider, "synthesize_speech"), \
+        assert hasattr(handler.tts_provider, "synthesize_speech"), (
             "TTS provider should have synthesize_speech method"
+        )
 
         print("\n✓ All services ready and have expected methods")
 
@@ -86,8 +91,9 @@ class TestLambdaHandlerInitialization:
 
         # Assert - should be independent instances
         assert handler1 is not handler2, "Should create independent instances"
-        assert handler1.ai_service is not handler2.ai_service, \
+        assert handler1.ai_service is not handler2.ai_service, (
             "Each handler should have its own AI service"
+        )
 
         print("\n✓ Multiple handler instances created independently")
 
@@ -108,12 +114,13 @@ class TestConfigurationValidation:
 
             # Act & Assert
             with pytest.raises(ValueError) as exc_info:
-                settings.validate(require_keys=True)
+                settings.validate_keys(require_keys=True)
 
             # Verify error message mentions missing keys
             error_message = str(exc_info.value)
-            assert "Missing required environment variables" in error_message, \
+            assert "Missing required environment variables" in error_message, (
                 "Error should mention missing variables"
+            )
 
             print("\n✓ Missing API keys detected correctly")
 
@@ -125,7 +132,7 @@ class TestConfigurationValidation:
     def test_settings_validate_skip_when_disabled(self):
         """Test that validation can be skipped."""
         # Act
-        result = settings.validate(require_keys=False)
+        result = settings.validate_keys(require_keys=False)
 
         # Assert
         assert result is True, "Should return True when validation skipped"
@@ -225,8 +232,9 @@ class TestServiceInitialization:
 
         # Assert
         assert service is not None, "Service should initialize"
-        assert hasattr(service, "combine_voice_and_music"), \
+        assert hasattr(service, "combine_voice_and_music"), (
             "Should have combine_voice_and_music method"
+        )
         assert elapsed_time < 2, f"Initialization should be fast: {elapsed_time:.2f}s"
 
         print(f"\n✓ FFmpeg audio service initialized in {elapsed_time:.2f}s")
@@ -258,9 +266,9 @@ class TestColdStartPerformance:
 
             # Assert
             assert handler is not None, "Handler should initialize on cold start"
-            assert (
-                elapsed_time < 5
-            ), f"Cold start should complete within 5s, took {elapsed_time:.2f}s"
+            assert elapsed_time < 5, (
+                f"Cold start should complete within 5s, took {elapsed_time:.2f}s"
+            )
 
             print(f"\n✓ Cold start simulation completed in {elapsed_time:.2f}s")
 
