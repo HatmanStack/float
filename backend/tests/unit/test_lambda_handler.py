@@ -255,9 +255,10 @@ class TestMeditationRequestRouting:
             assert mock_handle_meditation.called
 
     def test_meditation_request_with_all_required_fields(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
+        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider, monkeypatch
     ):
         """Test meditation request with all required input_data fields."""
+        monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "float-meditation")
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.job_service.storage_service = mock_storage_service
@@ -294,9 +295,10 @@ class TestMeditationRequestRouting:
         assert mock_lambda_client.invoke.called
 
     def test_meditation_request_with_music_list_processes_correctly(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
+        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider, monkeypatch
     ):
         """Test meditation request with music list creates async job correctly."""
+        monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "float-meditation")
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.job_service.storage_service = mock_storage_service
