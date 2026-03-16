@@ -145,14 +145,19 @@ export async function BackendSummaryCall(
 
   if (!httpResponse.ok) {
     const errorText = await httpResponse.text();
-    const errorMessage = `Request to Summary Lambda URL failed with status ${httpResponse.status}: ${errorText}`;
+    const errorMessage =
+      `Request to Summary Lambda URL failed with status ` +
+      `${httpResponse.status}: ${errorText}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
 
   const lambdaPrimaryResponse = await httpResponse.json();
   if (!lambdaPrimaryResponse || typeof lambdaPrimaryResponse !== 'object') {
-    const errorMessage = `Invalid response structure from Lambda. Expected a 'body' string. Received: ${JSON.stringify(lambdaPrimaryResponse)}`;
+    const errorMessage =
+      `Invalid response structure from Lambda. ` +
+      `Expected a 'body' string. Received: ` +
+      `${JSON.stringify(lambdaPrimaryResponse)}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }

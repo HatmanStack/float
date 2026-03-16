@@ -25,13 +25,13 @@ class BaseResponse:
 class SummaryResponse(BaseModel):
     """Pydantic model for summary responses — validates AI output fields."""
 
-    model_config = ConfigDict(use_enum_values=True, coerce_numbers_to_str=True)
+    model_config = ConfigDict(use_enum_values=True)
 
     request_id: int
     user_id: str
     inference_type: InferenceType = InferenceType.SUMMARY
     sentiment_label: str
-    intensity: str
+    intensity: int
     speech_to_text: str = "NotAvailable"
     added_text: str = "NotAvailable"
     summary: str

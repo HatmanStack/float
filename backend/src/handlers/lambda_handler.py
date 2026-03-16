@@ -168,7 +168,7 @@ class LambdaHandler:
 
     def process_meditation_async(self, job_id: str, request_dict: Dict[str, Any]):
         """Process meditation in async Lambda invocation."""
-        request = MeditationRequestModel(**request_dict)
+        request = MeditationRequestModel.model_validate(request_dict)
         logger.info(
             "Processing async meditation",
             extra={"data": {"job_id": job_id, "user_id": request.user_id}},
@@ -288,7 +288,7 @@ class LambdaHandler:
                     )
 
                 # Use batch mode for cached audio
-                music_list, total_segments, segment_durations = (
+                _, total_segments, _ = (
                     self.audio_service.combine_voice_and_music_hls(
                         voice_path=voice_path,
                         music_list=request.music_list,
@@ -423,7 +423,7 @@ class LambdaHandler:
             if voice_path:
                 cleanup_temp_file(voice_path)
 
-    def handle_job_status(self, user_id: str, job_id: str) -> Dict[str, Any]:
+    def handle_job_status(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status with fresh pre-signed URLs."""
         job_data = self.job_service.get_job(user_id, job_id)
         if not job_data:
@@ -444,7 +444,7 @@ class LambdaHandler:
 
     def handle_download_request(
         self, user_id: str, job_id: str, job_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """Handle download request - generate MP3 and return URL."""
         if job_data is None:
             job_data = self.job_service.get_job(user_id, job_id)

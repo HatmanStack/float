@@ -210,7 +210,13 @@ class JobService:
         """Mark streaming as complete, set status to COMPLETED, enable download."""
         job_data = self.get_job(user_id, job_id)
         if not job_data:
-            return
+            from ..exceptions import ErrorCode, ExternalServiceError
+
+            raise ExternalServiceError(
+                f"Cannot mark streaming complete: job {job_id} not found",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"user_id={user_id}",
+            )
 
         job_data["status"] = JobStatus.COMPLETED.value
         job_data["updated_at"] = _utcnow().isoformat()

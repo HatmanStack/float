@@ -71,8 +71,11 @@ class FFmpegAudioService(AudioService):
                 check=True,
                 timeout=FFMPEG_STEP_TIMEOUT,
             )
-            duration_line = [line for line in result.stderr.split("\n") if "Duration" in line][0]
-            duration_str = duration_line.split(",")[0].split("Duration:")[1].strip()
+            duration_lines = [line for line in result.stderr.split("\n") if "Duration" in line]
+            if not duration_lines:
+                logger.warning("No Duration line in ffmpeg output", extra={"data": {"file": file_path}})
+                return 0.0
+            duration_str = duration_lines[0].split(",")[0].split("Duration:")[1].strip()
             h, m, s = map(float, duration_str.split(":"))
             duration = h * 3600 + m * 60 + s
             return duration
