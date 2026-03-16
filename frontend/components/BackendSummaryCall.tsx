@@ -95,7 +95,10 @@ async function schedulePushNotification(sentiment: string, intensity: number): P
       body: 'Float',
       data: { sentiment, intensity },
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.ceil(timeToWait) },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: Math.ceil(timeToWait),
+    },
   });
   return notificationId;
 }

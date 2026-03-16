@@ -2,7 +2,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from ..config.constants import InferenceType
 
@@ -84,7 +84,7 @@ def create_summary_response(request_id: int, user_id: str, summary_result: str) 
         data["request_id"] = request_id
         data["user_id"] = user_id
         return SummaryResponse.model_validate(data)
-    except (json.JSONDecodeError, KeyError, IndexError) as e:
+    except (json.JSONDecodeError, KeyError, IndexError, ValidationError) as e:
         raise ValueError(f"Failed to parse summary result: {e}") from e
 
 

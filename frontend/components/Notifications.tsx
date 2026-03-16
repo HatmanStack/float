@@ -9,9 +9,13 @@ export default function FloatNotifications() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    registerForPushNotificationsAsync().then(() => {
-      // Token registered
-    });
+    registerForPushNotificationsAsync()
+      .then(() => {
+        // Token registered
+      })
+      .catch((err) => {
+        console.warn('Push notification registration failed', err);
+      });
 
     notificationListener.current = Notifications.addNotificationReceivedListener(() => {
       // Notification received
