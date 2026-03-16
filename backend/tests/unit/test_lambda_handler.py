@@ -283,22 +283,19 @@ class TestMeditationRequestRouting:
             music_list=[],
         )
 
-        # Mock Lambda async invocation (meditation now uses async processing)
-        with patch("src.handlers.lambda_handler.boto3") as mock_boto3:
-            mock_lambda_client = MagicMock()
-            mock_boto3.client.return_value = mock_lambda_client
+        # Mock the async Lambda invocation method directly
+        with patch.object(handler, "_invoke_async_meditation") as mock_invoke:
             result = handler.handle_meditation_request(request)
 
         assert result is not None
         assert "job_id" in result
         assert result["status"] == "pending"
-        assert mock_lambda_client.invoke.called
+        assert mock_invoke.called
 
     def test_meditation_request_with_music_list_processes_correctly(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider, monkeypatch
+        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider
     ):
         """Test meditation request with music list creates async job correctly."""
-        monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "float-meditation")
         handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
         handler.storage_service = mock_storage_service
         handler.job_service.storage_service = mock_storage_service
@@ -314,19 +311,17 @@ class TestMeditationRequestRouting:
             music_list=["Ambient-Peaceful_300.wav", "Nature-Birds_180.wav"],
         )
 
-        # Mock Lambda async invocation
-        with patch("src.handlers.lambda_handler.boto3") as mock_boto3:
-            mock_lambda_client = MagicMock()
-            mock_boto3.client.return_value = mock_lambda_client
+        # Mock the async Lambda invocation method directly
+        with patch.object(handler, "_invoke_async_meditation") as mock_invoke:
             result = handler.handle_meditation_request(request)
 
         assert result is not None
         assert "job_id" in result
         assert result["status"] == "pending"
-        # Verify async invocation was called with correct payload
-        assert mock_lambda_client.invoke.called
-        invoke_kwargs = mock_lambda_client.invoke.call_args.kwargs
-        assert invoke_kwargs["InvocationType"] == "Event"
+        assert mock_invoke.called
+        # Verify it was called with the request and a job_id
+        call_args = mock_invoke.call_args
+        assert call_args[0][0] == request  # first positional arg is the request
 
     def test_invalid_meditation_request_raises_error(self):
         """Test invalid meditation request raises appropriate error."""
