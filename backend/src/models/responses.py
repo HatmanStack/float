@@ -32,8 +32,8 @@ class SummaryResponse(BaseModel):
     inference_type: InferenceType = InferenceType.SUMMARY
     sentiment_label: str
     intensity: str
-    speech_to_text: str
-    added_text: str
+    speech_to_text: str = "NotAvailable"
+    added_text: str = "NotAvailable"
     summary: str
     user_summary: str
     user_short_summary: str
@@ -78,17 +78,12 @@ def create_summary_response(request_id: int, user_id: str, summary_result: str) 
             raise ValueError("No JSON found in summary result")
         json_str = summary_result[json_start:json_end]
         data = json.loads(json_str)
-        return SummaryResponse(
-            request_id=request_id,
-            user_id=user_id,
-            sentiment_label=data.get("sentiment_label", ""),
-            intensity=data.get("intensity", ""),
-            speech_to_text=data.get("speech_to_text", "NotAvailable"),
-            added_text=data.get("added_text", "NotAvailable"),
-            summary=data.get("summary", ""),
-            user_summary=data.get("user_summary", ""),
-            user_short_summary=data.get("user_short_summary", ""),
-        )
+        # Inject request metadata, then let Pydantic validate the AI fields.
+        # Missing required fields (sentiment_label, intensity, summary,
+        # user_summary, user_short_summary) will raise ValidationError.
+        data["request_id"] = request_id
+        data["user_id"] = user_id
+        return SummaryResponse.model_validate(data)
     except (json.JSONDecodeError, KeyError, IndexError) as e:
         raise ValueError(f"Failed to parse summary result: {e}") from e
 

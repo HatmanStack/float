@@ -19,7 +19,7 @@
     "test:backend:docker": "docker compose run --rm backend",
     "deploy": "node ./backend/scripts/deploy.mjs",
     "prepare": "husky",
-    "setup": "npm install --legacy-peer-deps && cd backend && pip install -r requirements.txt -r requirements-dev.txt && cd .. && echo 'Setup complete. Copy .env.example files to .env and fill in your API keys.'"
+    "setup": "npm install --legacy-peer-deps && cd backend && python3 -m pip install -r requirements.txt -r requirements-dev.txt && cd .. && echo 'Setup complete. Copy .env.example files to .env and fill in your API keys.'"
   },
   "jest": {
     "preset": "jest-expo",
