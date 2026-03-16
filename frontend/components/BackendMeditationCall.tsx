@@ -1,10 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import type {
-  JobStatusResponse,
-  MeditationResult,
-  StreamingInfo,
-} from '@/types/api';
+import type { JobStatusResponse, MeditationResult, StreamingInfo } from '@/types/api';
 
 /**
  * Incident data structure
@@ -71,7 +67,8 @@ const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): Tr
 
     if (d.sentiment_label) transformedDict.sentiment_label.push(d.sentiment_label);
     if (d.intensity !== undefined) {
-      const intensityNum = typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
+      const intensityNum =
+        typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
       transformedDict.intensity.push(intensityNum);
     }
     if (d.speech_to_text) transformedDict.speech_to_text.push(d.speech_to_text);
@@ -145,20 +142,20 @@ async function pollJobStatus(options: PollOptions): Promise<JobStatusResponse> {
     const jobData: JobStatusResponse = await response.json();
     onStatusUpdate?.(jobData);
 
-    if (returnOnStreaming && jobData.streaming?.playlist_url) {
-      return jobData;
-    }
-
-    if (jobData.status === 'completed') {
-      return jobData;
-    }
-
     if (jobData.status === 'failed') {
       const errorMsg =
         typeof jobData.error === 'string'
           ? jobData.error
           : jobData.error?.message || 'Meditation generation failed';
       throw new Error(errorMsg);
+    }
+
+    if (returnOnStreaming && jobData.streaming?.playlist_url) {
+      return jobData;
+    }
+
+    if (jobData.status === 'completed') {
+      return jobData;
     }
 
     const elapsed = Date.now() - startTime;
@@ -184,11 +181,7 @@ async function pollJobStatus(options: PollOptions): Promise<JobStatusResponse> {
 /**
  * Fetch download URL for completed meditation.
  */
-async function fetchDownloadUrl(
-  jobId: string,
-  userId: string,
-  lambdaUrl: string
-): Promise<string> {
+async function fetchDownloadUrl(jobId: string, userId: string, lambdaUrl: string): Promise<string> {
   const baseUrl = lambdaUrl.replace(/\/$/, '');
   const downloadUrl = `${baseUrl}/job/${jobId}/download?user_id=${encodeURIComponent(userId)}`;
 

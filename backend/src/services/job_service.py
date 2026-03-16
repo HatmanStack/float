@@ -1,4 +1,5 @@
 """Async job management for long-running tasks."""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -135,7 +136,7 @@ class JobService:
         if not job_data:
             logger.warning(
                 "Cannot update streaming progress: job not found",
-                extra={"data": {"job_id": job_id}}
+                extra={"data": {"job_id": job_id}},
             )
             return
 
@@ -164,7 +165,7 @@ class JobService:
 
         logger.debug(
             "Updated streaming progress",
-            extra={"data": {"job_id": job_id, "segments": segments_completed}}
+            extra={"data": {"job_id": job_id, "segments": segments_completed}},
         )
 
     def mark_streaming_started(
@@ -173,12 +174,18 @@ class JobService:
         job_id: str,
         playlist_url: str,
     ):
-        """Mark job as streaming and set initial playlist URL."""
+        """Mark job as streaming and set initial playlist URL.
+
+        Raises:
+            ExternalServiceError: If the S3 save fails. Callers that have
+            committed to streaming need the STREAMING status persisted so
+            polling clients can discover the playlist URL.
+        """
         job_data = self.get_job(user_id, job_id)
         if not job_data:
             logger.warning(
                 "Cannot mark streaming started: job not found",
-                extra={"data": {"job_id": job_id, "user_id": user_id}}
+                extra={"data": {"job_id": job_id, "user_id": user_id}},
             )
             return
 
@@ -189,13 +196,7 @@ class JobService:
         streaming["playlist_url"] = playlist_url
         streaming["started_at"] = _utcnow().isoformat()
 
-        try:
-            self._save_job(user_id, job_id, job_data)
-        except Exception:
-            logger.warning(
-                "Non-critical: failed to save job progress update",
-                extra={"data": {"job_id": job_id, "method": "mark_streaming_started"}},
-            )
+        self._save_job(user_id, job_id, job_data)
         logger.info("Marked job as streaming", extra={"data": {"job_id": job_id}})
 
     def mark_streaming_complete(
@@ -224,7 +225,7 @@ class JobService:
         self._save_job(user_id, job_id, job_data)
         logger.info(
             "Marked streaming complete",
-            extra={"data": {"job_id": job_id, "total_segments": segments_total}}
+            extra={"data": {"job_id": job_id, "total_segments": segments_total}},
         )
 
     def mark_download_ready(
@@ -286,7 +287,13 @@ class JobService:
             )
 
     def increment_generation_attempt(self, user_id: str, job_id: str) -> int:
-        """Increment and return the generation attempt count."""
+        """Increment and return the generation attempt count.
+
+        Raises:
+            ExternalServiceError: If the S3 save fails. The caller must not
+            proceed with a retry when the incremented counter wasn't persisted,
+            otherwise the same attempt can repeat indefinitely.
+        """
         job_data = self.get_job(user_id, job_id)
         if not job_data:
             return 1
@@ -294,13 +301,7 @@ class JobService:
         attempt = job_data.get("generation_attempt", 1) + 1
         job_data["generation_attempt"] = attempt
         job_data["updated_at"] = _utcnow().isoformat()
-        try:
-            self._save_job(user_id, job_id, job_data)
-        except Exception:
-            logger.warning(
-                "Non-critical: failed to save job progress update",
-                extra={"data": {"job_id": job_id, "method": "increment_generation_attempt"}},
-            )
+        self._save_job(user_id, job_id, job_data)
         return attempt
 
     def get_job(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
@@ -313,17 +314,14 @@ class JobService:
             if data and self._is_job_expired(data):
                 logger.info(
                     "Job expired, cleaning up",
-                    extra={"data": {"job_id": job_id, "user_id": user_id}}
+                    extra={"data": {"job_id": job_id, "user_id": user_id}},
                 )
                 self._delete_job(user_id, job_id)
                 return None
 
             return data
         except Exception as e:
-            logger.debug(
-                "Failed to get job",
-                extra={"data": {"job_id": job_id, "error": str(e)}}
-            )
+            logger.debug("Failed to get job", extra={"data": {"job_id": job_id, "error": str(e)}})
             return None
 
     def _is_job_expired(self, job_data: Dict[str, Any]) -> bool:
@@ -361,8 +359,7 @@ class JobService:
             logger.debug("Deleted expired job", extra={"data": {"job_id": job_id}})
         except Exception as e:
             logger.warning(
-                "Failed to delete job",
-                extra={"data": {"job_id": job_id, "error": str(e)}}
+                "Failed to delete job", extra={"data": {"job_id": job_id, "error": str(e)}}
             )
 
     def cleanup_expired_jobs(self, user_id: str) -> List[str]:
@@ -382,18 +379,17 @@ class JobService:
                 except Exception as e:
                     logger.warning(
                         "Error checking job for cleanup",
-                        extra={"data": {"key": key, "error": str(e)}}
+                        extra={"data": {"key": key, "error": str(e)}},
                     )
 
             if deleted_jobs:
                 logger.info(
                     "Cleaned up expired jobs",
-                    extra={"data": {"user_id": user_id, "count": len(deleted_jobs)}}
+                    extra={"data": {"user_id": user_id, "count": len(deleted_jobs)}},
                 )
         except Exception as e:
             logger.error(
-                "Error during job cleanup",
-                extra={"data": {"user_id": user_id, "error": str(e)}}
+                "Error during job cleanup", extra={"data": {"user_id": user_id, "error": str(e)}}
             )
 
         return deleted_jobs
@@ -408,6 +404,7 @@ class JobService:
         success = self.storage_service.upload_json(self.bucket, key, job_data)
         if not success:
             from ..exceptions import ErrorCode, ExternalServiceError
+
             raise ExternalServiceError(
                 f"Failed to save job {job_id} to S3",
                 ErrorCode.STORAGE_FAILURE,

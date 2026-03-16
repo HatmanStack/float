@@ -59,17 +59,12 @@ MUSIC_TRAILING_BUFFER_SECONDS = 90
 
 
 class LambdaHandler:
-
-    def __init__(
-        self, ai_service: Optional[AIService] = None, validate_config: bool = True
-    ):
+    def __init__(self, ai_service: Optional[AIService] = None, validate_config: bool = True):
         self.ai_service = ai_service or self._create_ai_service()
         self.storage_service = S3StorageService()
         self.hls_service = HLSService(self.storage_service)
         self.download_service = DownloadService(self.storage_service, self.hls_service)
-        self.audio_service = FFmpegAudioService(
-            self.storage_service, hls_service=self.hls_service
-        )
+        self.audio_service = FFmpegAudioService(self.storage_service, hls_service=self.hls_service)
         self.tts_provider = OpenAITTSProvider()
         self.job_service = JobService(self.storage_service)
         if validate_config:
@@ -94,9 +89,7 @@ class LambdaHandler:
                 audio_file=audio_file, user_text=request.prompt
             )
             request_id = generate_request_id()
-            response = create_summary_response(
-                request_id, request.user_id, summary_result
-            )
+            response = create_summary_response(request_id, request.user_id, summary_result)
             self._store_summary_results(request, response, audio_file is not None)
             return response.to_dict()
         finally:
@@ -108,9 +101,7 @@ class LambdaHandler:
     ) -> Dict[str, Any]:
         return input_data if isinstance(input_data, dict) else {"floats": input_data}
 
-    def _generate_meditation_audio(
-        self, meditation_text: str, timestamp: str
-    ) -> tuple[str, str]:
+    def _generate_meditation_audio(self, meditation_text: str, timestamp: str) -> tuple[str, str]:
         voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
         combined_path = f"{settings.TEMP_DIR}/combined_{timestamp}.mp3"
         tts_provider = self.get_tts_provider()
@@ -124,7 +115,9 @@ class LambdaHandler:
         """Create job and invoke async processing, return job_id immediately."""
         logger.info(
             "Processing meditation request",
-            extra={"data": {"user_id": request.user_id, "duration_minutes": request.duration_minutes}}
+            extra={
+                "data": {"user_id": request.user_id, "duration_minutes": request.duration_minutes}
+            },
         )
 
         # Create job for tracking (with HLS streaming if enabled)
@@ -133,7 +126,7 @@ class LambdaHandler:
         )
         logger.info(
             "Created meditation job",
-            extra={"data": {"job_id": job_id, "hls_enabled": ENABLE_HLS_STREAMING}}
+            extra={"data": {"job_id": job_id, "hls_enabled": ENABLE_HLS_STREAMING}},
         )
 
         # Invoke Lambda asynchronously for the actual processing
@@ -143,7 +136,7 @@ class LambdaHandler:
         response = {
             "job_id": job_id,
             "status": "pending",
-            "message": "Meditation generation started. Poll /job/{job_id} for status."
+            "message": "Meditation generation started. Poll /job/{job_id} for status.",
         }
 
         # Include streaming info if HLS is enabled
@@ -175,12 +168,10 @@ class LambdaHandler:
 
     def process_meditation_async(self, job_id: str, request_dict: Dict[str, Any]):
         """Process meditation in async Lambda invocation."""
-        from ..models.requests import MeditationRequestModel
-
         request = MeditationRequestModel(**request_dict)
         logger.info(
             "Processing async meditation",
-            extra={"data": {"job_id": job_id, "user_id": request.user_id}}
+            extra={"data": {"job_id": job_id, "user_id": request.user_id}},
         )
 
         # Check if HLS is enabled for this job
@@ -201,9 +192,7 @@ class LambdaHandler:
         voice_path = None
         combined_path = None
         try:
-            self.job_service.update_job_status(
-                request.user_id, job_id, JobStatus.PROCESSING
-            )
+            self.job_service.update_job_status(request.user_id, job_id, JobStatus.PROCESSING)
 
             input_data = self._ensure_input_data_is_dict(request.input_data)
             meditation_text = self.ai_service.generate_meditation(
@@ -211,16 +200,16 @@ class LambdaHandler:
             )
             logger.info(
                 "Meditation text generated",
-                extra={"data": {
-                    "length": len(meditation_text),
-                    "duration_minutes": request.duration_minutes,
-                }}
+                extra={
+                    "data": {
+                        "length": len(meditation_text),
+                        "duration_minutes": request.duration_minutes,
+                    }
+                },
             )
             timestamp = generate_timestamp()
 
-            voice_path, combined_path = self._generate_meditation_audio(
-                meditation_text, timestamp
-            )
+            voice_path, combined_path = self._generate_meditation_audio(meditation_text, timestamp)
             new_music_list = self.audio_service.combine_voice_and_music(
                 voice_path=voice_path,
                 music_list=request.music_list,
@@ -249,9 +238,7 @@ class LambdaHandler:
 
         except Exception as e:
             logger.error(
-                "Error processing meditation job",
-                extra={"data": {"job_id": job_id}},
-                exc_info=True
+                "Error processing meditation job", extra={"data": {"job_id": job_id}}, exc_info=True
             )
             self.job_service.update_job_status(
                 request.user_id, job_id, JobStatus.FAILED, error=str(e)
@@ -266,9 +253,7 @@ class LambdaHandler:
         """Process meditation with HLS streaming output."""
         voice_path = None
         try:
-            self.job_service.update_job_status(
-                request.user_id, job_id, JobStatus.PROCESSING
-            )
+            self.job_service.update_job_status(request.user_id, job_id, JobStatus.PROCESSING)
 
             # Get job data for retry info
             job_data = self.job_service.get_job(request.user_id, job_id)
@@ -284,7 +269,7 @@ class LambdaHandler:
             if self.hls_service.tts_cache_exists(request.user_id, job_id):
                 logger.info(
                     "Using cached TTS audio (batch mode)",
-                    extra={"data": {"job_id": job_id, "attempt": generation_attempt}}
+                    extra={"data": {"job_id": job_id, "attempt": generation_attempt}},
                 )
                 if not self.hls_service.download_tts_cache(request.user_id, job_id, voice_path):
                     raise Exception("Failed to download cached TTS audio")
@@ -295,20 +280,23 @@ class LambdaHandler:
                 # Progress callback
                 def progress_callback(segments_completed: int, segments_total: Optional[int]):
                     self.job_service.update_streaming_progress(
-                        request.user_id, job_id,
+                        request.user_id,
+                        job_id,
                         segments_completed=segments_completed,
                         segments_total=segments_total,
                         playlist_url=playlist_url,
                     )
 
                 # Use batch mode for cached audio
-                music_list, total_segments, segment_durations = self.audio_service.combine_voice_and_music_hls(
-                    voice_path=voice_path,
-                    music_list=request.music_list,
-                    timestamp=timestamp,
-                    user_id=request.user_id,
-                    job_id=job_id,
-                    progress_callback=progress_callback,
+                music_list, total_segments, segment_durations = (
+                    self.audio_service.combine_voice_and_music_hls(
+                        voice_path=voice_path,
+                        music_list=request.music_list,
+                        timestamp=timestamp,
+                        user_id=request.user_id,
+                        job_id=job_id,
+                        progress_callback=progress_callback,
+                    )
                 )
             else:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
@@ -318,12 +306,16 @@ class LambdaHandler:
                 )
                 logger.info(
                     "Meditation text generated",
-                    extra={"data": {
-                        "length": len(meditation_text),
-                        "duration_minutes": request.duration_minutes,
-                        "preview": meditation_text[:200],
-                        "ending": meditation_text[-200:] if len(meditation_text) > 200 else meditation_text,
-                    }}
+                    extra={
+                        "data": {
+                            "length": len(meditation_text),
+                            "duration_minutes": request.duration_minutes,
+                            "preview": meditation_text[:200],
+                            "ending": meditation_text[-200:]
+                            if len(meditation_text) > 200
+                            else meditation_text,
+                        }
+                    },
                 )
 
                 # Estimate TTS duration from text length
@@ -339,7 +331,7 @@ class LambdaHandler:
                 )
                 logger.debug(
                     "Music selected based on estimated TTS duration",
-                    extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}}
+                    extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}},
                 )
 
                 # Get TTS stream generator
@@ -353,14 +345,17 @@ class LambdaHandler:
                     nonlocal streaming_started
                     # Mark streaming started on first segment
                     if not streaming_started:
-                        self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+                        self.job_service.mark_streaming_started(
+                            request.user_id, job_id, playlist_url
+                        )
                         streaming_started = True
                         logger.info(
                             "First segment ready, marked as streaming",
-                            extra={"data": {"job_id": job_id, "playlist_url": playlist_url}}
+                            extra={"data": {"job_id": job_id, "playlist_url": playlist_url}},
                         )
                     self.job_service.update_streaming_progress(
-                        request.user_id, job_id,
+                        request.user_id,
+                        job_id,
                         segments_completed=segments_completed,
                         segments_total=segments_total,
                         playlist_url=playlist_url,
@@ -385,14 +380,14 @@ class LambdaHandler:
 
             logger.info(
                 "HLS job completed successfully",
-                extra={"data": {"job_id": job_id, "segments": total_segments}}
+                extra={"data": {"job_id": job_id, "segments": total_segments}},
             )
 
         except Exception as e:
             logger.error(
                 "Error processing HLS meditation job",
                 extra={"data": {"job_id": job_id}},
-                exc_info=True
+                exc_info=True,
             )
 
             # Check if we should retry
@@ -404,7 +399,7 @@ class LambdaHandler:
                 self.job_service.increment_generation_attempt(request.user_id, job_id)
                 logger.info(
                     "Retrying HLS generation",
-                    extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}}
+                    extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}},
                 )
                 # Self-invoke to retry asynchronously
                 try:
@@ -413,14 +408,16 @@ class LambdaHandler:
                 except Exception as invoke_error:
                     logger.error(
                         "Failed to invoke retry",
-                        extra={"data": {"job_id": job_id, "error": str(invoke_error)}}
+                        extra={"data": {"job_id": job_id, "error": str(invoke_error)}},
                     )
                     # Fall through to mark as failed
 
             # Max retries exceeded
             self.job_service.update_job_status(
-                request.user_id, job_id, JobStatus.FAILED,
-                error=f"Failed after {MAX_GENERATION_ATTEMPTS} attempts: {str(e)}"
+                request.user_id,
+                job_id,
+                JobStatus.FAILED,
+                error=f"Failed after {MAX_GENERATION_ATTEMPTS} attempts: {str(e)}",
             )
         finally:
             if voice_path:
@@ -491,9 +488,7 @@ class LambdaHandler:
             "expires_in": 3600,  # 1 hour
         }
 
-    def _store_summary_results(
-        self, request: SummaryRequestModel, response, has_audio: bool
-    ):
+    def _store_summary_results(self, request: SummaryRequestModel, response, has_audio: bool):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         object_key = f"{request.user_id}/summary/{timestamp}.json"
         self.storage_service.upload_json(
@@ -561,8 +556,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Check for async meditation processing (self-invoked)
         if event.get("_async_meditation"):
             logger.info(
-                "Processing async meditation job",
-                extra={"data": {"job_id": event.get("job_id")}}
+                "Processing async meditation job", extra={"data": {"job_id": event.get("job_id")}}
             )
             handler.process_meditation_async(event["job_id"], event["request"])
             return {"status": "async_completed"}
@@ -599,9 +593,7 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
     user_id = query_params.get("user_id", "")
 
     if not job_id or not user_id:
-        response = create_error_response(
-            HTTP_BAD_REQUEST, "Missing job_id or user_id parameter"
-        )
+        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id or user_id parameter")
         return cors_middleware(lambda e, _: response)(event, None)
 
     job_data = handler.handle_job_status(user_id, job_id)
@@ -627,11 +619,9 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
     if job_owner and job_owner != user_id:
         logger.warning(
             "Mismatched user_id on job access",
-            extra={"data": {"job_id": job_id, "requested_by": user_id, "owner": job_owner}}
+            extra={"data": {"job_id": job_id, "requested_by": user_id, "owner": job_owner}},
         )
-        response = create_error_response(
-            HTTP_FORBIDDEN, "Access denied: you do not own this job"
-        )
+        response = create_error_response(HTTP_FORBIDDEN, "Access denied: you do not own this job")
         return cors_middleware(lambda e, _: response)(event, None)
 
     response = create_success_response(job_data)
@@ -658,9 +648,7 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
     user_id = query_params.get("user_id", "")
 
     if not job_id or not user_id:
-        response = create_error_response(
-            HTTP_BAD_REQUEST, "Missing job_id or user_id parameter"
-        )
+        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id or user_id parameter")
         return cors_middleware(lambda e, _: response)(event, None)
 
     # Authorization check
@@ -671,9 +659,7 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
 
     job_owner = job_data.get("user_id", "")
     if job_owner and job_owner != user_id:
-        response = create_error_response(
-            HTTP_FORBIDDEN, "Access denied: you do not own this job"
-        )
+        response = create_error_response(HTTP_FORBIDDEN, "Access denied: you do not own this job")
         return cors_middleware(lambda e, _: response)(event, None)
 
     # Handle download (pass job_data to avoid duplicate lookup)

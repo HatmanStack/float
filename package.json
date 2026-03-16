@@ -15,7 +15,7 @@
     "test:backend": "cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short",
     "lint": "cd frontend && npm run lint",
     "lint:backend": "cd backend && uvx ruff check .",
-    "check": "npm run lint && npm run lint:backend && npm test",
+    "check": "npm run lint && npm run lint:backend && npm test && npm run test:backend",
     "test:backend:docker": "docker compose run --rm backend",
     "deploy": "node ./backend/scripts/deploy.mjs",
     "prepare": "husky",
@@ -66,6 +66,9 @@
   "lint-staged": {
     "frontend/**/*.{ts,tsx}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "frontend/**/*.{js,json}": [
       "prettier --write"
     ],
     "backend/**/*.py": [

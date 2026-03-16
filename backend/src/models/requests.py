@@ -119,6 +119,10 @@ def parse_request_body(body: Dict[str, Any]) -> Union[SummaryRequestModel, Medit
 
     from ..exceptions import ErrorCode, ValidationError
 
+    # Reject non-dict payloads (e.g. list, string, null from json.loads)
+    if not isinstance(body, dict):
+        raise ValidationError("Request body must be a JSON object", ErrorCode.INVALID_REQUEST)
+
     # Pre-validate required fields for clear error messages
     if not body.get("user_id"):
         raise ValidationError("user_id is required", ErrorCode.MISSING_FIELD)

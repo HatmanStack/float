@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node.js 24+
-- Python 3.13+
+- Python 3.12+
 - FFmpeg (for audio processing)
 - AWS CLI (for deployment only)
 

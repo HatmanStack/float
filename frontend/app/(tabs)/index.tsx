@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { TextInput } from 'react-native';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,7 +12,7 @@ import { BackendSummaryCall, SummaryResponse, toIncident } from '@/components/Ba
 import { useIncident } from '@/context/IncidentContext';
 import { Audio } from 'expo-av';
 import useStyles from '@/constants/StylesConstants';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 
@@ -91,21 +91,17 @@ function useSummarySubmission(
       let response: SummaryResponse;
       if (recording) {
         const base64_file = await StopRecording(recording);
-        response = await BackendSummaryCall(
-          base64_file ?? '',
-          separateTextPrompt,
-          user?.id ?? ''
-        );
+        response = await BackendSummaryCall(base64_file ?? '', separateTextPrompt, user?.id ?? '');
       } else {
         response = await BackendSummaryCall(URI, separateTextPrompt, user?.id ?? '');
       }
       setIncidentList((prevList) => [toIncident(response), ...prevList]);
       onSubmitSuccess();
+      router.push('/explore');
     } catch (error) {
       console.error('Failed to call summary lambda:', error);
     } finally {
       setSubmitActivity(false);
-      router.push('/explore');
     }
   }, [URI, separateTextPrompt, recording, setIncidentList, user?.id, router, onSubmitSuccess]);
 
@@ -120,7 +116,6 @@ function useSummarySubmission(
  */
 export default function HomeScreen(): React.ReactNode {
   const [separateTextPrompt, setSeparateTextPrompt] = useState('');
-  const { width, height } = useWindowDimensions();
   const styles = useStyles();
 
   const { recording, URI, errorText, handleStartRecording, handleStopRecording, resetRecording } =
@@ -137,10 +132,6 @@ export default function HomeScreen(): React.ReactNode {
     separateTextPrompt,
     onSubmitSuccess
   );
-
-  useEffect(() => {
-    // This effect is intentionally empty to track width/height changes
-  }, [width, height]);
 
   return (
     <ParallaxScrollView
