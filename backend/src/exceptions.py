@@ -20,8 +20,6 @@ class ErrorCode(Enum):
     INVALID_INFERENCE_TYPE = "INVALID_INFERENCE_TYPE"
     AUDIO_TOO_LARGE = "AUDIO_TOO_LARGE"
     TEXT_TOO_LONG = "TEXT_TOO_LONG"
-    MUSIC_LIST_TOO_LARGE = "MUSIC_LIST_TOO_LARGE"
-    INVALID_DURATION = "INVALID_DURATION"
 
     # External service errors (5xx but retriable)
     TTS_FAILURE = "TTS_FAILURE"
@@ -118,13 +116,6 @@ class AIServiceError(ExternalServiceError):
         super().__init__(message, ErrorCode.AI_SERVICE_FAILURE, details=details)
 
 
-class StorageError(ExternalServiceError):
-    """Raised when storage operations (S3) fail."""
-
-    def __init__(self, message: str, details: Optional[str] = None):
-        super().__init__(message, ErrorCode.STORAGE_FAILURE, details=details)
-
-
 class CircuitBreakerOpenError(ExternalServiceError):
     """Raised when circuit breaker is open and rejecting requests."""
 
@@ -143,15 +134,6 @@ class AudioProcessingError(FloatException):
     def __init__(self, message: str, details: Optional[str] = None):
         super().__init__(
             message, ErrorCode.FFMPEG_FAILURE, retriable=False, details=details
-        )
-
-
-class EncodingError(FloatException):
-    """Raised when audio encoding/decoding fails."""
-
-    def __init__(self, message: str, details: Optional[str] = None):
-        super().__init__(
-            message, ErrorCode.ENCODING_FAILURE, retriable=False, details=details
         )
 
 

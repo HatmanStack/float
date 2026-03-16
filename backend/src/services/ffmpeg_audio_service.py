@@ -35,11 +35,11 @@ HLS_SEGMENT_DURATION = 5  # seconds
 
 # FFmpeg timeout configuration (seconds)
 FFMPEG_STEP_TIMEOUT = 120  # 2 minutes per individual step
-FFMPEG_HLS_TIMEOUT = 300   # 5 minutes for full HLS generation
+FFMPEG_HLS_TIMEOUT = 300  # 5 minutes for full HLS generation
+FFMPEG_STREAM_TIMEOUT = 600  # 10 minutes for full streaming pipeline
 
 
 class FFmpegAudioService(AudioService):
-
     def __init__(
         self,
         storage_service: StorageService,
@@ -69,11 +69,13 @@ class FFmpegAudioService(AudioService):
                 stderr=subprocess.PIPE,
                 text=True,
                 check=True,
+                timeout=FFMPEG_STEP_TIMEOUT,
             )
-            duration_line = [
-                line for line in result.stderr.split("\n") if "Duration" in line
-            ][0]
-            duration_str = duration_line.split(",")[0].split("Duration:")[1].strip()
+            duration_lines = [line for line in result.stderr.split("\n") if "Duration" in line]
+            if not duration_lines:
+                logger.warning("No Duration line in ffmpeg output", extra={"data": {"file": file_path}})
+                return 0.0
+            duration_str = duration_lines[0].split(",")[0].split("Duration:")[1].strip()
             h, m, s = map(float, duration_str.split(":"))
             duration = h * 3600 + m * 60 + s
             return duration
@@ -86,106 +88,28 @@ class FFmpegAudioService(AudioService):
     ) -> List[str]:
         """Combine voice and music into a single MP3 file."""
         logger.info("Combining audio")
-        music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
-        music_volume_reduced_path = f"{settings.TEMP_DIR}/music_reduced_{timestamp}.mp3"
-        music_length_reduced_path = (
-            f"{settings.TEMP_DIR}/music_length_reduced_{timestamp}.mp3"
-        )
-        silence_path = f"{settings.TEMP_DIR}/silence_{timestamp}.mp3"
-        voice_with_silence_path = (
-            f"{settings.TEMP_DIR}/voice_with_silence_{timestamp}.mp3"
-        )
-        temp_paths = [
-            music_path,
-            music_volume_reduced_path,
-            music_length_reduced_path,
-            silence_path,
-            voice_with_silence_path,
-            output_path,
-        ]
-        for path in temp_paths:
-            if os.path.exists(path):
-                os.remove(path)
-        voice_duration = self.get_audio_duration(voice_path)
-        logger.debug(f"Voice duration: {voice_duration}")
-        total_duration = voice_duration + 30  # Add 30 seconds buffer
-        new_music = self.select_background_music(music_list, total_duration, music_path)
-        logger.debug(f"Selected music: {new_music}")
+        mixed_audio_path = None
         try:
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    music_path,
-                    "-filter:a",
-                    f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
-                    music_volume_reduced_path,
-                ],
-                check=True,
+            mixed_audio_path, updated_music_list = self._prepare_mixed_audio(
+                voice_path, music_list, timestamp
             )
-            logger.debug("Step 1: Music volume reduced")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-f",
-                    "lavfi",
-                    "-i",
-                    f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
-                    "-t",
-                    str(DEFAULT_SILENCE_DURATION),
-                    silence_path,
-                ],
-                check=True,
-            )
-            logger.debug("Step 2: Silence created")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    f"concat:{silence_path}|{voice_path}",
-                    "-c",
-                    "copy",
-                    voice_with_silence_path,
-                ],
-                check=True,
-            )
-            logger.debug("Step 3: Voice with silence")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    music_volume_reduced_path,
-                    "-t",
-                    str(total_duration),
-                    music_length_reduced_path,
-                ],
-                check=True,
-            )
-            logger.debug("Step 4: Music length adjusted")
-            subprocess.run(
-                [
-                    self.ffmpeg_executable,
-                    "-i",
-                    music_length_reduced_path,
-                    "-i",
-                    voice_with_silence_path,
-                    "-filter_complex",
-                    "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2:normalize=0",
-                    output_path,
-                ],
-                check=True,
-            )
-            logger.debug("Step 5: Audio combined")
-            for path in temp_paths[:-1]:  # Keep output_path
-                if os.path.exists(path):
-                    os.remove(path)
-            return new_music
+            # Move the mixed output to the caller's expected output_path
+            if os.path.exists(mixed_audio_path):
+                shutil.move(mixed_audio_path, output_path)
+                mixed_audio_path = None  # Prevent cleanup since it's been moved
+            return updated_music_list
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg command failed: {e.cmd}, return code: {e.returncode}")
             raise
         except Exception as e:
             logger.error(f"Error in audio combination: {e}")
             raise
+        finally:
+            if mixed_audio_path and os.path.exists(mixed_audio_path):
+                try:
+                    os.remove(mixed_audio_path)
+                except OSError:
+                    pass
 
     def combine_voice_and_music_hls(
         self,
@@ -230,7 +154,7 @@ class FFmpegAudioService(AudioService):
             estimated_segments = int(total_duration / HLS_SEGMENT_DURATION) + 1
             logger.info(
                 "Audio prepared for HLS",
-                extra={"data": {"duration": total_duration, "est_segments": estimated_segments}}
+                extra={"data": {"duration": total_duration, "est_segments": estimated_segments}},
             )
 
             # Step 5: Output as HLS segments
@@ -240,27 +164,41 @@ class FFmpegAudioService(AudioService):
             # Run FFmpeg with HLS output
             ffmpeg_cmd = [
                 self.ffmpeg_executable,
-                "-i", mixed_audio_path,
-                "-c:a", "aac",  # AAC codec required for HLS browser compatibility
-                "-f", "hls",
-                "-hls_time", str(HLS_SEGMENT_DURATION),
-                "-hls_segment_type", "mpegts",
-                "-hls_flags", "independent_segments",
-                "-hls_segment_filename", segment_pattern,
-                "-hls_list_size", "0",  # Keep all segments in playlist
+                "-i",
+                mixed_audio_path,
+                "-c:a",
+                "aac",  # AAC codec required for HLS browser compatibility
+                "-f",
+                "hls",
+                "-hls_time",
+                str(HLS_SEGMENT_DURATION),
+                "-hls_segment_type",
+                "mpegts",
+                "-hls_flags",
+                "independent_segments",
+                "-hls_segment_filename",
+                segment_pattern,
+                "-hls_list_size",
+                "0",  # Keep all segments in playlist
                 playlist_path,
             ]
 
-            logger.debug("Running FFmpeg HLS command", extra={"data": {"cmd": " ".join(ffmpeg_cmd)}})
+            logger.debug(
+                "Running FFmpeg HLS command", extra={"data": {"cmd": " ".join(ffmpeg_cmd)}}
+            )
 
             try:
-                subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=FFMPEG_HLS_TIMEOUT)
+                subprocess.run(
+                    ffmpeg_cmd, check=True, capture_output=True, timeout=FFMPEG_HLS_TIMEOUT
+                )
             except subprocess.TimeoutExpired as e:
                 logger.error(
                     "FFmpeg HLS generation timed out",
-                    extra={"data": {"timeout": FFMPEG_HLS_TIMEOUT, "cmd": " ".join(ffmpeg_cmd)}}
+                    extra={"data": {"timeout": FFMPEG_HLS_TIMEOUT, "cmd": " ".join(ffmpeg_cmd)}},
                 )
-                raise Exception(f"FFmpeg HLS generation timed out after {FFMPEG_HLS_TIMEOUT}s") from e
+                raise Exception(
+                    f"FFmpeg HLS generation timed out after {FFMPEG_HLS_TIMEOUT}s"
+                ) from e
 
             # Now upload segments progressively
             segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
@@ -294,16 +232,17 @@ class FFmpegAudioService(AudioService):
                     progress_callback(segments_uploaded, estimated_segments)
 
                 logger.debug(
-                    "Uploaded segment",
-                    extra={"data": {"segment": i, "duration": seg_duration}}
+                    "Uploaded segment", extra={"data": {"segment": i, "duration": seg_duration}}
                 )
 
             # Finalize playlist with ENDLIST
-            self.hls_service.finalize_playlist(user_id, job_id, segments_uploaded, segment_durations)
+            self.hls_service.finalize_playlist(
+                user_id, job_id, segments_uploaded, segment_durations
+            )
 
             logger.info(
                 "HLS generation complete",
-                extra={"data": {"job_id": job_id, "segments": segments_uploaded}}
+                extra={"data": {"job_id": job_id, "segments": segments_uploaded}},
             )
 
             # Return the updated music list from _prepare_mixed_audio
@@ -336,8 +275,11 @@ class FFmpegAudioService(AudioService):
 
         # Intermediate files to clean up (excludes mixed_output_path which is returned)
         intermediate_paths = [
-            music_path, music_volume_reduced_path, music_length_reduced_path,
-            silence_path, voice_with_silence_path
+            music_path,
+            music_volume_reduced_path,
+            music_length_reduced_path,
+            silence_path,
+            voice_with_silence_path,
         ]
 
         # Clean up any existing files
@@ -350,14 +292,18 @@ class FFmpegAudioService(AudioService):
             total_duration = voice_duration + 30
 
             # Select and download background music
-            updated_music_list = self.select_background_music(music_list, total_duration, music_path)
+            updated_music_list = self.select_background_music(
+                music_list, total_duration, music_path
+            )
 
             # Step 1: Reduce music volume
             subprocess.run(
                 [
                     self.ffmpeg_executable,
-                    "-i", music_path,
-                    "-filter:a", f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
+                    "-i",
+                    music_path,
+                    "-filter:a",
+                    f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB",
                     music_volume_reduced_path,
                 ],
                 check=True,
@@ -369,9 +315,12 @@ class FFmpegAudioService(AudioService):
             subprocess.run(
                 [
                     self.ffmpeg_executable,
-                    "-f", "lavfi",
-                    "-i", f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
-                    "-t", str(DEFAULT_SILENCE_DURATION),
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    f"anullsrc=r={settings.AUDIO_SAMPLE_RATE}:cl=stereo",
+                    "-t",
+                    str(DEFAULT_SILENCE_DURATION),
                     silence_path,
                 ],
                 check=True,
@@ -383,8 +332,10 @@ class FFmpegAudioService(AudioService):
             subprocess.run(
                 [
                     self.ffmpeg_executable,
-                    "-i", f"concat:{silence_path}|{voice_path}",
-                    "-c", "copy",
+                    "-i",
+                    f"concat:{silence_path}|{voice_path}",
+                    "-c",
+                    "copy",
                     voice_with_silence_path,
                 ],
                 check=True,
@@ -396,8 +347,10 @@ class FFmpegAudioService(AudioService):
             subprocess.run(
                 [
                     self.ffmpeg_executable,
-                    "-i", music_volume_reduced_path,
-                    "-t", str(total_duration),
+                    "-i",
+                    music_volume_reduced_path,
+                    "-t",
+                    str(total_duration),
                     music_length_reduced_path,
                 ],
                 check=True,
@@ -409,8 +362,10 @@ class FFmpegAudioService(AudioService):
             subprocess.run(
                 [
                     self.ffmpeg_executable,
-                    "-i", music_length_reduced_path,
-                    "-i", voice_with_silence_path,
+                    "-i",
+                    music_length_reduced_path,
+                    "-i",
+                    voice_with_silence_path,
                     "-filter_complex",
                     "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2:normalize=0",
                     mixed_output_path,
@@ -470,9 +425,7 @@ class FFmpegAudioService(AudioService):
         if not available_keys:
             logger.debug("No new music tracks available, reusing from pool")
             available_keys = (
-                list(filtered_keys)
-                if filtered_keys
-                else ["Hopeful-Elegant-LaidBack_120.wav"]
+                list(filtered_keys) if filtered_keys else ["Hopeful-Elegant-LaidBack_120.wav"]
             )
         file_key = random.choice(available_keys)
         if self.storage_service.download_file(bucket_name, file_key, output_path):
@@ -548,26 +501,46 @@ class FFmpegAudioService(AudioService):
 
         ffmpeg_fade_cmd = [
             self.ffmpeg_executable,
-            "-ss", str(music_offset),
-            "-stream_loop", "-1",
-            "-i", music_path,
-            "-t", str(fade_duration),
+            "-ss",
+            str(music_offset),
+            "-stream_loop",
+            "-1",
+            "-i",
+            music_path,
+            "-t",
+            str(fade_duration),
             "-filter_complex",
             f"[0:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB,"
             f"afade=t=out:st=0:d={fade_duration}[out]",
-            "-map", "[out]",
-            "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "128k",
-            "-f", "hls",
-            "-hls_time", str(HLS_SEGMENT_DURATION),
-            "-hls_segment_type", "mpegts",
-            "-hls_flags", "independent_segments",
-            "-hls_segment_filename", fade_segment_pattern,
-            "-hls_list_size", "0",
+            "-map",
+            "[out]",
+            "-c:a",
+            "aac",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
+            "-b:a",
+            "128k",
+            "-f",
+            "hls",
+            "-hls_time",
+            str(HLS_SEGMENT_DURATION),
+            "-hls_segment_type",
+            "mpegts",
+            "-hls_flags",
+            "independent_segments",
+            "-hls_segment_filename",
+            fade_segment_pattern,
+            "-hls_list_size",
+            "0",
             fade_playlist_path,
         ]
 
         try:
-            subprocess.run(ffmpeg_fade_cmd, check=True, capture_output=True, timeout=FFMPEG_STEP_TIMEOUT)
+            subprocess.run(
+                ffmpeg_fade_cmd, check=True, capture_output=True, timeout=FFMPEG_STEP_TIMEOUT
+            )
 
             fade_segments = sorted(glob.glob(os.path.join(fade_output_dir, "segment_*.ts")))
             for i, fade_segment in enumerate(fade_segments):
@@ -638,28 +611,50 @@ class FFmpegAudioService(AudioService):
         est_minutes = estimated_voice_duration / 60
         tier = sum(1 for t in duration_tiers if est_minutes >= t) or 1
         trailing_pad = HLS_TRAILING_PAD_BASE_SECONDS + (HLS_TRAILING_PAD_PER_TIER * tier)
-        logger.info(f"Trailing pad: {trailing_pad}s (base={HLS_TRAILING_PAD_BASE_SECONDS} + "
-                    f"{HLS_TRAILING_PAD_PER_TIER}s x tier {tier})")
+        logger.info(
+            f"Trailing pad: {trailing_pad}s (base={HLS_TRAILING_PAD_BASE_SECONDS} + "
+            f"{HLS_TRAILING_PAD_PER_TIER}s x tier {tier})"
+        )
 
         # Stream WITHOUT fade - fade segments are appended after streaming completes
         ffmpeg_cmd = [
             self.ffmpeg_executable,
-            "-f", "mp3", "-i", "pipe:0",
-            "-stream_loop", "-1", "-i", music_path,
+            "-f",
+            "mp3",
+            "-i",
+            "pipe:0",
+            "-stream_loop",
+            "-1",
+            "-i",
+            music_path,
             "-filter_complex",
             f"[0:a]volume={DEFAULT_VOICE_BOOST}dB,"
             f"adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
             f"apad=pad_dur={trailing_pad}[voice_padded];"
             f"[1:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
             f"[voice_padded][music]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[out]",
-            "-map", "[out]",
-            "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "128k",
-            "-f", "hls",
-            "-hls_time", str(HLS_SEGMENT_DURATION),
-            "-hls_segment_type", "mpegts",
-            "-hls_flags", "independent_segments",
-            "-hls_segment_filename", segment_pattern,
-            "-hls_list_size", "0",
+            "-map",
+            "[out]",
+            "-c:a",
+            "aac",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
+            "-b:a",
+            "128k",
+            "-f",
+            "hls",
+            "-hls_time",
+            str(HLS_SEGMENT_DURATION),
+            "-hls_segment_type",
+            "mpegts",
+            "-hls_flags",
+            "independent_segments",
+            "-hls_segment_filename",
+            segment_pattern,
+            "-hls_list_size",
+            "0",
             playlist_path,
         ]
 
@@ -711,16 +706,19 @@ class FFmpegAudioService(AudioService):
                         state["segment_durations"][segment_index] = seg_duration
 
                         # Upload segment
-                        if self.hls_service.upload_segment_from_file(user_id, job_id, segment_index, segment_file):
+                        if self.hls_service.upload_segment_from_file(
+                            user_id, job_id, segment_index, segment_file
+                        ):
                             uploaded_segments.add(segment_file)
                             state["segments_uploaded"] += 1
 
                             # Update playlist
                             playlist_content = self.hls_service.generate_live_playlist(
-                                user_id, job_id,
+                                user_id,
+                                job_id,
                                 state["segments_uploaded"],
-                                state["segment_durations"][:state["segments_uploaded"]],
-                                is_complete=False
+                                state["segment_durations"][: state["segments_uploaded"]],
+                                is_complete=False,
                             )
                             self.hls_service.upload_playlist(user_id, job_id, playlist_content)
 
@@ -756,12 +754,19 @@ class FFmpegAudioService(AudioService):
                     voice_file.write(chunk)  # Save for fade processing
 
             process.stdin.close()
-            process.wait()
+            process.wait(timeout=FFMPEG_STREAM_TIMEOUT)
 
             if process.returncode != 0:
                 stderr = process.stderr.read().decode()
                 raise Exception(f"FFmpeg failed: {stderr}")
 
+        except subprocess.TimeoutExpired as err:
+            logger.error(f"FFmpeg streaming process timed out after {FFMPEG_STREAM_TIMEOUT}s")
+            process.kill()
+            process.wait()  # Reap the process
+            raise AudioProcessingError(
+                f"FFmpeg streaming timed out after {FFMPEG_STREAM_TIMEOUT}s"
+            ) from err
         except BrokenPipeError as e:
             stderr = process.stderr.read().decode() if process.stderr else "unknown"
             logger.error(f"FFmpeg broken pipe - stderr: {stderr}")

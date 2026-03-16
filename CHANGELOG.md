@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-03-15
+
+### Added
+- Changelog-driven release automation: pushing CHANGELOG.md to main creates tags and GitHub releases
+- Docker setup for backend development with Dockerfile and compose
+- Contributing guide, PR template, and `.env.example` files
+- Commitlint with conventional commits enforcement and husky pre-commit hooks
+- One-command `npm run setup` for development environment
+- End-to-end handler test for summary flow
+- Dockerfile linting (hadolint) in CI pipeline
+
+### Fixed
+- Backend test reliability: mock Lambda async invocation properly in unit tests
+- Unsafe SummaryResponse-to-Incident cast replaced with explicit mapping
+- S3 failure handling: raise on `_save_job` errors
+- FFmpeg subprocess timeouts for streaming and audio mixing
+- S3 `list_objects` pagination for large result sets
+- Deprecated `expo-permissions` replaced with `expo-notifications` API
+
+### Changed
+- Backend settings converted to Pydantic BaseSettings
+- Legacy request wrapper layer removed in favor of direct Pydantic validation
+- Removed unused domain model layer, exception classes, and dead code
+- Consolidated three frontend polling functions into one
+- Deduplicated FFmpeg pipeline in `combine_voice_and_music`
+- Expanded ruff rules to catch dead code and security patterns
+- Structured logging replaces all `print()` calls in backend
+- Documentation overhauled: API schemas, architecture, test READMEs, CLAUDE.md
+
 ## [1.0.0] - 2026-02-05
 
 ### Added

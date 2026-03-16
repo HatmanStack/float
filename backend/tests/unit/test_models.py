@@ -1,10 +1,10 @@
 """Unit tests for Pydantic models."""
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
-from src.config.constants import InferenceType
 from src.exceptions import ValidationError
-from src.models.requests import MeditationRequest, SummaryRequest, parse_request_body
+from src.models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body
 from src.models.responses import (
     create_meditation_response,
     create_summary_response,
@@ -13,68 +13,67 @@ from src.models.responses import (
 
 @pytest.mark.unit
 class TestSummaryRequestModel:
-    """Test SummaryRequest model validation."""
+    """Test SummaryRequestModel Pydantic validation."""
 
     def test_create_with_prompt(self):
-        """Test creating SummaryRequest with prompt."""
-        req = SummaryRequest(
+        """Test creating SummaryRequestModel with prompt."""
+        req = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="I feel sad",
             audio="NotAvailable",
         )
         assert req.user_id == "user-123"
         assert req.prompt == "I feel sad"
         assert req.audio == "NotAvailable"
-        assert req.validate() is True
 
     def test_create_with_both_prompt_and_audio(self):
-        """Test creating SummaryRequest with both prompt and audio."""
-        req = SummaryRequest(
+        """Test creating SummaryRequestModel with both prompt and audio."""
+        req = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="I feel sad",
             audio="base64audiodata",
         )
-        assert req.validate() is True
+        assert req.user_id == "user-123"
 
     def test_validation_fails_with_both_unavailable(self):
         """Test validation fails when both prompt and audio are unavailable."""
-        req = SummaryRequest(
-            user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
-            prompt="NotAvailable",
-            audio="NotAvailable",
-        )
-        assert req.validate() is False
+        with pytest.raises(PydanticValidationError):
+            SummaryRequestModel(
+                user_id="user-123",
+                inference_type="summary",
+                prompt="NotAvailable",
+                audio="NotAvailable",
+            )
 
     def test_validation_passes_with_empty_audio(self):
         """Test validation passes with prompt and empty audio."""
-        req = SummaryRequest(
+        req = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="I feel sad",
             audio=None,
         )
-        assert req.validate() is True
+        assert req.user_id == "user-123"
 
-    def test_inference_type_auto_set(self):
-        """Test inference_type is auto-set to SUMMARY."""
-        req = SummaryRequest(
+    def test_inference_type_is_summary(self):
+        """Test inference_type is 'summary'."""
+        req = SummaryRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.SUMMARY,
+            inference_type="summary",
             prompt="Test",
             audio="NotAvailable",
         )
-        assert req.inference_type == InferenceType.SUMMARY
+        assert req.inference_type == "summary"
 
 
 @pytest.mark.unit
 class TestMeditationRequestModel:
-    """Test MeditationRequest model validation."""
+    """Test MeditationRequestModel Pydantic validation."""
 
     def test_create_valid_meditation_request(self):
-        """Test creating valid MeditationRequest."""
+        """Test creating valid MeditationRequestModel."""
         input_data = {
             "sentiment_label": ["Sad", "Anxious"],
             "intensity": [4, 3],
@@ -84,55 +83,53 @@ class TestMeditationRequestModel:
             "user_summary": ["Had a bad day", "Worried about future"],
             "user_short_summary": ["Bad day", "Anxious"],
         }
-        req = MeditationRequest(
+        req = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data=input_data,
-            music_list=[{"name": "ambient", "volume": 0.3}],
+            music_list=["ambient"],
         )
         assert req.user_id == "user-123"
-        assert req.validate() is True
 
     def test_meditation_with_list_input_data(self):
-        """Test MeditationRequest with list of input data."""
+        """Test MeditationRequestModel with list of input data."""
         input_data = [
             {"sentiment_label": "Sad", "intensity": 4},
             {"sentiment_label": "Anxious", "intensity": 3},
         ]
-        req = MeditationRequest(
+        req = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data=input_data,
             music_list=[],
         )
         assert isinstance(req.input_data, list)
-        assert req.validate() is True
 
-    def test_inference_type_auto_set_meditation(self):
-        """Test inference_type is auto-set to MEDITATION."""
-        req = MeditationRequest(
+    def test_inference_type_is_meditation(self):
+        """Test inference_type is 'meditation'."""
+        req = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data={"sentiment": "Sad"},
             music_list=[],
         )
-        assert req.inference_type == InferenceType.MEDITATION
+        assert req.inference_type == "meditation"
 
     def test_validation_fails_with_empty_input_data(self):
         """Test validation fails with empty input_data."""
-        req = MeditationRequest(
-            user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
-            input_data={},
-            music_list=[],
-        )
-        assert req.validate() is False
+        with pytest.raises(PydanticValidationError):
+            MeditationRequestModel(
+                user_id="user-123",
+                inference_type="meditation",
+                input_data={},
+                music_list=[],
+            )
 
     def test_music_list_must_be_list(self):
         """Test music_list must be a list."""
-        req = MeditationRequest(
+        req = MeditationRequestModel(
             user_id="user-123",
-            inference_type=InferenceType.MEDITATION,
+            inference_type="meditation",
             input_data={"sentiment": "Sad"},
             music_list=[],
         )
@@ -146,31 +143,31 @@ class TestParseRequestBody:
     def test_parse_summary_request(self):
         """Test parsing a summary request body."""
         body = {
-            "inference_type": InferenceType.SUMMARY,
+            "inference_type": "summary",
             "user_id": "user-123",
             "prompt": "I feel sad",
             "audio": "NotAvailable",
         }
         req = parse_request_body(body)
-        assert isinstance(req, SummaryRequest)
+        assert isinstance(req, SummaryRequestModel)
         assert req.user_id == "user-123"
 
     def test_parse_meditation_request(self):
         """Test parsing a meditation request body."""
         body = {
-            "inference_type": InferenceType.MEDITATION,
+            "inference_type": "meditation",
             "user_id": "user-123",
             "input_data": {"sentiment": "Sad"},
             "music_list": [],
         }
         req = parse_request_body(body)
-        assert isinstance(req, MeditationRequest)
+        assert isinstance(req, MeditationRequestModel)
         assert req.user_id == "user-123"
 
     def test_parse_missing_user_id(self):
         """Test parsing fails without user_id."""
         body = {
-            "inference_type": InferenceType.SUMMARY,
+            "inference_type": "summary",
             "prompt": "I feel sad",
             "audio": "NotAvailable",
         }

@@ -1,6 +1,11 @@
-"""End-to-end tests for complete meditation request flow."""
+"""End-to-end tests for complete meditation request flow.
 
-import base64
+Tests the async meditation API contract:
+  1. handle_meditation_request() returns {job_id, status: "pending", message}
+  2. process_meditation_async() processes the job in the background
+  3. Job status transitions: pending -> processing -> completed/failed
+"""
+
 import time
 
 import pytest
@@ -9,7 +14,7 @@ import pytest
 @pytest.mark.e2e
 @pytest.mark.slow
 class TestMeditationFlowHappyPath:
-    """E2E tests for meditation request happy path."""
+    """E2E tests for meditation request happy path (async job contract)."""
 
     def test_complete_meditation_flow_sad_emotion(
         self,
@@ -23,40 +28,39 @@ class TestMeditationFlowHappyPath:
             user_id=test_user_id,
             sentiment_label=["Sad"],
             intensity=[4],
-            music_list=[],  # No background music for faster test
+            music_list=[],
         )
+        request = parse_meditation_request_from_dict(request_body)
 
-        # Act
+        # Act - Step 1: Submit returns job_id immediately
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+
+        # Assert async job creation response
+        assert submit_response, "Response should not be None"
+        assert "job_id" in submit_response, "Response should have job_id"
+        assert submit_response["status"] == "pending", "Initial status should be pending"
+        assert "message" in submit_response, "Response should have message"
+
+        job_id = submit_response["job_id"]
+
+        # Act - Step 2: Process the meditation asynchronously
         start_time = time.time()
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
         elapsed_time = time.time() - start_time
 
-        # Assert
-        assert response, "Response should not be None"
-        assert "base64_audio" in response, "Response should have base64_audio"
-        assert "music_list" in response, "Response should have music_list"
-
-        # Verify audio is valid base64
-        audio_data = response["base64_audio"]
-        assert audio_data, "Audio data should not be empty"
-        assert len(audio_data) > 1000, "Audio data should have substantial content"
-
-        # Try to decode base64 to verify it's valid
-        try:
-            decoded = base64.b64decode(audio_data)
-            assert len(decoded) > 0, "Decoded audio should have content"
-        except Exception as e:
-            pytest.fail(f"Audio is not valid base64: {e}")
+        # Assert - Job should be completed
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", (
+            f"Job should be completed, got {job_data['status']}"
+        )
 
         # Verify timing
-        assert (
-            elapsed_time < 90
-        ), f"Meditation flow should complete within 90s, took {elapsed_time:.2f}s"
+        assert elapsed_time < 90, (
+            f"Meditation flow should complete within 90s, took {elapsed_time:.2f}s"
+        )
 
         print(f"\n✓ Complete meditation flow (sad) completed in {elapsed_time:.2f}s")
-        print(f"  Audio size: {len(audio_data):,} characters (base64)")
 
     def test_complete_meditation_flow_happy_emotion(
         self,
@@ -72,25 +76,24 @@ class TestMeditationFlowHappyPath:
             intensity=[3],
             music_list=[],
         )
-
-        # Update input_data for happy emotion
         request_body["input_data"]["added_text"] = ["I had a wonderful day"]
         request_body["input_data"]["summary"] = ["User experiencing happiness"]
         request_body["input_data"]["user_summary"] = ["Had an amazing day"]
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
-        start_time = time.time()
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
-        elapsed_time = time.time() - start_time
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        assert "job_id" in submit_response, "Should return job_id"
+
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
 
         # Assert
-        assert response, "Response should not be None"
-        assert "base64_audio" in response, "Should return audio"
-        assert len(response["base64_audio"]) > 1000, "Audio should have content"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
 
-        print(f"\n✓ Complete meditation flow (happy) completed in {elapsed_time:.2f}s")
+        print("\n✓ Complete meditation flow (happy) completed")
 
     def test_complete_meditation_flow_anxious_emotion(
         self,
@@ -106,22 +109,22 @@ class TestMeditationFlowHappyPath:
             intensity=[5],
             music_list=[],
         )
-
-        # Update input_data for anxious emotion
         request_body["input_data"]["added_text"] = ["Worried about presentation"]
         request_body["input_data"]["summary"] = ["User experiencing anxiety"]
-        request_body["input_data"]["user_summary"] = [
-            "Anxious about upcoming presentation"
-        ]
+        request_body["input_data"]["user_summary"] = ["Anxious about upcoming presentation"]
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        assert "job_id" in submit_response, "Should return job_id"
+
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
 
         # Assert
-        assert response, "Response should not be None"
-        assert "base64_audio" in response, "Should return audio"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
 
         print("\n✓ Complete meditation flow (anxious) completed")
 
@@ -140,17 +143,21 @@ class TestMeditationFlowHappyPath:
                 intensity=[intensity],
                 music_list=[],
             )
+            request = parse_meditation_request_from_dict(request_body)
 
             # Act
-            response = lambda_handler_real.handle_meditation_request(
-                parse_meditation_request_from_dict(request_body)
-            )
+            submit_response = lambda_handler_real.handle_meditation_request(request)
+            assert "job_id" in submit_response, f"Should return job_id for intensity {intensity}"
+
+            job_id = submit_response["job_id"]
+            lambda_handler_real.process_meditation_async(job_id, request.to_dict())
 
             # Assert
-            assert response, f"Should return response for intensity {intensity}"
-            assert "base64_audio" in response, f"Should have audio for intensity {intensity}"
-            assert len(response["base64_audio"]) > 500, \
-                f"Should have audio content for intensity {intensity}"
+            job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+            assert job_data is not None, f"Job should exist for intensity {intensity}"
+            assert job_data["status"] == "completed", (
+                f"Job should be completed for intensity {intensity}"
+            )
 
             print(f"  ✓ Meditation generated for intensity {intensity}")
 
@@ -160,7 +167,7 @@ class TestMeditationFlowHappyPath:
         meditation_request_body_factory,
         test_user_id,
     ):
-        """Test that meditation response has all required fields."""
+        """Test that meditation submit response has all required async fields."""
         # Arrange
         request_body = meditation_request_body_factory(
             user_id=test_user_id,
@@ -168,23 +175,22 @@ class TestMeditationFlowHappyPath:
             intensity=[2],
             music_list=[],
         )
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
 
-        # Assert - verify all required fields present
-        required_fields = ["base64_audio", "music_list"]
-
+        # Assert - verify all required async fields present
+        required_fields = ["job_id", "status", "message"]
         for field in required_fields:
-            assert field in response, f"Response missing required field: {field}"
+            assert field in submit_response, f"Response missing required field: {field}"
 
         # Verify field types
-        assert isinstance(response["base64_audio"], str), "base64_audio should be string"
-        assert isinstance(response["music_list"], list), "music_list should be list"
+        assert isinstance(submit_response["job_id"], str), "job_id should be string"
+        assert submit_response["status"] == "pending", "status should be 'pending'"
+        assert isinstance(submit_response["message"], str), "message should be string"
 
-        print("\n✓ Meditation response format complete with all required fields")
+        print("\n✓ Meditation response format complete with all required async fields")
 
 
 @pytest.mark.e2e
@@ -207,21 +213,19 @@ class TestMeditationFlowWithMusic:
             intensity=[3],
             music_list=["Ambient-Peaceful-Meditation_300.wav"],
         )
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
         start_time = time.time()
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
         elapsed_time = time.time() - start_time
 
         # Assert
-        assert response, "Response should not be None"
-        assert "base64_audio" in response, "Should return combined audio"
-        assert "music_list" in response, "Should return music list"
-
-        # Audio should be larger with music
-        assert len(response["base64_audio"]) > 5000, "Combined audio should be larger"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
 
         print(f"\n✓ Meditation with music completed in {elapsed_time:.2f}s")
 
@@ -237,18 +241,21 @@ class TestMeditationFlowWithMusic:
             user_id=test_user_id,
             sentiment_label=["Happy"],
             intensity=[2],
-            music_list=[],  # No music
+            music_list=[],
         )
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        assert "job_id" in submit_response, "Should return job_id"
+
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
 
         # Assert
-        assert response, "Response should not be None"
-        assert "base64_audio" in response, "Should return voice-only audio"
-        assert len(response["base64_audio"]) > 1000, "Voice audio should have content"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
 
         print("\n✓ Meditation without music completed successfully")
 
@@ -293,20 +300,19 @@ class TestMeditationFlowEdgeCases:
             "Work stress",
             "Friend conflict",
         ]
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
         start_time = time.time()
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
         elapsed_time = time.time() - start_time
 
         # Assert
-        assert response, "Should handle multiple instances"
-        assert "base64_audio" in response, "Should return audio"
-        # Meditation for multiple instances should be longer
-        assert len(response["base64_audio"]) > 2000, \
-            "Multiple instances should produce longer meditation"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
 
         print(f"\n✓ Multiple instances handled in {elapsed_time:.2f}s")
 
@@ -325,15 +331,19 @@ class TestMeditationFlowEdgeCases:
                 intensity=[intensity],
                 music_list=[],
             )
+            request = parse_meditation_request_from_dict(request_body)
 
             # Act
-            response = lambda_handler_real.handle_meditation_request(
-                parse_meditation_request_from_dict(request_body)
-            )
+            submit_response = lambda_handler_real.handle_meditation_request(request)
+            job_id = submit_response["job_id"]
+            lambda_handler_real.process_meditation_async(job_id, request.to_dict())
 
             # Assert
-            assert response, f"Should handle intensity {intensity}"
-            assert "base64_audio" in response, f"Should return audio for intensity {intensity}"
+            job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+            assert job_data is not None, f"Job should exist for intensity {intensity}"
+            assert job_data["status"] == "completed", (
+                f"Job should be completed for intensity {intensity}"
+            )
 
             print(f"  ✓ Edge case intensity {intensity} handled")
 
@@ -350,12 +360,12 @@ class TestMeditationFlowErrorHandling:
     ):
         """Test meditation flow with missing input_data."""
         # Arrange
-        from src.models.requests import MeditationRequest
+        from src.models.requests import MeditationRequestModel
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            request = MeditationRequest(
-                type="meditation",
+            request = MeditationRequestModel(
+                inference_type="meditation",
                 user_id=test_user_id,
                 input_data=None,  # Invalid - input_data required
                 music_list=[],
@@ -367,12 +377,12 @@ class TestMeditationFlowErrorHandling:
     def test_invalid_request_missing_user_id(self):
         """Test meditation flow with missing user_id."""
         # Arrange
-        from src.models.requests import MeditationRequest
+        from src.models.requests import MeditationRequestModel
 
         # Act & Assert - should raise validation error
         with pytest.raises(Exception):  # Will fail validation
-            MeditationRequest(
-                type="meditation",
+            MeditationRequestModel(
+                inference_type="meditation",
                 user_id=None,  # Invalid - user_id required
                 input_data={"sentiment_label": ["Sad"]},
                 music_list=[],
@@ -398,31 +408,34 @@ class TestMeditationFlowPerformance:
             user_id=test_user_id,
             sentiment_label=["Sad"],
             intensity=[3],
-            music_list=[],  # No music for faster test
+            music_list=[],
         )
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
         start_time = time.time()
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
         elapsed_time = time.time() - start_time
 
         # Assert
-        assert response, "Should return response"
-        assert (
-            elapsed_time < 90
-        ), f"Meditation flow should complete within 90s, took {elapsed_time:.2f}s"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
+        assert elapsed_time < 90, (
+            f"Meditation flow should complete within 90s, took {elapsed_time:.2f}s"
+        )
 
         print(f"\n✓ Meditation flow performance: {elapsed_time:.2f}s (target: <90s)")
 
-    def test_audio_size_reasonable(
+    def test_job_status_after_completion(
         self,
         lambda_handler_real,
         meditation_request_body_factory,
         test_user_id,
     ):
-        """Test that generated audio size is reasonable."""
+        """Test that job status is correctly set after completion."""
         # Arrange
         request_body = meditation_request_body_factory(
             user_id=test_user_id,
@@ -430,28 +443,26 @@ class TestMeditationFlowPerformance:
             intensity=[2],
             music_list=[],
         )
+        request = parse_meditation_request_from_dict(request_body)
 
         # Act
-        response = lambda_handler_real.handle_meditation_request(
-            parse_meditation_request_from_dict(request_body)
-        )
+        submit_response = lambda_handler_real.handle_meditation_request(request)
+        job_id = submit_response["job_id"]
+        lambda_handler_real.process_meditation_async(job_id, request.to_dict())
 
         # Assert
-        audio_size = len(response["base64_audio"])
-        assert 1000 < audio_size < 10000000, \
-            f"Audio size should be reasonable, got {audio_size} characters"
+        job_data = lambda_handler_real.job_service.get_job(test_user_id, job_id)
+        assert job_data is not None, "Job should exist"
+        assert job_data["status"] == "completed", "Job should be completed"
+        assert job_data["job_id"] == job_id, "Job ID should match"
+        assert job_data["user_id"] == test_user_id, "User ID should match"
 
-        # Decode to get actual byte size
-        decoded_size = len(base64.b64decode(response["base64_audio"]))
-
-        print("\n✓ Audio size reasonable:")
-        print(f"  Base64: {audio_size:,} characters")
-        print(f"  Decoded: {decoded_size:,} bytes ({decoded_size/1024/1024:.2f} MB)")
+        print("\n✓ Job status correctly set after completion")
 
 
 # Helper function to parse meditation request from dict
 def parse_meditation_request_from_dict(request_dict):
-    """Parse request dict into MeditationRequest object."""
-    from src.models.requests import MeditationRequest
+    """Parse request dict into MeditationRequestModel object."""
+    from src.models.requests import MeditationRequestModel
 
-    return MeditationRequest(**request_dict)
+    return MeditationRequestModel(**request_dict)

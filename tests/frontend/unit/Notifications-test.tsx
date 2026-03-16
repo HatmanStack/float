@@ -2,7 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import FloatNotifications from '@/components/Notifications';
 import * as Notifications from 'expo-notifications';
-import * as Permissions from 'expo-permissions';
 import { Platform } from 'react-native';
 
 // Mock expo-notifications
@@ -11,6 +10,8 @@ const mockAddNotificationResponseReceivedListener = jest.fn();
 const mockRemoveNotificationSubscription = jest.fn();
 const mockGetExpoPushTokenAsync = jest.fn();
 const mockSetNotificationChannelAsync = jest.fn();
+const mockGetPermissionsAsync = jest.fn();
+const mockRequestPermissionsAsync = jest.fn();
 
 jest.mock('expo-notifications', () => ({
   addNotificationReceivedListener: (...args: any[]) => mockAddNotificationReceivedListener(...args),
@@ -19,31 +20,21 @@ jest.mock('expo-notifications', () => ({
   removeNotificationSubscription: (...args: any[]) => mockRemoveNotificationSubscription(...args),
   getExpoPushTokenAsync: (...args: any[]) => mockGetExpoPushTokenAsync(...args),
   setNotificationChannelAsync: (...args: any[]) => mockSetNotificationChannelAsync(...args),
+  getPermissionsAsync: (...args: any[]) => mockGetPermissionsAsync(...args),
+  requestPermissionsAsync: (...args: any[]) => mockRequestPermissionsAsync(...args),
   AndroidImportance: {
     MAX: 5,
   },
 }));
 
-// Mock expo-permissions
-const mockGetAsync = jest.fn();
-const mockAskAsync = jest.fn();
-
-jest.mock('expo-permissions', () => ({
-  getAsync: (...args: any[]) => mockGetAsync(...args),
-  askAsync: (...args: any[]) => mockAskAsync(...args),
-  NOTIFICATIONS: 'NOTIFICATIONS',
-}));
-
-// Mock alert
-global.alert = jest.fn();
-
 describe('FloatNotifications', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     // Default mocks for successful permission flow
-    mockGetAsync.mockResolvedValue({ status: 'granted' });
-    mockAskAsync.mockResolvedValue({ status: 'granted' });
+    mockGetPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockRequestPermissionsAsync.mockResolvedValue({ status: 'granted' });
     mockGetExpoPushTokenAsync.mockResolvedValue({ data: 'ExponentPushToken[mock-token]' });
     mockSetNotificationChannelAsync.mockResolvedValue(undefined);
 
@@ -64,7 +55,7 @@ describe('FloatNotifications', () => {
 
     render(<FloatNotifications />);
 
-    expect(mockGetAsync).not.toHaveBeenCalled();
+    expect(mockGetPermissionsAsync).not.toHaveBeenCalled();
     expect(mockGetExpoPushTokenAsync).not.toHaveBeenCalled();
   });
 
@@ -77,7 +68,7 @@ describe('FloatNotifications', () => {
     // Wait for async operations
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(mockGetAsync).toHaveBeenCalledWith('NOTIFICATIONS');
+    expect(mockGetPermissionsAsync).toHaveBeenCalled();
     expect(mockGetExpoPushTokenAsync).toHaveBeenCalled();
   });
 
@@ -96,7 +87,7 @@ describe('FloatNotifications', () => {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
     });
-    expect(mockGetAsync).toHaveBeenCalledWith('NOTIFICATIONS');
+    expect(mockGetPermissionsAsync).toHaveBeenCalled();
     expect(mockGetExpoPushTokenAsync).toHaveBeenCalled();
   });
 
@@ -104,15 +95,15 @@ describe('FloatNotifications', () => {
     // @ts-ignore - mocking Platform.OS
     Platform.OS = 'ios';
 
-    mockGetAsync.mockResolvedValue({ status: 'undetermined' });
-    mockAskAsync.mockResolvedValue({ status: 'granted' });
+    mockGetPermissionsAsync.mockResolvedValue({ status: 'undetermined' });
+    mockRequestPermissionsAsync.mockResolvedValue({ status: 'granted' });
 
     render(<FloatNotifications />);
 
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(mockGetAsync).toHaveBeenCalled();
-    expect(mockAskAsync).toHaveBeenCalledWith('NOTIFICATIONS');
+    expect(mockGetPermissionsAsync).toHaveBeenCalled();
+    expect(mockRequestPermissionsAsync).toHaveBeenCalled();
     expect(mockGetExpoPushTokenAsync).toHaveBeenCalled();
   });
 
@@ -120,14 +111,14 @@ describe('FloatNotifications', () => {
     // @ts-ignore - mocking Platform.OS
     Platform.OS = 'ios';
 
-    mockGetAsync.mockResolvedValue({ status: 'denied' });
-    mockAskAsync.mockResolvedValue({ status: 'denied' });
+    mockGetPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    mockRequestPermissionsAsync.mockResolvedValue({ status: 'denied' });
 
     render(<FloatNotifications />);
 
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(global.alert).toHaveBeenCalledWith('Failed to get push token for push notification!');
+    expect(console.warn).toHaveBeenCalledWith('Failed to get push token for push notification!');
     expect(mockGetExpoPushTokenAsync).not.toHaveBeenCalled();
   });
 

@@ -14,7 +14,7 @@ Integration tests verify that multiple components work together correctly throug
 ## Test Organization
 
 ```
-__tests__/integration/
+tests/frontend/integration/
 ├── setup.ts                    # Test environment configuration
 ├── test-utils.tsx              # Integration test utilities
 ├── auth-flow-test.tsx          # Authentication flow integration tests
@@ -145,16 +145,16 @@ describe('Recording to Summary Flow', () => {
 
 ```bash
 # Run all integration tests
-npm test -- __tests__/integration/ --watchAll=false
+npm test -- tests/frontend/integration/ --watchAll=false
 
 # Run specific integration test file
-npm test -- __tests__/integration/auth-flow-test.tsx
+npm test -- tests/frontend/integration/auth-flow-test.tsx
 
 # Run with verbose output
-npm test -- __tests__/integration/ --verbose
+npm test -- tests/frontend/integration/ --verbose
 
 # Run with coverage
-npm test -- __tests__/integration/ --coverage --watchAll=false
+npm test -- tests/frontend/integration/ --coverage --watchAll=false
 ```
 
 ## Best Practices
@@ -225,15 +225,15 @@ it('should handle API errors gracefully', async () => {
 it('should share incident state across components', async () => {
   const { getByTestId } = renderWithIncidentContext(
     <>
-      <IncidentCreator />
-      <IncidentList />
+      <AudioRecording />
+      <History />
     </>
   );
 
-  // Create incident in one component
-  fireEvent.press(getByTestId('create-incident'));
+  // Record audio in one component
+  fireEvent.press(getByTestId('record-button'));
 
-  // Verify it appears in another component
+  // Verify incident appears in history component
   await waitForIntegration(() => {
     expect(getByTestId('incident-list')).toContainElement(
       getByTestId('incident-item-0')

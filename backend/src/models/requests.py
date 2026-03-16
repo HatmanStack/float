@@ -102,172 +102,53 @@ RequestBody = Annotated[
 ]
 
 
-# =============================================================================
-# Legacy compatibility layer
-# =============================================================================
-# The following classes and functions maintain backward compatibility with
-# existing code that uses the dataclass-based interface.
+def parse_request_body(body: Dict[str, Any]) -> Union[SummaryRequestModel, MeditationRequestModel]:
+    """Parse and validate request body using Pydantic discriminated union.
 
+    Args:
+        body: Raw request body dictionary.
 
-class BaseRequest:
-    """Legacy base request class for backward compatibility."""
+    Returns:
+        SummaryRequestModel or MeditationRequestModel based on inference_type.
 
-    user_id: str
-    inference_type: InferenceType
-
-
-class SummaryRequest(BaseRequest):
-    """Legacy summary request wrapper.
-
-    Wraps SummaryRequestModel to maintain existing interface.
+    Raises:
+        ValidationError: If required fields are missing or invalid.
     """
+    from pydantic import TypeAdapter
+    from pydantic import ValidationError as PydanticValidationError
 
-    def __init__(
-        self,
-        user_id: str,
-        inference_type: InferenceType,
-        audio: str | None = None,
-        prompt: str | None = None,
-    ):
-        self.user_id = user_id
-        self.inference_type = inference_type
-        self.audio = audio
-        self.prompt = prompt
-
-    def validate(self) -> bool:
-        """Validate that at least one input is available."""
-        audio_available = bool(self.audio and self.audio != "NotAvailable")
-        prompt_available = bool(self.prompt and self.prompt != "NotAvailable")
-        return audio_available or prompt_available
-
-
-class MeditationRequest(BaseRequest):
-    """Legacy meditation request wrapper.
-
-    Wraps MeditationRequestModel to maintain existing interface.
-    """
-
-    def __init__(
-        self,
-        user_id: str,
-        inference_type: InferenceType,
-        input_data: Dict[str, Any] | List[Dict[str, Any]],
-        music_list: List[str],
-        duration_minutes: int = 5,
-    ):
-        self.user_id = user_id
-        self.inference_type = inference_type
-        self.input_data = input_data
-        self.music_list = music_list
-        # Validate duration
-        allowed_durations = [3, 5, 10, 15, 20]
-        self.duration_minutes = duration_minutes if duration_minutes in allowed_durations else 5
-
-    def validate(self) -> bool:
-        """Validate input data and music list."""
-        input_data_valid = isinstance(self.input_data, (dict, list)) and bool(self.input_data)
-        music_list_valid = isinstance(self.music_list, list)
-        return input_data_valid and music_list_valid
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "user_id": self.user_id,
-            "inference_type": self.inference_type.value,
-            "input_data": self.input_data,
-            "music_list": self.music_list,
-            "duration_minutes": self.duration_minutes,
-        }
-
-
-def _parse_json_field(value: Any, field_name: str, default: Any = None) -> Any:
-    """Parse a JSON string field, returning default on failure."""
-    if isinstance(value, str):
-        import json
-
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return default if default is not None else {}
-    return value
-
-
-def _validate_request_fields(body: Dict[str, Any]) -> tuple[str, InferenceType]:
-    """Validate required fields and return parsed values."""
     from ..exceptions import ErrorCode, ValidationError
 
-    user_id = body.get("user_id")
-    if not user_id:
+    # Reject non-dict payloads (e.g. list, string, null from json.loads)
+    if not isinstance(body, dict):
+        raise ValidationError("Request body must be a JSON object", ErrorCode.INVALID_REQUEST)
+
+    # Pre-validate required fields for clear error messages
+    if not body.get("user_id"):
         raise ValidationError("user_id is required", ErrorCode.MISSING_FIELD)
 
     inference_type = body.get("inference_type")
     if not inference_type:
         raise ValidationError("inference_type is required", ErrorCode.MISSING_FIELD)
 
+    # Validate inference_type is a known value
     try:
-        inference_enum = InferenceType(inference_type)
-    except ValueError:
+        InferenceType(inference_type)
+    except ValueError as err:
         raise ValidationError(
             f"Invalid inference_type: {inference_type}",
             ErrorCode.INVALID_INFERENCE_TYPE,
-        )
+        ) from err
 
-    return user_id, inference_enum
-
-
-def parse_request_body(body: Dict[str, Any]) -> BaseRequest:
-    """Parse and validate request body.
-
-    This function maintains backward compatibility with existing handlers
-    while using Pydantic validation internally where possible.
-
-    Args:
-        body: Raw request body dictionary.
-
-    Returns:
-        SummaryRequest or MeditationRequest based on inference_type.
-
-    Raises:
-        ValidationError: If required fields are missing or invalid.
-    """
-    from ..exceptions import ErrorCode, ValidationError
-
-    user_id, inference_enum = _validate_request_fields(body)
-
-    if inference_enum == InferenceType.SUMMARY:
-        request = SummaryRequest(
-            user_id=user_id,
-            inference_type=inference_enum,
-            audio=body.get("audio"),
-            prompt=body.get("prompt"),
-        )
-    elif inference_enum == InferenceType.MEDITATION:
-        input_data = _parse_json_field(body.get("input_data", {}), "input_data")
-        music_list = _parse_json_field(body.get("music_list", []), "music_list", [])
-        duration_minutes = body.get("duration_minutes", 5)
-        if isinstance(duration_minutes, str):
-            try:
-                duration_minutes = int(duration_minutes)
-            except ValueError:
-                duration_minutes = 5
-
-        request = MeditationRequest(
-            user_id=user_id,
-            inference_type=inference_enum,
-            input_data=input_data,
-            music_list=music_list,
-            duration_minutes=duration_minutes,
-        )
-    else:
+    try:
+        # Pydantic discriminated union handles type routing automatically
+        adapter = TypeAdapter(RequestBody)
+        return adapter.validate_python(body)
+    except PydanticValidationError as e:
+        # Convert Pydantic validation errors to domain errors
+        first_error = e.errors()[0] if e.errors() else {"msg": "Validation failed"}
         raise ValidationError(
-            f"Unsupported inference type: {inference_enum.value}",
-            ErrorCode.INVALID_INFERENCE_TYPE,
-        )
-
-    if not request.validate():
-        raise ValidationError(
-            f"Invalid request data for {inference_enum.value}",
+            first_error.get("msg", "Invalid request data"),
             ErrorCode.INVALID_REQUEST,
-        )
-
-    return request
+            details=str(e),
+        ) from e

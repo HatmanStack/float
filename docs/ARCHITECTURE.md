@@ -61,12 +61,17 @@ Float is a serverless meditation app with clear separation between frontend and 
   - Audio: FFmpeg processing (via Lambda layer)
   - Storage: AWS S3 upload/download
   - Jobs: Async job tracking for long-running tasks
+- **Config** (`src/config/`): Application settings (`settings.py` via Pydantic BaseSettings) and constants (`constants.py`)
+- **Models** (`src/models/`): Pydantic request/response validation models
+- **Utils** (`src/utils/`): Circuit breaker, caching, structured logging, audio utilities
+- **Exceptions** (`src/exceptions.py`): Custom exception hierarchy (FloatException, ValidationError, ExternalServiceError, TTSError)
 
 **Endpoints**:
 
 - `POST /` - Summary inference (emotion analysis)
 - `POST /` - Meditation generation (async, returns job_id)
 - `GET /job/{job_id}` - Poll job status
+- `POST /job/{job_id}/download` - Download completed meditation audio
 
 **Async Meditation Flow**:
 
@@ -95,7 +100,7 @@ Float is a serverless meditation app with clear separation between frontend and 
 ## Deployment
 
 ```bash
-cd backend && sam build && sam deploy
+npm run deploy
 ```
 
-See `backend/samconfig.toml` for configuration.
+This runs a custom deploy script (`backend/scripts/deploy.mjs`) that builds and deploys via AWS SAM. See `backend/samconfig.toml` for configuration (gitignored — create your own with `sam deploy --guided`).

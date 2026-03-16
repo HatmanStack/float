@@ -347,7 +347,7 @@ class TestGeminiMeditationGeneration:
 
             # Act with retry on rate limit
             result = retry_on_rate_limit(
-                lambda: real_gemini_service.generate_meditation(input_data)
+                lambda: real_gemini_service.generate_meditation(input_data)  # noqa: B023
             )
 
             # Assert

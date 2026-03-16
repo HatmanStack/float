@@ -311,7 +311,7 @@ emulator -avd Pixel_5_API_31 -no-snapshot-load
 ## Status
 
 **Current Implementation:**
-- ✅ Detox configuration created (.detoxrc.js)
+- ✅ Detox configuration created (frontend/.detoxrc.js)
 - ✅ Jest E2E configuration created
 - ✅ Documentation complete
 - ⏳ E2E test files (planned, not executed - requires emulator/simulator)
@@ -322,4 +322,4 @@ emulator -avd Pixel_5_API_31 -no-snapshot-load
 - Emulator/simulator setup
 - Can be run locally or in CI/CD
 
-Integration tests in `__tests__/integration/` provide comprehensive coverage of component interactions without requiring native builds.
+Integration tests in `tests/frontend/integration/` provide comprehensive coverage of component interactions without requiring native builds.

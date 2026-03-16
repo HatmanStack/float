@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -75,16 +77,28 @@ jobs:
           S3_BUCKET: test-bucket
           PYTHONPATH: ${{ github.workspace }}/backend
 
+  dockerfile-lint:
+    name: Dockerfile Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfile with hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+
   status-check:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [frontend-lint, frontend-tests, backend-tests]
+    needs: [frontend-lint, frontend-tests, backend-tests, dockerfile-lint]
     if: always()
 
     steps:
       - name: Check if all jobs passed
         run: |
-          if [ "${{ needs.frontend-lint.result }}" != "success" ] || [ "${{ needs.frontend-tests.result }}" != "success" ] || [ "${{ needs.backend-tests.result }}" != "success" ]; then
+          if [ "${{ needs.frontend-lint.result }}" != "success" ] || [ "${{ needs.frontend-tests.result }}" != "success" ] || [ "${{ needs.backend-tests.result }}" != "success" ] || [ "${{ needs.dockerfile-lint.result }}" != "success" ]; then
             echo "❌ Some checks failed"
             exit 1
           fi

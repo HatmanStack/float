@@ -1072,6 +1072,55 @@ class TestJobServiceHLS:
 
 
 @pytest.mark.unit
+class TestJobServiceSaveFailure:
+    """Test _save_job raises on S3 failure."""
+
+    def test_save_job_raises_on_upload_failure(self, mock_storage_service):
+        """Test that _save_job raises ExternalServiceError when upload_json returns False."""
+        from src.exceptions import ExternalServiceError
+        from src.services.job_service import JobService
+
+        mock_storage_service.upload_json.return_value = False
+
+        service = JobService(mock_storage_service)
+        with pytest.raises(ExternalServiceError, match="Failed to save job"):
+            service._save_job("user123", "test-job", {"status": "pending"})
+
+    def test_create_job_propagates_save_failure(self, mock_storage_service):
+        """Test that create_job propagates ExternalServiceError from _save_job."""
+        from src.exceptions import ExternalServiceError
+        from src.services.job_service import JobService
+
+        mock_storage_service.upload_json.return_value = False
+
+        service = JobService(mock_storage_service)
+        with pytest.raises(ExternalServiceError):
+            service.create_job("user123", "meditation")
+
+    def test_non_fatal_caller_swallows_save_failure(self, mock_storage_service):
+        """Test that non-fatal callers log and continue on _save_job failure."""
+        from src.services.job_service import JobService
+
+        mock_storage_service.download_json.return_value = {
+            "job_id": "test-job",
+            "user_id": "user123",
+            "status": "streaming",
+            "streaming": {
+                "enabled": True,
+                "playlist_url": None,
+                "segments_completed": 0,
+                "segments_total": None,
+                "started_at": None,
+            },
+        }
+        mock_storage_service.upload_json.return_value = False
+
+        service = JobService(mock_storage_service)
+        # Should not raise — update_streaming_progress is non-fatal
+        service.update_streaming_progress("user123", "test-job", segments_completed=5)
+
+
+@pytest.mark.unit
 class TestFFmpegAudioServiceHLS:
     """Test FFmpeg audio service HLS functionality."""
 

@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { Incident } from '@/context/IncidentContext';
+
 const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 
 /**
@@ -34,6 +36,36 @@ export interface SummaryResponse {
   notification_id?: string;
   timestamp: string;
   color_key?: number;
+  /** First-person summary for user reference (from AI) */
+  user_summary?: string;
+  /** Brief description of the incident (from AI) */
+  user_short_summary?: string;
+}
+
+/**
+ * Convert a SummaryResponse from the API into an Incident for local state.
+ *
+ * Field mapping notes:
+ * - notification_id -> notificationId (snake_case to camelCase)
+ * - user_summary, user_short_summary: carried through as-is (used by IncidentItem.tsx)
+ * - color_key: intentionally dropped -- not part of Incident type. It is set on
+ *   SummaryResponse at line 141 of this file but is only used for color mapping
+ *   in the parent component, not stored on the Incident.
+ * - request_id, user_id, inference_type: not present on SummaryResponse interface
+ *   (filtered out by the frontend before this point).
+ */
+export function toIncident(response: SummaryResponse): Incident {
+  return {
+    timestamp: response.timestamp,
+    sentiment_label: response.sentiment_label,
+    intensity: response.intensity,
+    summary: response.summary,
+    speech_to_text: response.speech_to_text,
+    added_text: response.added_text,
+    notificationId: response.notification_id,
+    user_summary: response.user_summary,
+    user_short_summary: response.user_short_summary,
+  };
 }
 
 /**
@@ -63,7 +95,10 @@ async function schedulePushNotification(sentiment: string, intensity: number): P
       body: 'Float',
       data: { sentiment, intensity },
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.ceil(timeToWait) },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: Math.ceil(timeToWait),
+    },
   });
   return notificationId;
 }
@@ -110,14 +145,19 @@ export async function BackendSummaryCall(
 
   if (!httpResponse.ok) {
     const errorText = await httpResponse.text();
-    const errorMessage = `Request to Summary Lambda URL failed with status ${httpResponse.status}: ${errorText}`;
+    const errorMessage =
+      `Request to Summary Lambda URL failed with status ` +
+      `${httpResponse.status}: ${errorText}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
 
   const lambdaPrimaryResponse = await httpResponse.json();
   if (!lambdaPrimaryResponse || typeof lambdaPrimaryResponse !== 'object') {
-    const errorMessage = `Invalid response structure from Lambda. Expected a 'body' string. Received: ${JSON.stringify(lambdaPrimaryResponse)}`;
+    const errorMessage =
+      `Invalid response structure from Lambda. ` +
+      `Expected a 'body' string. Received: ` +
+      `${JSON.stringify(lambdaPrimaryResponse)}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }

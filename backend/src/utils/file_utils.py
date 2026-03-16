@@ -3,6 +3,10 @@ import random
 from datetime import datetime
 from typing import Optional
 
+from .logging_utils import get_logger
+
+logger = get_logger(__name__)
+
 
 def generate_timestamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -17,7 +21,7 @@ def ensure_directory_exists(directory_path: str) -> bool:
         os.makedirs(directory_path, exist_ok=True)
         return True
     except Exception as e:
-        print(f"Error creating directory {directory_path}: {e}")
+        logger.error("Error creating directory", extra={"data": {"path": directory_path, "error": str(e)}})
         return False
 
 

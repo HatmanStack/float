@@ -70,7 +70,8 @@ addopts = "--cov=src --cov-report=term-missing --cov-report=html"
 markers = [
     "unit: unit tests",
     "integration: integration tests",
-    "slow: slow running tests"
+    "slow: slow running tests",
+    "e2e: end-to-end tests"
 ]
 
 [tool.coverage.run]
@@ -98,8 +99,35 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
-ignore = ["E501"]  # Line too long (handled by black)
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (includes F841 unused variables)
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade (modernize Python syntax)
+    "B",    # flake8-bugbear (catches common bugs)
+    "S",    # flake8-bandit (basic security checks: shell injection, partial paths, etc.)
+]
+ignore = [
+    "E501",   # Line too long (handled by black)
+    "S603",   # subprocess call - check for execution of untrusted input (too noisy for FFmpeg)
+    "S607",   # starting a process with a partial executable path
+    "S108",   # /tmp usage — Lambda runs in /tmp by design, cannot use tempfile module
+    "S311",   # pseudo-random generators — used for non-security purposes (jitter, IDs)
+    "UP006",  # use builtin type (e.g., `list` instead of `List`) — pre-existing, cosmetic only
+    "UP045",  # use `X | None` instead of `Optional[X]` — pre-existing, cosmetic only
+    "UP035",  # deprecated import (e.g., `typing.List`) — pre-existing, cosmetic only
+    "UP007",  # use `X | Y` instead of `Union[X, Y]` — pre-existing, cosmetic only
+    "UP017",  # use `datetime.UTC` instead of `datetime.timezone.utc` — pre-existing, cosmetic only
+    "UP024",  # replace aliased errors with `OSError` — pre-existing, cosmetic only
+    "UP028",  # replace `yield` in `for` loop with `yield from` — pre-existing, cosmetic only
+    "UP015",  # unnecessary open mode parameters — pre-existing, cosmetic only
+    "UP046",  # use `type` instead of `TypeAlias` — pre-existing, cosmetic only
+    "B017",   # `assertRaises(Exception)` too broad — pre-existing in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert is expected in test files
 
 [tool.black]
 line-length = 100

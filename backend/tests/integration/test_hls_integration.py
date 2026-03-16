@@ -267,11 +267,10 @@ class TestEndToEndFlow:
 
                     handler = LambdaHandler(validate_config=False)
 
-                    from src.config.constants import InferenceType
-                    from src.models.requests import MeditationRequest
-                    request = MeditationRequest(
+                    from src.models.requests import MeditationRequestModel
+                    request = MeditationRequestModel(
                         user_id="test-user",
-                        inference_type=InferenceType.MEDITATION,
+                        inference_type="meditation",
                         input_data={"sentiment_label": ["Happy"]},
                         music_list=[],
                     )

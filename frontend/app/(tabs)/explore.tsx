@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useWindowDimensions, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
@@ -261,7 +261,7 @@ function useIncidentDeletion() {
 export default function TabTwoScreen(): React.ReactNode {
   const { incidentList, colorChangeArrayOfArrays, musicList } = useIncident();
   const [renderKey, setRenderKey] = useState(0);
-  const { width, height } = useWindowDimensions();
+
   const styles = useStyles();
 
   const { selectedIndexes, handlePress } = useIncidentSelection();
@@ -282,11 +282,7 @@ export default function TabTwoScreen(): React.ReactNode {
   } = useMeditation(selectedIndexes, incidentList, musicList);
 
   useEffect(() => {
-    // This effect is intentionally empty to track width/height changes
-  }, [width, height]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRenderKey((prevKey) => prevKey + 1);
   }, [colorChangeArrayOfArrays]);
 
