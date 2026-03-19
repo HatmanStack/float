@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web && node scripts/inject-seo.js",
-    "lint": "eslint . --ext .ts,.tsx && tsc --noEmit"
+    "lint": "eslint . && tsc --noEmit"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.6",
@@ -48,7 +48,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "babel-plugin-module-resolver": "^5.0.2",
-    "eslint": "^10.0.3",
+    "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "react-test-renderer": "^19.2.0",

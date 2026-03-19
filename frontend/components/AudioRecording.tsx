@@ -1,6 +1,6 @@
 import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // Custom recording options for high quality audio
 const RECORDING_OPTIONS: Audio.RecordingOptions = {

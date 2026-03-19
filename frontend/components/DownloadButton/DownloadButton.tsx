@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Colors } from '@/constants/Colors';
 import useStyles from '@/constants/StylesConstants';
 import { ThemedText } from '@/components/ThemedText';

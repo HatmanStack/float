@@ -41,7 +41,8 @@ export function Collapsible({
   isOpen,
   onToggle,
 }: CollapsibleProps): React.ReactNode {
-  const theme = useColorScheme() ?? 'light';
+  const scheme = useColorScheme();
+  const theme = (scheme === 'light' || scheme === 'dark') ? scheme : 'light';
   const iconColor = useCollapsibleIconColor(textType, theme);
 
   // Use animated view if animatedColor is provided
