@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-03-20
+
+### Changed
+- Upgraded Expo 52→55, React 18.2→19.2, React Native 0.74→0.84, Jest 29→30
+- Migrated test infrastructure from monorepo root into frontend/ workspace
+- Replaced deprecated react-test-renderer with @testing-library/react-native
+- Jest config uses projects to separate unit and integration test environments
+- Bumped @types/react from ~18.2 to ~19.1 for React 19 compatibility
+- ESLint migrated to flat config; test files now linted with relaxed rules
+- lint-staged extended to cover JS/JSX files under frontend/
+- Root npm test delegates to frontend workspace
+
+### Fixed
+- Jest 30 teardown crashes from requestAnimationFrame (timer cleanup in afterEach)
+- Expo 55 globals (TextEncoder, structuredClone, __ExpoImportMetaRegistry) polyfilled for Jest
+- AsyncStorage mock store leak between test files via __resetStore
+- Integration test setup.ts wired to run via Jest projects setupFilesAfterEnv
+- expo-file-system mock extended with EncodingType.Base64
+
 ## [1.1.0] - 2026-03-15
 
 ### Added
