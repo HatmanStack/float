@@ -11,6 +11,8 @@ process.env.TZ = 'UTC';
 jest.mock('@react-native-async-storage/async-storage', () => {
   const store = new Map();
   return {
+    // Plain function — not affected by jest.clearAllMocks()
+    __resetStore: () => store.clear(),
     getItem: jest.fn((key) => Promise.resolve(store.get(key) || null)),
     setItem: jest.fn((key, value) => {
       store.set(key, value);

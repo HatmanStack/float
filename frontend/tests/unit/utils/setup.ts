@@ -45,9 +45,11 @@ if (!global.fetch) {
   ) as jest.Mock;
 }
 
-// Reset mocks before each test
+// Reset mocks and AsyncStorage state before each test
 beforeEach(() => {
   jest.clearAllMocks();
+  const asyncStorage = require('@react-native-async-storage/async-storage');
+  if (asyncStorage.__resetStore) asyncStorage.__resetStore();
 });
 
 // Clean up timers after each test to prevent Jest 30 teardown crashes.

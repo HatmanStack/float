@@ -5,14 +5,15 @@
  * Integration tests test interactions between components through Context providers.
  */
 
-import { mockAsyncStorage } from './test-utils';
-
 // Increase timeout for integration tests
 // Integration tests involve multiple components and async operations
 jest.setTimeout(10000);
 
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+// Mock AsyncStorage — use require() inside factory to avoid jest.mock hoisting issues
+jest.mock(
+  '@react-native-async-storage/async-storage',
+  () => require('./test-utils').mockAsyncStorage
+);
 
 // Mock expo-notifications
 jest.mock('expo-notifications', () => ({
@@ -196,8 +197,12 @@ afterAll(() => {
   console.error = originalError;
 });
 
-// Clear mocks between tests to ensure isolation
-afterEach(() => {
+// Clear mocks and timers between tests to ensure isolation
+beforeEach(() => {
   jest.clearAllMocks();
-  mockAsyncStorage.reset();
+});
+
+afterEach(() => {
+  jest.clearAllTimers();
+  require('./test-utils').mockAsyncStorage.reset();
 });

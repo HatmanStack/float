@@ -60,32 +60,61 @@
     "typescript": "~5.9.3"
   },
   "jest": {
-    "preset": "jest-expo",
-    "roots": [
-      "<rootDir>/tests"
-    ],
-    "testMatch": [
-      "**/*-test.tsx",
-      "**/*-test.ts"
-    ],
-    "setupFiles": [
-      "./jest.globals.js",
-      "./jest.setup.js"
-    ],
-    "setupFilesAfterEnv": [
-      "./tests/unit/utils/setup.ts"
-    ],
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/tests/unit/utils/",
-      "/tests/integration/setup.ts",
-      "/tests/integration/test-utils.tsx",
-      "/tests/e2e/"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1",
-      "^expo-file-system/legacy": "expo-file-system"
-    }
+    "projects": [
+      {
+        "displayName": "unit",
+        "preset": "jest-expo",
+        "roots": [
+          "<rootDir>/tests/unit"
+        ],
+        "testMatch": [
+          "**/*-test.tsx",
+          "**/*-test.ts"
+        ],
+        "setupFiles": [
+          "./jest.globals.js",
+          "./jest.setup.js"
+        ],
+        "setupFilesAfterEnv": [
+          "./tests/unit/utils/setup.ts"
+        ],
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "/tests/unit/utils/"
+        ],
+        "moduleNameMapper": {
+          "^@/(.*)$": "<rootDir>/$1",
+          "^expo-file-system/legacy": "expo-file-system"
+        }
+      },
+      {
+        "displayName": "integration",
+        "preset": "jest-expo",
+        "roots": [
+          "<rootDir>/tests/integration"
+        ],
+        "testMatch": [
+          "**/*-test.tsx",
+          "**/*-test.ts"
+        ],
+        "setupFiles": [
+          "./jest.globals.js",
+          "./jest.setup.js"
+        ],
+        "setupFilesAfterEnv": [
+          "./tests/integration/setup.ts"
+        ],
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "/tests/integration/setup.ts",
+          "/tests/integration/test-utils.tsx"
+        ],
+        "moduleNameMapper": {
+          "^@/(.*)$": "<rootDir>/$1",
+          "^expo-file-system/legacy": "expo-file-system"
+        }
+      }
+    ]
   },
   "private": true
 }
