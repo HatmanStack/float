@@ -22,9 +22,7 @@ jest.mock('@react-native-async-storage/async-storage', () => {
       return Promise.resolve();
     }),
     getAllKeys: jest.fn(() => Promise.resolve(Array.from(store.keys()))),
-    multiGet: jest.fn((keys) =>
-      Promise.resolve(keys.map((key) => [key, store.get(key) || null]))
-    ),
+    multiGet: jest.fn((keys) => Promise.resolve(keys.map((key) => [key, store.get(key) || null]))),
     multiSet: jest.fn((pairs) => {
       pairs.forEach(([key, value]) => store.set(key, value));
       return Promise.resolve();
@@ -35,3 +33,14 @@ jest.mock('@react-native-async-storage/async-storage', () => {
     }),
   };
 });
+
+// Mock expo-file-system globally for all tests
+jest.mock('expo-file-system', () => ({
+  readAsStringAsync: jest.fn().mockResolvedValue('base64-encoded-data'),
+  writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  getInfoAsync: jest.fn().mockResolvedValue({ exists: true, size: 1024 }),
+  documentDirectory: 'file:///mock-document-directory/',
+  cacheDirectory: 'file:///mock-cache-directory/',
+  EncodingType: { Base64: 'base64', UTF8: 'utf8' },
+}));
