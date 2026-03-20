@@ -35,11 +35,11 @@
     "react-test-renderer": "19.2.3"
   },
   "lint-staged": {
-    "frontend/**/*.{ts,tsx}": [
+    "frontend/**/*.{ts,tsx,js,jsx}": [
       "./frontend/node_modules/.bin/eslint --config ./frontend/eslint.config.js --fix",
       "prettier --write"
     ],
-    "frontend/**/*.{js,json}": [
+    "frontend/**/*.json": [
       "prettier --write"
     ],
     "backend/**/*.py": [

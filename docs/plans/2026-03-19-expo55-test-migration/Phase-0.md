@@ -59,7 +59,7 @@
 - CI appends flags: `npm test -- --ci --forceExit`
 
 ### Test Structure (after migration)
-```
+```text
 frontend/
   tests/
     unit/              # Component and hook unit tests
@@ -80,7 +80,7 @@ frontend/
 ### Jest Configuration Location
 - `frontend/package.json` `"jest"` section (mirrors current root config, adapted for workspace context)
 - `rootDir`: `.` (relative to `frontend/`)
-- `roots`: `["<rootDir>/tests"]` (plus `<rootDir>` for any co-located tests)
+- `roots`: `["<rootDir>/tests"]`
 - `moduleNameMapper`: `{ "^@/(.*)$": "<rootDir>/$1" }` (simpler since rootDir is `frontend/`)
 - No `modulePaths` needed (dependencies resolve naturally from workspace)
 
@@ -94,7 +94,7 @@ frontend/
 
 All commits use conventional commit format:
 
-```
+```text
 type(scope): description
 
 - Detail 1

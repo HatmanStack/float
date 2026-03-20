@@ -80,35 +80,19 @@ refactor(tests): move tests/frontend/ to frontend/tests/
    - Keep the `__ExpoImportMetaRegistry` polyfill (lines 4-8 of current file)
    - Keep the `structuredClone` polyfill (lines 10-12 of current file)
    - **Remove** the `requestAnimationFrame` and `cancelAnimationFrame` polyfills (lines 15-16 of current file) - these cause Jest 30 teardown crashes
-   - Add a global `afterEach` that calls `jest.clearAllTimers()` to prevent timer leaks between tests
-2. Delete the root `jest.globals.js`
+   - Add TextEncoder/TextDecoder shims using Node's `require('util')` for Jest 30 / Expo 55 compatibility
+2. Timer cleanup (`afterEach(jest.clearAllTimers)`) belongs in `setupFilesAfterEnv` (`tests/unit/utils/setup.ts`), NOT in `jest.globals.js` — lifecycle hooks like `afterEach` are only available in `setupFilesAfterEnv`, not `setupFiles`.
+3. Delete the root `jest.globals.js`
 
 **The new `frontend/jest.globals.js` should contain:**
-```javascript
-// Polyfill expo 55 globals for jest
-// Must run before test framework loads modules
-
-if (!globalThis.__ExpoImportMetaRegistry) {
-  globalThis.__ExpoImportMetaRegistry = {
-    register: () => {},
-    get: () => ({}),
-  };
-}
-
-if (typeof globalThis.structuredClone === 'undefined') {
-  globalThis.structuredClone = (val) => JSON.parse(JSON.stringify(val));
-}
-
-// Clean up timers after each test to prevent Jest 30 teardown crashes.
-// React Native's internal requestAnimationFrame can fire after environment
-// teardown if timers are not cleared.
-afterEach(() => {
-  jest.clearAllTimers();
-});
-```
+- `__ExpoImportMetaRegistry` polyfill
+- `structuredClone` polyfill
+- TextEncoder/TextDecoder from Node `util` (with stub fallback)
+- TextDecoderStream/TextEncoderStream stubs
+- NO lifecycle hooks (`afterEach`, `beforeEach`, etc.)
 
 **Verification Checklist:**
-- [x]`frontend/jest.globals.js` exists with the polyfills and `afterEach` timer cleanup
+- [x]`frontend/jest.globals.js` exists with polyfills only (no lifecycle hooks)
 - [x]No `requestAnimationFrame` or `cancelAnimationFrame` assignment in the file
 - [x]Root `jest.globals.js` is deleted
 
@@ -231,8 +215,7 @@ chore(deps): add test deps to frontend, bump @types/react to ~19.1
   "jest": {
     "preset": "jest-expo",
     "roots": [
-      "<rootDir>/tests",
-      "<rootDir>"
+      "<rootDir>/tests"
     ],
     "testMatch": [
       "**/*-test.tsx",
@@ -261,7 +244,7 @@ chore(deps): add test deps to frontend, bump @types/react to ~19.1
 
 Key differences from the old root config:
 - `rootDir` is implicitly `.` (relative to `frontend/`)
-- `roots` changed from `["<rootDir>/tests/frontend", "<rootDir>/frontend"]` to `["<rootDir>/tests", "<rootDir>"]`
+- `roots` changed from `["<rootDir>/tests/frontend", "<rootDir>/frontend"]` to `["<rootDir>/tests"]`
 - `setupFiles` paths are now `./jest.globals.js` and `./jest.setup.js` (local to frontend)
 - `setupFilesAfterEnv` path updated to `./tests/unit/utils/setup.ts`
 - `testPathIgnorePatterns` updated to reflect new paths
@@ -309,9 +292,9 @@ refactor(tests): add Jest config to frontend/package.json
    ```
    to:
    ```json
-   "cd frontend && npx jest --passWithNoTests"
+   "cd frontend && npx jest --forceExit"
    ```
-   **Rationale:** Remove `--ci --runInBand --forceExit` from the root script. CI already passes `--ci --forceExit` via `npm test -- --ci --forceExit`. Having them in both places could cause issues. The `--passWithNoTests` flag stays because it's a safe default for local dev. CI flags get appended by the CI workflow.
+   **Rationale:** Remove `--ci --runInBand` from the root script. CI already passes `--ci --forceExit` via `npm test -- --ci --forceExit`. The `--passWithNoTests` flag is removed so misconfigured roots/testMatch fail fast instead of silently passing.
 
 2. Remove these devDependencies from root `package.json` (they are now in frontend or unused):
    - `@testing-library/react-native`
@@ -473,9 +456,9 @@ fix(tests): resolve remaining test failures after migration
 
 **Implementation Steps:**
 1. Simulate what CI runs: `npm test -- --ci --forceExit`
-2. Verify this correctly delegates to `cd frontend && npx jest --passWithNoTests --ci --forceExit`
+2. Verify this correctly delegates to `cd frontend && npx jest --forceExit --ci --forceExit`
 3. Check whether `--` forwarding works correctly with the `cd frontend && npx jest` pattern:
-   - When root script is `"cd frontend && npx jest --passWithNoTests"`, running `npm test -- --ci --forceExit` should result in `cd frontend && npx jest --passWithNoTests --ci --forceExit`
+   - When root script is `"cd frontend && npx jest --forceExit"`, running `npm test -- --ci --forceExit` should result in `cd frontend && npx jest --forceExit --ci --forceExit` (duplicate `--forceExit` is harmless)
    - **Potential issue:** npm may not forward `--` args to compound shell commands correctly. Test this.
    - If forwarding doesn't work, change the root test script to use `npm -w frontend test --` instead: `"test": "npm -w frontend test"`. Then CI's `npm test -- --ci --forceExit` becomes `npm -w frontend test -- --ci --forceExit` which runs `jest --ci --forceExit` in the frontend workspace.
    - Alternative: use `npx --workspace=frontend jest` pattern
