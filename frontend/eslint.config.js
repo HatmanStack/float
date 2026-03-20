@@ -41,7 +41,7 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': typescriptPlugin,
-      'react': reactPlugin,
+      react: reactPlugin,
       'react-hooks': reactHooksPlugin,
     },
     settings: {
@@ -56,6 +56,32 @@ module.exports = [
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'react/prop-types': 'off',
+    },
+  },
+  {
+    files: ['**/tests/**/*.ts', '**/tests/**/*.tsx'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'react/display-name': 'off',
+      'react-hooks/rules-of-hooks': 'off',
+      'react-hooks/globals': 'off',
+      'react-hooks/exhaustive-deps': 'off',
     },
   },
 ];
