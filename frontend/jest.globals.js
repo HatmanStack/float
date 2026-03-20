@@ -12,5 +12,9 @@ if (typeof globalThis.structuredClone === 'undefined') {
   globalThis.structuredClone = (val) => JSON.parse(JSON.stringify(val));
 }
 
-globalThis.requestAnimationFrame = (callback) => setTimeout(() => callback(Date.now()), 0);
-globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+// Clean up timers after each test to prevent Jest 30 teardown crashes.
+// React Native's internal requestAnimationFrame can fire after environment
+// teardown if timers are not cleared.
+afterEach(() => {
+  jest.clearAllTimers();
+});
