@@ -10,6 +10,26 @@
  * - Error scenarios
  */
 
+// Mock native modules before imports
+jest.mock('expo-av', () => ({
+  Audio: {
+    requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+    Recording: {
+      createAsync: jest.fn().mockResolvedValue({
+        recording: {
+          stopAndUnloadAsync: jest.fn().mockResolvedValue(undefined),
+          getURI: jest.fn().mockReturnValue('file:///test-recording.m4a'),
+        },
+        status: { canRecord: true },
+      }),
+    },
+    RecordingOptionsPresets: {
+      HIGH_QUALITY: {},
+    },
+    setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import React, { useState } from 'react';
 import { View, Text, Button } from 'react-native';
 import {

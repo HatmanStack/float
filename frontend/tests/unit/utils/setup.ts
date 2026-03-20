@@ -57,3 +57,10 @@ if (!global.fetch) {
 beforeEach(() => {
   jest.clearAllMocks();
 });
+
+// Clean up timers after each test to prevent Jest 30 teardown crashes.
+// React Native's internal requestAnimationFrame can fire after environment
+// teardown if timers are not cleared.
+afterEach(() => {
+  jest.clearAllTimers();
+});

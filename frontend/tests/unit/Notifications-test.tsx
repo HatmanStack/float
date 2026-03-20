@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 const mockAddNotificationReceivedListener = jest.fn();
 const mockAddNotificationResponseReceivedListener = jest.fn();
 const mockRemoveNotificationSubscription = jest.fn();
+const mockSubscriptionRemove = jest.fn();
 const mockGetExpoPushTokenAsync = jest.fn();
 const mockSetNotificationChannelAsync = jest.fn();
 const mockGetPermissionsAsync = jest.fn();
@@ -38,10 +39,10 @@ describe('FloatNotifications', () => {
     mockGetExpoPushTokenAsync.mockResolvedValue({ data: 'ExponentPushToken[mock-token]' });
     mockSetNotificationChannelAsync.mockResolvedValue(undefined);
 
-    // Mock subscription objects
-    const mockSubscription = { remove: jest.fn() };
-    mockAddNotificationReceivedListener.mockReturnValue(mockSubscription);
-    mockAddNotificationResponseReceivedListener.mockReturnValue(mockSubscription);
+    // Mock subscription objects — use shared mock so tests can assert on .remove()
+    mockSubscriptionRemove.mockClear();
+    mockAddNotificationReceivedListener.mockReturnValue({ remove: mockSubscriptionRemove });
+    mockAddNotificationResponseReceivedListener.mockReturnValue({ remove: mockSubscriptionRemove });
   });
 
   it('should render without crashing', () => {
@@ -144,7 +145,7 @@ describe('FloatNotifications', () => {
 
     unmount();
 
-    expect(mockRemoveNotificationSubscription).toHaveBeenCalledTimes(2);
+    expect(mockSubscriptionRemove).toHaveBeenCalledTimes(2);
   });
 
   it('should handle received notifications', async () => {

@@ -1,5 +1,6 @@
 // Mock FileSystem BEFORE importing the component
 jest.mock('expo-file-system', () => ({
+  __esModule: true,
   documentDirectory: 'mock-directory/',
   writeAsStringAsync: jest.fn(() => Promise.resolve()),
   EncodingType: {
