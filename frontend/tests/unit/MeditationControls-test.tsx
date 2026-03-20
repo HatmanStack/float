@@ -26,14 +26,19 @@ jest.mock('expo-av', () => ({
 jest.mock('@/components/HLSPlayer', () => {
   const React = require('react');
   return {
-    HLSPlayer: React.forwardRef((props: { playlistUrl: string; autoPlay?: boolean }, ref: React.Ref<{ play: () => void; pause: () => void; seek: (time: number) => void }>) => {
-      React.useImperativeHandle(ref, () => ({
-        play: jest.fn(),
-        pause: jest.fn(),
-        seek: jest.fn(),
-      }));
-      return null;
-    }),
+    HLSPlayer: React.forwardRef(
+      (
+        props: { playlistUrl: string; autoPlay?: boolean },
+        ref: React.Ref<{ play: () => void; pause: () => void; seek: (time: number) => void }>
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          play: jest.fn(),
+          pause: jest.fn(),
+          seek: jest.fn(),
+        }));
+        return null;
+      }
+    ),
   };
 });
 

@@ -64,17 +64,23 @@ describe('StreamingError', () => {
   describe('getErrorMessage', () => {
     it('should return network error message for network errors', () => {
       const networkError = new Error('Network request failed');
-      expect(getErrorMessage(networkError)).toBe('Connection lost. Check your internet and try again.');
+      expect(getErrorMessage(networkError)).toBe(
+        'Connection lost. Check your internet and try again.'
+      );
     });
 
     it('should return network error message for fetch errors', () => {
       const fetchError = new Error('Fetch error occurred');
-      expect(getErrorMessage(fetchError)).toBe('Connection lost. Check your internet and try again.');
+      expect(getErrorMessage(fetchError)).toBe(
+        'Connection lost. Check your internet and try again.'
+      );
     });
 
     it('should return network error message for connection errors', () => {
       const connectionError = new Error('Connection refused');
-      expect(getErrorMessage(connectionError)).toBe('Connection lost. Check your internet and try again.');
+      expect(getErrorMessage(connectionError)).toBe(
+        'Connection lost. Check your internet and try again.'
+      );
     });
 
     it('should return playback error message for HLS errors', () => {
@@ -94,12 +100,16 @@ describe('StreamingError', () => {
 
     it('should return generation error message for generation failures', () => {
       const generationError = new Error('Generation failed after 3 attempts');
-      expect(getErrorMessage(generationError)).toBe('Could not generate meditation. Please try again.');
+      expect(getErrorMessage(generationError)).toBe(
+        'Could not generate meditation. Please try again.'
+      );
     });
 
     it('should return generation error message for timeout errors', () => {
       const timeoutError = new Error('Request timeout');
-      expect(getErrorMessage(timeoutError)).toBe('Could not generate meditation. Please try again.');
+      expect(getErrorMessage(timeoutError)).toBe(
+        'Could not generate meditation. Please try again.'
+      );
     });
 
     it('should return download error message for download failures', () => {

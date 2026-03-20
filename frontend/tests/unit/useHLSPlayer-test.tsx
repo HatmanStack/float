@@ -124,9 +124,7 @@ describe('useHLSPlayer', () => {
     });
 
     it('should have default state when playlist URL is provided', () => {
-      const { result } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { result } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       const [state] = result.current;
       // Loading state is managed via HLS.js callbacks, starts as false
@@ -138,18 +136,14 @@ describe('useHLSPlayer', () => {
     it('should initialize HLS.js when URL is provided', () => {
       renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
-      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith(
-        'https://example.com/playlist.m3u8'
-      );
+      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith('https://example.com/playlist.m3u8');
       expect(mockHlsInstance.attachMedia).toHaveBeenCalled();
     });
   });
 
   describe('state transitions', () => {
     it('should update loading state to false after manifest parsed', () => {
-      const { result } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { result } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       // Get the MANIFEST_PARSED callback
       const manifestParsedCallback = mockHlsInstance.on.mock.calls.find(
@@ -189,9 +183,7 @@ describe('useHLSPlayer', () => {
 
   describe('error handling', () => {
     it('should set error state on fatal HLS error', () => {
-      const { result } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { result } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       // Get the ERROR callback
       const errorCallback = mockHlsInstance.on.mock.calls.find(
@@ -252,9 +244,7 @@ describe('useHLSPlayer', () => {
 
   describe('controls', () => {
     it('should call audio.play() when play is invoked', () => {
-      const { result } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { result } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       const [, controls] = result.current;
 
@@ -266,9 +256,7 @@ describe('useHLSPlayer', () => {
     });
 
     it('should call audio.pause() when pause is invoked', () => {
-      const { result } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { result } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       const [, controls] = result.current;
 
@@ -280,9 +268,7 @@ describe('useHLSPlayer', () => {
     });
 
     it('should set audio.currentTime when seek is invoked', () => {
-      const { result } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { result } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       const [, controls] = result.current;
 
@@ -296,9 +282,7 @@ describe('useHLSPlayer', () => {
 
   describe('cleanup', () => {
     it('should destroy HLS instance on unmount', () => {
-      const { unmount } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { unmount } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       unmount();
 
@@ -306,9 +290,7 @@ describe('useHLSPlayer', () => {
     });
 
     it('should remove audio event listeners on unmount', () => {
-      const { unmount } = renderHook(() =>
-        useHLSPlayer('https://example.com/playlist.m3u8')
-      );
+      const { unmount } = renderHook(() => useHLSPlayer('https://example.com/playlist.m3u8'));
 
       unmount();
 
@@ -325,18 +307,15 @@ describe('useHLSPlayer', () => {
 
       // HLS.js should be used and load the source
       // Native canPlayType is not used since we always use HLS.js
-      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith(
-        'https://example.com/playlist.m3u8'
-      );
+      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith('https://example.com/playlist.m3u8');
     });
   });
 
   describe('URL changes', () => {
     it('should reset state when URL changes to null', () => {
-      const { result, rerender } = renderHook(
-        ({ url }) => useHLSPlayer(url),
-        { initialProps: { url: 'https://example.com/playlist.m3u8' as string | null } }
-      );
+      const { result, rerender } = renderHook(({ url }) => useHLSPlayer(url), {
+        initialProps: { url: 'https://example.com/playlist.m3u8' as string | null },
+      });
 
       rerender({ url: null });
 
@@ -347,19 +326,16 @@ describe('useHLSPlayer', () => {
     });
 
     it('should reinitialize HLS when URL changes', () => {
-      const { rerender } = renderHook(
-        ({ url }) => useHLSPlayer(url),
-        { initialProps: { url: 'https://example.com/playlist1.m3u8' } }
-      );
+      const { rerender } = renderHook(({ url }) => useHLSPlayer(url), {
+        initialProps: { url: 'https://example.com/playlist1.m3u8' },
+      });
 
       jest.clearAllMocks();
 
       rerender({ url: 'https://example.com/playlist2.m3u8' });
 
       expect(mockHlsInstance.destroy).toHaveBeenCalled();
-      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith(
-        'https://example.com/playlist2.m3u8'
-      );
+      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith('https://example.com/playlist2.m3u8');
     });
   });
 });

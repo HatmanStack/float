@@ -352,17 +352,29 @@ describe('Auth Flow Integration Tests', () => {
     it('should handle sign in affecting multiple components simultaneously', async () => {
       function Component1() {
         const { user } = useAuth();
-        return <Text testID="component-1">{user ? 'Component 1: Logged In' : 'Component 1: Logged Out'}</Text>;
+        return (
+          <Text testID="component-1">
+            {user ? 'Component 1: Logged In' : 'Component 1: Logged Out'}
+          </Text>
+        );
       }
 
       function Component2() {
         const { user } = useAuth();
-        return <Text testID="component-2">{user ? 'Component 2: Logged In' : 'Component 2: Logged Out'}</Text>;
+        return (
+          <Text testID="component-2">
+            {user ? 'Component 2: Logged In' : 'Component 2: Logged Out'}
+          </Text>
+        );
       }
 
       function Component3() {
         const { user } = useAuth();
-        return <Text testID="component-3">{user ? 'Component 3: Logged In' : 'Component 3: Logged Out'}</Text>;
+        return (
+          <Text testID="component-3">
+            {user ? 'Component 3: Logged In' : 'Component 3: Logged Out'}
+          </Text>
+        );
       }
 
       const { getByTestId } = renderWithAuthContext(

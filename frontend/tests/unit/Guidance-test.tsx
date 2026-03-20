@@ -24,9 +24,14 @@ const MockCollapsible = ({ children, isOpen, onToggle }: MockCollapsibleProps) =
 // Mock the Collapsible component to avoid unnecessary rendering and logic
 jest.mock('@/components/Collapsible', () => {
   return {
-    Collapsible: ({ children, ...props }: { children: React.ReactNode; isOpen: boolean; onToggle: () => void }) => (
-      <MockCollapsible {...props}>{children}</MockCollapsible>
-    ),
+    Collapsible: ({
+      children,
+      ...props
+    }: {
+      children: React.ReactNode;
+      isOpen: boolean;
+      onToggle: () => void;
+    }) => <MockCollapsible {...props}>{children}</MockCollapsible>,
   };
 });
 

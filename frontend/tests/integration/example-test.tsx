@@ -209,9 +209,7 @@ describe('Integration Test Infrastructure', () => {
 
       // Verify both states persisted in the multi-context component
       const multiContextComponent = getByTestId('multi-context-component');
-      expect(within(multiContextComponent).getByTestId('user-name')).toHaveTextContent(
-        'Test User'
-      );
+      expect(within(multiContextComponent).getByTestId('user-name')).toHaveTextContent('Test User');
       expect(within(multiContextComponent).getByTestId('incident-count')).toHaveTextContent(
         '1 incidents'
       );

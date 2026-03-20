@@ -131,9 +131,7 @@ describe('FloatNotifications', () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(mockAddNotificationReceivedListener).toHaveBeenCalledWith(expect.any(Function));
-    expect(mockAddNotificationResponseReceivedListener).toHaveBeenCalledWith(
-      expect.any(Function)
-    );
+    expect(mockAddNotificationResponseReceivedListener).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('should clean up listeners on unmount', async () => {

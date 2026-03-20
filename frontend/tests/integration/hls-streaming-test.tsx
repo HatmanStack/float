@@ -36,29 +36,34 @@ jest.mock('expo-file-system', () => ({
 jest.mock('@/components/HLSPlayer', () => {
   const React = require('react');
   return {
-    HLSPlayer: React.forwardRef((props: {
-      playlistUrl: string;
-      onPlaybackStart?: () => void;
-      onPlaybackComplete?: () => void;
-      onStreamComplete?: () => void;
-      onError?: (error: Error) => void;
-      autoPlay?: boolean;
-    }, ref: React.Ref<{ play: () => void; pause: () => void; seek: (time: number) => void }>) => {
-      React.useImperativeHandle(ref, () => ({
-        play: jest.fn(),
-        pause: jest.fn(),
-        seek: jest.fn(),
-      }));
+    HLSPlayer: React.forwardRef(
+      (
+        props: {
+          playlistUrl: string;
+          onPlaybackStart?: () => void;
+          onPlaybackComplete?: () => void;
+          onStreamComplete?: () => void;
+          onError?: (error: Error) => void;
+          autoPlay?: boolean;
+        },
+        ref: React.Ref<{ play: () => void; pause: () => void; seek: (time: number) => void }>
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          play: jest.fn(),
+          pause: jest.fn(),
+          seek: jest.fn(),
+        }));
 
-      // Auto-trigger playback start for tests
-      React.useEffect(() => {
-        if (props.autoPlay && props.playlistUrl) {
-          props.onPlaybackStart?.();
-        }
-      }, [props.playlistUrl, props.autoPlay, props.onPlaybackStart]);
+        // Auto-trigger playback start for tests
+        React.useEffect(() => {
+          if (props.autoPlay && props.playlistUrl) {
+            props.onPlaybackStart?.();
+          }
+        }, [props.playlistUrl, props.autoPlay, props.onPlaybackStart]);
 
-      return null;
-    }),
+        return null;
+      }
+    ),
   };
 });
 
@@ -144,26 +149,18 @@ describe('HLS Streaming Integration', () => {
   });
 
   describe('Download flow', () => {
-    const mockGetDownloadUrl = jest.fn().mockResolvedValue('https://example.com/download/meditation.mp3');
+    const mockGetDownloadUrl = jest
+      .fn()
+      .mockResolvedValue('https://example.com/download/meditation.mp3');
 
     it('should render download button when download is available', () => {
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockGetDownloadUrl} />);
 
       expect(screen.getByTestId('download-button')).toBeTruthy();
     });
 
     it('should not render download button when download is not available', () => {
-      render(
-        <DownloadButton
-          downloadAvailable={false}
-          onGetDownloadUrl={mockGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={false} onGetDownloadUrl={mockGetDownloadUrl} />);
 
       expect(screen.queryByTestId('download-button')).toBeNull();
     });
@@ -193,9 +190,7 @@ describe('HLS Streaming Integration', () => {
       const mockOnRetry = jest.fn();
       const error = new Error('Network error');
 
-      render(
-        <StreamingError error={error} onRetry={mockOnRetry} canRetry={true} />
-      );
+      render(<StreamingError error={error} onRetry={mockOnRetry} canRetry={true} />);
 
       expect(screen.getByTestId('streaming-error')).toBeTruthy();
       expect(screen.getByTestId('streaming-error-retry-button')).toBeTruthy();
@@ -205,9 +200,7 @@ describe('HLS Streaming Integration', () => {
       const mockOnRetry = jest.fn();
       const error = new Error('HLS error');
 
-      render(
-        <StreamingError error={error} onRetry={mockOnRetry} canRetry={true} />
-      );
+      render(<StreamingError error={error} onRetry={mockOnRetry} canRetry={true} />);
 
       fireEvent.press(screen.getByTestId('streaming-error-retry-button'));
 

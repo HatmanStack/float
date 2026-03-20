@@ -17,21 +17,26 @@ jest.mock('react-native-webview', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  const WebView = React.forwardRef((props: {
-    onMessage?: (event: { nativeEvent: { data: string } }) => void;
-    testID?: string;
-  }, ref: React.Ref<{ postMessage: (data: string) => void }>) => {
-    // Store onMessage for test access
-    storedOnMessage = props.onMessage || null;
+  const WebView = React.forwardRef(
+    (
+      props: {
+        onMessage?: (event: { nativeEvent: { data: string } }) => void;
+        testID?: string;
+      },
+      ref: React.Ref<{ postMessage: (data: string) => void }>
+    ) => {
+      // Store onMessage for test access
+      storedOnMessage = props.onMessage || null;
 
-    // Create ref object
-    const refObject = { postMessage: mockPostMessage };
-    storedRef = refObject;
+      // Create ref object
+      const refObject = { postMessage: mockPostMessage };
+      storedRef = refObject;
 
-    React.useImperativeHandle(ref, () => refObject);
+      React.useImperativeHandle(ref, () => refObject);
 
-    return <View testID={props.testID || 'webview'} />;
-  });
+      return <View testID={props.testID || 'webview'} />;
+    }
+  );
 
   WebView.displayName = 'WebView';
 
@@ -50,9 +55,7 @@ describe('HLSPlayer', () => {
 
   describe('rendering', () => {
     it('should render WebView', () => {
-      const { getByTestId } = render(
-        <HLSPlayer playlistUrl={null} />
-      );
+      const { getByTestId } = render(<HLSPlayer playlistUrl={null} />);
 
       expect(getByTestId('webview')).toBeTruthy();
     });
@@ -62,12 +65,15 @@ describe('HLSPlayer', () => {
     it('should call onPlaybackStart when playing message received', () => {
       const onPlaybackStart = jest.fn();
       render(
-        <HLSPlayer playlistUrl="https://example.com/playlist.m3u8" onPlaybackStart={onPlaybackStart} />
+        <HLSPlayer
+          playlistUrl="https://example.com/playlist.m3u8"
+          onPlaybackStart={onPlaybackStart}
+        />
       );
 
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'playing' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'playing' }) },
         });
       });
 
@@ -77,12 +83,15 @@ describe('HLSPlayer', () => {
     it('should call onPlaybackComplete when complete message received', () => {
       const onPlaybackComplete = jest.fn();
       render(
-        <HLSPlayer playlistUrl="https://example.com/playlist.m3u8" onPlaybackComplete={onPlaybackComplete} />
+        <HLSPlayer
+          playlistUrl="https://example.com/playlist.m3u8"
+          onPlaybackComplete={onPlaybackComplete}
+        />
       );
 
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'complete' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'complete' }) },
         });
       });
 
@@ -91,13 +100,11 @@ describe('HLSPlayer', () => {
 
     it('should call onError when error message received', () => {
       const onError = jest.fn();
-      render(
-        <HLSPlayer playlistUrl="https://example.com/playlist.m3u8" onError={onError} />
-      );
+      render(<HLSPlayer playlistUrl="https://example.com/playlist.m3u8" onError={onError} />);
 
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'error', message: 'Test error' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'error', message: 'Test error' }) },
         });
       });
 
@@ -113,7 +120,9 @@ describe('HLSPlayer', () => {
 
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'timeupdate', currentTime: 30, duration: 180 }) }
+          nativeEvent: {
+            data: JSON.stringify({ type: 'timeupdate', currentTime: 30, duration: 180 }),
+          },
         });
       });
 
@@ -128,7 +137,7 @@ describe('HLSPlayer', () => {
 
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'buffering', buffering: true }) }
+          nativeEvent: { data: JSON.stringify({ type: 'buffering', buffering: true }) },
         });
       });
 
@@ -138,12 +147,15 @@ describe('HLSPlayer', () => {
     it('should call onStreamComplete when streamComplete message received', () => {
       const onStreamComplete = jest.fn();
       render(
-        <HLSPlayer playlistUrl="https://example.com/playlist.m3u8" onStreamComplete={onStreamComplete} />
+        <HLSPlayer
+          playlistUrl="https://example.com/playlist.m3u8"
+          onStreamComplete={onStreamComplete}
+        />
       );
 
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'streamComplete' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'streamComplete' }) },
         });
       });
 
@@ -153,37 +165,29 @@ describe('HLSPlayer', () => {
 
   describe('commands', () => {
     it('should send load command after ready message', () => {
-      render(
-        <HLSPlayer playlistUrl="https://example.com/playlist.m3u8" />
-      );
+      render(<HLSPlayer playlistUrl="https://example.com/playlist.m3u8" />);
 
       // Simulate WebView ready
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'ready' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
         });
       });
 
       // Should have sent load command
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"command":"load"')
-      );
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('playlist.m3u8')
-      );
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('"command":"load"'));
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('playlist.m3u8'));
     });
 
     it('should send play command when autoPlay is true', () => {
       jest.useFakeTimers();
 
-      render(
-        <HLSPlayer playlistUrl="https://example.com/playlist.m3u8" autoPlay={true} />
-      );
+      render(<HLSPlayer playlistUrl="https://example.com/playlist.m3u8" autoPlay={true} />);
 
       // Simulate WebView ready
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'ready' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
         });
       });
 
@@ -193,9 +197,7 @@ describe('HLSPlayer', () => {
       });
 
       // Should have sent play command
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"command":"play"')
-      );
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('"command":"play"'));
 
       jest.useRealTimers();
     });
@@ -205,14 +207,12 @@ describe('HLSPlayer', () => {
     it('should expose play, pause, seek methods via ref', () => {
       const ref = React.createRef<HLSPlayerRef>();
 
-      render(
-        <HLSPlayer ref={ref} playlistUrl="https://example.com/playlist.m3u8" />
-      );
+      render(<HLSPlayer ref={ref} playlistUrl="https://example.com/playlist.m3u8" />);
 
       // Simulate WebView ready
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'ready' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
         });
       });
 
@@ -232,7 +232,7 @@ describe('HLSPlayer', () => {
       // Simulate WebView ready
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'ready' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
         });
       });
 
@@ -242,9 +242,7 @@ describe('HLSPlayer', () => {
         ref.current?.pause();
       });
 
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"command":"pause"')
-      );
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('"command":"pause"'));
     });
 
     it('should send seek command with time when seek() is called', () => {
@@ -257,7 +255,7 @@ describe('HLSPlayer', () => {
       // Simulate WebView ready
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'ready' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
         });
       });
 
@@ -267,12 +265,8 @@ describe('HLSPlayer', () => {
         ref.current?.seek(45);
       });
 
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"command":"seek"')
-      );
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('"time":45')
-      );
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('"command":"seek"'));
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('"time":45'));
     });
   });
 
@@ -285,20 +279,16 @@ describe('HLSPlayer', () => {
       // Simulate WebView ready
       act(() => {
         storedOnMessage?.({
-          nativeEvent: { data: JSON.stringify({ type: 'ready' }) }
+          nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
         });
       });
 
       jest.clearAllMocks();
 
       // Change URL
-      rerender(
-        <HLSPlayer playlistUrl="https://example.com/playlist2.m3u8" autoPlay={false} />
-      );
+      rerender(<HLSPlayer playlistUrl="https://example.com/playlist2.m3u8" autoPlay={false} />);
 
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        expect.stringContaining('playlist2.m3u8')
-      );
+      expect(mockPostMessage).toHaveBeenCalledWith(expect.stringContaining('playlist2.m3u8'));
     });
   });
 });

@@ -14,7 +14,10 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { BackendMeditationCall, BackendMeditationCallStreaming } from '@/components/BackendMeditationCall';
+import {
+  BackendMeditationCall,
+  BackendMeditationCallStreaming,
+} from '@/components/BackendMeditationCall';
 import * as FileSystem from 'expo-file-system';
 
 const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';
@@ -32,7 +35,8 @@ describe('BackendMeditationCall', () => {
     // Setup default successful fetch mock for async job pattern
     // First call: submit job, returns job_id
     // Second call: poll for status, returns completed with result
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -147,7 +151,13 @@ describe('BackendMeditationCall', () => {
     const musicList = ['music1'];
     const user = 'testuser';
 
-    await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
+    await BackendMeditationCall(
+      selectedIndexes,
+      resolvedIncidents,
+      musicList,
+      user,
+      MOCK_LAMBDA_URL
+    );
 
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const payload = JSON.parse(callArgs[1].body);
@@ -175,7 +185,13 @@ describe('BackendMeditationCall', () => {
     const musicList = ['music1'];
     const user = 'testuser';
 
-    await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
+    await BackendMeditationCall(
+      selectedIndexes,
+      resolvedIncidents,
+      musicList,
+      user,
+      MOCK_LAMBDA_URL
+    );
 
     expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
       'mock-directory/output.mp3',
@@ -198,7 +214,13 @@ describe('BackendMeditationCall', () => {
     const musicList = ['track1', 'track2', 'track3'];
     const user = 'testuser';
 
-    await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
+    await BackendMeditationCall(
+      selectedIndexes,
+      resolvedIncidents,
+      musicList,
+      user,
+      MOCK_LAMBDA_URL
+    );
 
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const payload = JSON.parse(callArgs[1].body);
@@ -220,7 +242,13 @@ describe('BackendMeditationCall', () => {
     const musicList = ['music1'];
     const user = 'testuser';
 
-    await BackendMeditationCall(selectedIndexes, resolvedIncidents, musicList, user, MOCK_LAMBDA_URL);
+    await BackendMeditationCall(
+      selectedIndexes,
+      resolvedIncidents,
+      musicList,
+      user,
+      MOCK_LAMBDA_URL
+    );
 
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const payload = JSON.parse(callArgs[1].body);
@@ -274,7 +302,8 @@ describe('BackendMeditationCallStreaming', () => {
   it('should return playlist URL when streaming starts', async () => {
     // First call: submit job
     // Second call: poll returns streaming status
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -312,7 +341,8 @@ describe('BackendMeditationCallStreaming', () => {
 
   it('should detect non-streaming jobs (base64 fallback)', async () => {
     // Non-streaming job returns completed with base64
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -348,7 +378,8 @@ describe('BackendMeditationCallStreaming', () => {
   it('should call onStatusUpdate during polling', async () => {
     const onStatusUpdate = jest.fn();
 
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -386,16 +417,13 @@ describe('BackendMeditationCallStreaming', () => {
     );
 
     expect(onStatusUpdate).toHaveBeenCalledTimes(2);
-    expect(onStatusUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'processing' })
-    );
-    expect(onStatusUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'streaming' })
-    );
+    expect(onStatusUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'processing' }));
+    expect(onStatusUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'streaming' }));
   });
 
   it('should waitForCompletion until job completes', async () => {
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -450,7 +478,8 @@ describe('BackendMeditationCallStreaming', () => {
   it('should getDownloadUrl after completion', async () => {
     const mockDownloadUrl = 'https://s3.example.com/downloads/meditation.mp3?signature=xyz';
 
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -500,7 +529,8 @@ describe('BackendMeditationCallStreaming', () => {
   });
 
   it('should handle failed jobs', async () => {
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({
@@ -529,7 +559,8 @@ describe('BackendMeditationCallStreaming', () => {
   });
 
   it('should handle structured error messages', async () => {
-    global.fetch = jest.fn()
+    global.fetch = jest
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({

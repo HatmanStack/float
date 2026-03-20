@@ -230,7 +230,9 @@ describe('Error Scenarios', () => {
       // Should either:
       // 1. Show warning that recording was interrupted
       // 2. Have automatically stopped and saved recording
-      const warningVisible = await (element(by.id('recording-interrupted-warning')) as any).isVisible();
+      const warningVisible = await (
+        element(by.id('recording-interrupted-warning')) as any
+      ).isVisible();
       const recordingComplete = await (element(by.id('processing-indicator')) as any).isVisible();
 
       if (!warningVisible && !recordingComplete) {
@@ -289,7 +291,9 @@ describe('Error Scenarios', () => {
         .toBeVisible()
         .withTimeout(2000);
 
-      await detoxExpect(element(by.id('validation-error'))).toHaveText(/short|minimum|duration/i as any);
+      await detoxExpect(element(by.id('validation-error'))).toHaveText(
+        /short|minimum|duration/i as any
+      );
 
       // Should not attempt backend call
       await new Promise((resolve) => setTimeout(resolve, 2000));

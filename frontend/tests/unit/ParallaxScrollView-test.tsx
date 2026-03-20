@@ -7,7 +7,11 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 jest.mock('@/components/ThemedView', () => ({
   ThemedView: ({ children, style, ...props }: any) => {
     const { View } = require('react-native');
-    return <View style={style} {...props}>{children}</View>;
+    return (
+      <View style={style} {...props}>
+        {children}
+      </View>
+    );
   },
 }));
 

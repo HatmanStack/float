@@ -294,9 +294,7 @@ describe('Meditation Flow Integration Tests', () => {
     });
 
     it('should pause and stop playback', () => {
-      const { getByTestId } = renderWithIncidentContext(
-        <MeditationPlayerComponent />
-      );
+      const { getByTestId } = renderWithIncidentContext(<MeditationPlayerComponent />);
 
       // For this test, we'll just verify the controls work
       expect(getByTestId('playback-status')).toHaveTextContent('Stopped');

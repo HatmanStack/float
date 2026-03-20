@@ -32,7 +32,9 @@ describe('IncidentColoring', () => {
     },
   ];
 
-  const wrapper = ({ children }: { children: React.ReactNode }) => <IncidentProvider>{children}</IncidentProvider>;
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <IncidentProvider>{children}</IncidentProvider>
+  );
 
   beforeEach(() => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => mockDateNow.getTime());

@@ -161,7 +161,7 @@ const originalError = console.error;
 beforeAll(() => {
   console.warn = jest.fn((...args) => {
     // Convert all arguments to strings for checking
-    const message = args.map(arg => String(arg)).join(' ');
+    const message = args.map((arg) => String(arg)).join(' ');
 
     // Only suppress specific warnings
     if (
@@ -177,7 +177,7 @@ beforeAll(() => {
 
   console.error = jest.fn((...args) => {
     // Convert all arguments to strings for checking
-    const message = args.map(arg => String(arg)).join(' ');
+    const message = args.map((arg) => String(arg)).join(' ');
 
     // Only suppress specific errors
     if (

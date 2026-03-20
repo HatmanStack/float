@@ -5,7 +5,9 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 
-import MeditationLoading, { getLoadingMessage } from '@/components/ScreenComponents/MeditationLoading';
+import MeditationLoading, {
+  getLoadingMessage,
+} from '@/components/ScreenComponents/MeditationLoading';
 
 describe('MeditationLoading', () => {
   describe('rendering', () => {
@@ -51,26 +53,14 @@ describe('MeditationLoading', () => {
 
   describe('progress display', () => {
     it('should show progress when streaming with segments', () => {
-      render(
-        <MeditationLoading
-          state="streaming"
-          segmentsCompleted={5}
-          segmentsTotal={36}
-        />
-      );
+      render(<MeditationLoading state="streaming" segmentsCompleted={5} segmentsTotal={36} />);
 
       expect(screen.getByTestId('meditation-loading-progress')).toBeTruthy();
       expect(screen.getByText('5/36 segments')).toBeTruthy();
     });
 
     it('should show indeterminate progress when total unknown', () => {
-      render(
-        <MeditationLoading
-          state="streaming"
-          segmentsCompleted={5}
-          segmentsTotal={null}
-        />
-      );
+      render(<MeditationLoading state="streaming" segmentsCompleted={5} segmentsTotal={null} />);
 
       expect(screen.getByTestId('meditation-loading-progress')).toBeTruthy();
       expect(screen.getByText('5 segments loaded')).toBeTruthy();

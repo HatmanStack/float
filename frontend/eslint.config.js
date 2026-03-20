@@ -5,7 +5,15 @@ const reactHooksPlugin = require('eslint-plugin-react-hooks');
 
 module.exports = [
   {
-    ignores: ['node_modules/', 'dist/', 'build/', '.expo/', '**/__tests__/**', '*.config.js'],
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'build/',
+      '.expo/',
+      '**/__tests__/**',
+      '**/tests/**',
+      '*.config.js',
+    ],
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
@@ -41,7 +49,7 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': typescriptPlugin,
-      'react': reactPlugin,
+      react: reactPlugin,
       'react-hooks': reactHooksPlugin,
     },
     settings: {

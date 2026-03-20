@@ -27,7 +27,9 @@ function setPlatform(os: 'ios' | 'android' | 'web') {
 import DownloadButton from '@/components/DownloadButton/DownloadButton';
 
 describe('DownloadButton', () => {
-  const mockOnGetDownloadUrl = jest.fn().mockResolvedValue('https://example.com/download/meditation.mp3');
+  const mockOnGetDownloadUrl = jest
+    .fn()
+    .mockResolvedValue('https://example.com/download/meditation.mp3');
   const mockOnDownloadStart = jest.fn();
   const mockOnDownloadComplete = jest.fn();
   const mockOnDownloadError = jest.fn();
@@ -43,23 +45,13 @@ describe('DownloadButton', () => {
 
   describe('rendering', () => {
     it('should not render when downloadAvailable is false', () => {
-      render(
-        <DownloadButton
-          downloadAvailable={false}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={false} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       expect(screen.queryByTestId('download-button')).toBeNull();
     });
 
     it('should render when downloadAvailable is true', () => {
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       expect(screen.getByTestId('download-button')).toBeTruthy();
       expect(screen.getByText('Download')).toBeTruthy();
@@ -121,16 +113,16 @@ describe('DownloadButton', () => {
 
     it('should show preparing state while fetching URL', async () => {
       // Make getDownloadUrl slow
-      const slowGetDownloadUrl = jest.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('https://example.com/download.mp3'), 100))
-      );
+      const slowGetDownloadUrl = jest
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve('https://example.com/download.mp3'), 100)
+            )
+        );
 
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={slowGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={slowGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 
@@ -141,17 +133,17 @@ describe('DownloadButton', () => {
 
     it('should show downloading state during download', async () => {
       // Make download slow
-      const slowDownloadAsync = jest.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ uri: 'mock-directory/meditation.mp3' }), 100))
-      );
+      const slowDownloadAsync = jest
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ uri: 'mock-directory/meditation.mp3' }), 100)
+            )
+        );
       mockDownloadResumable.downloadAsync = slowDownloadAsync;
 
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 
@@ -177,12 +169,7 @@ describe('DownloadButton', () => {
     });
 
     it('should show completed state after download', async () => {
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 
@@ -193,12 +180,7 @@ describe('DownloadButton', () => {
     });
 
     it('should show success alert after download completes', async () => {
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 
@@ -225,12 +207,7 @@ describe('DownloadButton', () => {
     });
 
     it('should open download URL in new tab on web', async () => {
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 
@@ -266,12 +243,7 @@ describe('DownloadButton', () => {
     it('should show error alert when download fails', async () => {
       mockOnGetDownloadUrl.mockRejectedValueOnce(new Error('Network error'));
 
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 
@@ -287,12 +259,7 @@ describe('DownloadButton', () => {
     it('should show retry text after error', async () => {
       mockOnGetDownloadUrl.mockRejectedValueOnce(new Error('Network error'));
 
-      render(
-        <DownloadButton
-          downloadAvailable={true}
-          onGetDownloadUrl={mockOnGetDownloadUrl}
-        />
-      );
+      render(<DownloadButton downloadAvailable={true} onGetDownloadUrl={mockOnGetDownloadUrl} />);
 
       fireEvent.press(screen.getByTestId('download-button'));
 

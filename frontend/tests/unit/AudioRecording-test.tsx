@@ -123,7 +123,9 @@ describe('AudioRecording', () => {
 
     it('should handle recording creation errors', async () => {
       (Audio.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
-      (Audio.Recording.createAsync as jest.Mock).mockRejectedValue(new Error('Failed to create recording'));
+      (Audio.Recording.createAsync as jest.Mock).mockRejectedValue(
+        new Error('Failed to create recording')
+      );
 
       const result = await StartRecording();
 
@@ -148,10 +150,9 @@ describe('AudioRecording', () => {
 
       expect(mockRecording.stopAndUnloadAsync).toHaveBeenCalled();
       expect(mockRecording.getURI).toHaveBeenCalled();
-      expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith(
-        'file://test-recording.m4a',
-        { encoding: 'base64' }
-      );
+      expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith('file://test-recording.m4a', {
+        encoding: 'base64',
+      });
       expect(result).toBe(base64Data);
     });
 

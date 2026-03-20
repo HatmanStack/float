@@ -37,7 +37,12 @@ describe('BackendSummaryCall', () => {
     const separateTextPrompt = 'This is a test prompt.';
     const user = 'testuser';
 
-    const response = await BackendSummaryCall(recordingURI, separateTextPrompt, user, MOCK_LAMBDA_URL);
+    const response = await BackendSummaryCall(
+      recordingURI,
+      separateTextPrompt,
+      user,
+      MOCK_LAMBDA_URL
+    );
 
     expect(response).toMatchObject({
       sentiment_label: 'Happy',
@@ -61,9 +66,9 @@ describe('BackendSummaryCall', () => {
       text: jest.fn().mockResolvedValueOnce('Internal Server Error'),
     });
 
-    await expect(BackendSummaryCall(recordingURI, separateTextPrompt, user, MOCK_LAMBDA_URL)).rejects.toThrow(
-      'Request to Summary Lambda URL failed with status 500'
-    );
+    await expect(
+      BackendSummaryCall(recordingURI, separateTextPrompt, user, MOCK_LAMBDA_URL)
+    ).rejects.toThrow('Request to Summary Lambda URL failed with status 500');
   });
 
   it('should use "NotAvailable" when recording URI is null', async () => {

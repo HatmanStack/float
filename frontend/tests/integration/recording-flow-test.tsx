@@ -46,7 +46,9 @@ const mockSummaryResponse = {
 function RecordingComponent() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
-  const [permissionStatus, setPermissionStatus] = useState<'not-requested' | 'granted' | 'denied'>('not-requested');
+  const [permissionStatus, setPermissionStatus] = useState<'not-requested' | 'granted' | 'denied'>(
+    'not-requested'
+  );
 
   const requestPermission = async () => {
     const { status } = await Audio.requestPermissionsAsync();
@@ -159,11 +161,7 @@ function RecordingToSummaryComponent() {
       {error && <Text testID="error-message">{error}</Text>}
       <Button title="Start" onPress={startRecording} testID="start-button" />
       <Button title="Stop" onPress={stopRecording} testID="stop-button" />
-      <Button
-        title="Generate Summary"
-        onPress={generateSummary}
-        testID="generate-summary-button"
-      />
+      <Button title="Generate Summary" onPress={generateSummary} testID="generate-summary-button" />
     </View>
   );
 }
