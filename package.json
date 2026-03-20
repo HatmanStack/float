@@ -11,7 +11,7 @@
     "android": "cd frontend && npm run android",
     "ios": "cd frontend && npm run ios",
     "web": "cd frontend && npm run web",
-    "test": "jest --passWithNoTests --ci --runInBand --forceExit",
+    "test": "cd frontend && npx jest --passWithNoTests",
     "test:backend": "cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short",
     "lint": "cd frontend && npm run lint",
     "lint:backend": "cd backend && uvx ruff check .",
@@ -21,55 +21,15 @@
     "prepare": "husky",
     "setup": "npm install --legacy-peer-deps && cd backend && python3 -m pip install -r requirements.txt -r requirements-dev.txt && cd .. && echo 'Setup complete. Copy .env.example files to .env and fill in your API keys.'"
   },
-  "jest": {
-    "preset": "jest-expo",
-    "rootDir": ".",
-    "roots": [
-      "<rootDir>/tests/frontend",
-      "<rootDir>/frontend"
-    ],
-    "testMatch": [
-      "**/*-test.tsx",
-      "**/*-test.ts"
-    ],
-    "setupFiles": [
-      "./jest.globals.js",
-      "./jest.setup.js"
-    ],
-    "setupFilesAfterEnv": [
-      "./tests/frontend/unit/utils/setup.ts"
-    ],
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/tests/frontend/unit/utils/",
-      "/tests/frontend/integration/setup.ts",
-      "/tests/frontend/integration/test-utils.tsx"
-    ],
-    "modulePaths": [
-      "<rootDir>/frontend/node_modules"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/frontend/$1"
-    }
-  },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
-    "@testing-library/react-native": "^13.2.0",
-    "@types/jest": "^29.5.12",
-    "@types/react-test-renderer": "^18.0.7",
     "aws-sdk": "^2.1692.0",
     "detox": "^20.0.0",
     "expo": "~55.0.7",
     "husky": "^9.1.7",
-    "jest": "^30.3.0",
-    "jest-expo": "~55.0.10",
     "lint-staged": "^16.4.0",
-    "prettier": "^3.6.2",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-native": "^0.84.1",
-    "react-test-renderer": "^19.2.3"
+    "prettier": "^3.6.2"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx}": [
