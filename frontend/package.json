@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web && node scripts/inject-seo.js",
-    "lint": "eslint . && tsc --noEmit"
+    "lint": "eslint . && tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.6",
@@ -44,13 +45,17 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "~18.2.45",
+    "@testing-library/react-native": "^13.2.0",
+    "@types/jest": "^29.5.12",
+    "@types/react": "~19.1",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "jest": "^30.3.0",
+    "jest-expo": "~55.0.10",
     "react-test-renderer": "^19.2.0",
     "typescript": "~5.9.3"
   },
