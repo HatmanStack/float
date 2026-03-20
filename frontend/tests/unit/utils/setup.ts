@@ -15,14 +15,6 @@ global.console = {
 // Set default timeout for async operations (increased for CI/slower machines)
 jest.setTimeout(30000);
 
-// Global test constants
-export const TEST_TIMEOUT = 5000;
-export const ASYNC_WAIT_TIME = 100;
-
-// Common mock data
-export const MOCK_API_URL = 'https://mock-api.example.com';
-export const MOCK_LAMBDA_URL = 'https://mock-lambda.example.com';
-
 // Global setup for React Native components
 if (typeof window !== 'undefined') {
   // Mock window.matchMedia

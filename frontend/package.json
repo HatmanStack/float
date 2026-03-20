@@ -62,8 +62,7 @@
   "jest": {
     "preset": "jest-expo",
     "roots": [
-      "<rootDir>/tests",
-      "<rootDir>"
+      "<rootDir>/tests"
     ],
     "testMatch": [
       "**/*-test.tsx",

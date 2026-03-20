@@ -55,7 +55,8 @@
 ### Test Runner
 - **Jest 30** via `jest-expo` preset (version `~55.0.10`)
 - Run from `frontend/` workspace: `cd frontend && npx jest`
-- Root `npm test` delegates: `cd frontend && npx jest --ci --runInBand --forceExit`
+- Root `npm test` delegates: `cd frontend && npx jest --forceExit`
+- CI appends flags: `npm test -- --ci --forceExit`
 
 ### Test Structure (after migration)
 ```
@@ -87,7 +88,7 @@ frontend/
 - Global mocks in `jest.setup.js`: AsyncStorage, expo-file-system (with EncodingType)
 - Unit setup in `tests/unit/utils/setup.ts`: console suppression, `beforeEach` mock clearing
 - Integration setup in `tests/integration/setup.ts`: expo-notifications, expo-av, expo-permissions, Google Sign-In, navigation mocks
-- Timer cleanup: global `afterEach` with `jest.clearAllTimers()` in `jest.globals.js`
+- Timer cleanup: `afterEach` with `jest.clearAllTimers()` in `setupFilesAfterEnv` (`tests/unit/utils/setup.ts`)
 
 ## Commit Convention
 

@@ -26,13 +26,8 @@ const mockBase64 = 'UklGRgAAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQAC/AAAAABAAEAQAAAB
 const mockJobId = 'test-job-id-123';
 const mockPlaylistUrl = 'https://s3.example.com/hls/playlist.m3u8?signature=abc123';
 
-afterEach(() => {
-  jest.clearAllMocks();
-});
-
 describe('BackendMeditationCall', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     // Setup default successful fetch mock for async job pattern
     // First call: submit job, returns job_id
     // Second call: poll for status, returns completed with result

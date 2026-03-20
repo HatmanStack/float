@@ -12,18 +12,36 @@ if (typeof globalThis.structuredClone === 'undefined') {
   globalThis.structuredClone = (val) => JSON.parse(JSON.stringify(val));
 }
 
-// Stub expo winter globals if not available (prevents Jest 30 scope errors
-// from expo's lazy global installer trying to require outside test code).
-// These globals are installed lazily by expo via Object.defineProperty getters
-// that call require(). In Jest 30, these require() calls fail when they fire
-// during module initialization outside of test code scope.
-if (typeof globalThis.TextDecoder === 'undefined') {
-  globalThis.TextDecoder = class TextDecoder {
-    decode() {
-      return '';
-    }
-  };
+// Use Node's built-in TextEncoder/TextDecoder when available (provides real
+// encode/decode behavior). Fall back to stubs only if util module is missing.
+// Expo's lazy global installer uses Object.defineProperty getters that call
+// require() — in Jest 30 these fail outside test code scope.
+try {
+  const util = require('util');
+  if (typeof globalThis.TextEncoder === 'undefined' && util.TextEncoder) {
+    globalThis.TextEncoder = util.TextEncoder;
+  }
+  if (typeof globalThis.TextDecoder === 'undefined' && util.TextDecoder) {
+    globalThis.TextDecoder = util.TextDecoder;
+  }
+} catch {
+  // util not available — fall back to stubs
+  if (typeof globalThis.TextEncoder === 'undefined') {
+    globalThis.TextEncoder = class TextEncoder {
+      encode(input = '') {
+        return new Uint8Array([...input].map((c) => c.charCodeAt(0)));
+      }
+    };
+  }
+  if (typeof globalThis.TextDecoder === 'undefined') {
+    globalThis.TextDecoder = class TextDecoder {
+      decode() {
+        return '';
+      }
+    };
+  }
 }
+
 if (typeof globalThis.TextDecoderStream === 'undefined') {
   globalThis.TextDecoderStream = class TextDecoderStream {};
 }

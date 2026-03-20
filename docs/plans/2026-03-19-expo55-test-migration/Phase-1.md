@@ -54,7 +54,7 @@ Move the Jest configuration and all frontend test files from the monorepo root i
 - No tests to run yet (Jest config still points to old paths)
 
 **Commit Message Template:**
-```
+```text
 refactor(tests): move tests/frontend/ to frontend/tests/
 
 - Relocate all frontend test files into the frontend workspace
@@ -116,7 +116,7 @@ afterEach(() => {
 - No tests to run yet (Jest config not yet updated)
 
 **Commit Message Template:**
-```
+```text
 fix(tests): move jest.globals.js to frontend, remove rAF polyfill
 
 - Remove requestAnimationFrame polyfill that causes Jest 30 teardown crash
@@ -160,7 +160,7 @@ fix(tests): move jest.globals.js to frontend, remove rAF polyfill
 - No tests to run yet (Jest config not yet updated)
 
 **Commit Message Template:**
-```
+```text
 fix(tests): move jest.setup.js to frontend, add expo-file-system mock
 
 - Add EncodingType to expo-file-system mock for unit tests
@@ -187,7 +187,7 @@ fix(tests): move jest.setup.js to frontend, add expo-file-system mock
    - `"@types/jest": "^29.5.12"` (match root version — note: @types/jest 29 works with Jest 30)
 2. Bump existing `@types/react` from `"~18.2.45"` to `"~19.1"`
 3. Add a `"test"` script to `frontend/package.json` scripts:
-   ```
+   ```json
    "test": "jest"
    ```
 4. Do NOT remove `react-test-renderer` from frontend devDependencies (per ADR-5)
@@ -202,7 +202,7 @@ fix(tests): move jest.setup.js to frontend, add expo-file-system mock
 - Run `npm install --legacy-peer-deps` from monorepo root and verify it succeeds
 
 **Commit Message Template:**
-```
+```text
 chore(deps): add test deps to frontend, bump @types/react to ~19.1
 
 - Add jest, jest-expo, @testing-library/react-native, @types/jest to frontend
@@ -280,7 +280,7 @@ Key differences from the old root config:
 - From `frontend/`, run `npx jest --listTests` and verify it finds the expected test files (unit + integration, not e2e, not utils)
 
 **Commit Message Template:**
-```
+```text
 refactor(tests): add Jest config to frontend/package.json
 
 - Configure jest-expo preset for workspace context
@@ -304,11 +304,11 @@ refactor(tests): add Jest config to frontend/package.json
 
 **Implementation Steps:**
 1. Change the root `"test"` script from:
-   ```
+   ```json
    "jest --passWithNoTests --ci --runInBand --forceExit"
    ```
    to:
-   ```
+   ```json
    "cd frontend && npx jest --passWithNoTests"
    ```
    **Rationale:** Remove `--ci --runInBand --forceExit` from the root script. CI already passes `--ci --forceExit` via `npm test -- --ci --forceExit`. Having them in both places could cause issues. The `--passWithNoTests` flag stays because it's a safe default for local dev. CI flags get appended by the CI workflow.
@@ -349,7 +349,7 @@ refactor(tests): add Jest config to frontend/package.json
 - Run `npm test` from root — it should delegate to frontend (may still fail if test files aren't fixed yet, but should start Jest from the right location)
 
 **Commit Message Template:**
-```
+```text
 refactor(tests): delegate root npm test to frontend workspace
 
 - Remove test-related devDeps from root (now in frontend)
@@ -400,7 +400,7 @@ it('renders correctly', () => {
 - This test will generate a new snapshot on first run. The new snapshot will differ from the old one (expected). Run with `--updateSnapshot` or `-u` flag on first run to create it.
 
 **Commit Message Template:**
-```
+```text
 fix(tests): migrate ThemedText test from react-test-renderer to RTLN
 
 - Replace deprecated react-test-renderer with @testing-library/react-native
@@ -452,7 +452,7 @@ fix(tests): migrate ThemedText test from react-test-renderer to RTLN
 - Run from root (as CI does): `npm test -- --ci --forceExit`
 
 **Commit Message Template:**
-```
+```text
 fix(tests): resolve remaining test failures after migration
 
 - [describe specific fixes applied]
@@ -491,7 +491,7 @@ fix(tests): resolve remaining test failures after migration
 - `npm run check` from root
 
 **Commit Message Template:**
-```
+```text
 fix(tests): ensure CI flag forwarding works with workspace delegation
 
 - [describe any changes needed]
@@ -532,7 +532,7 @@ fix(tests): ensure CI flag forwarding works with workspace delegation
 - `npm run check` (full validation)
 
 **Commit Message Template:**
-```
+```text
 chore(tests): clean up leftover files from test migration
 
 - Remove root jest config files

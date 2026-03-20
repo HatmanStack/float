@@ -14,10 +14,6 @@ import { BackendSummaryCall } from '@/components/BackendSummaryCall';
 
 const MOCK_LAMBDA_URL = 'https://mock-lambda-url.example.com';
 
-afterEach(() => {
-  jest.clearAllMocks();
-});
-
 describe('BackendSummaryCall', () => {
   beforeEach(() => {
     jest.clearAllMocks();
