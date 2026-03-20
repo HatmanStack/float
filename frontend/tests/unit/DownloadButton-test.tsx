@@ -40,7 +40,7 @@ describe('DownloadButton', () => {
   });
 
   afterAll(() => {
-    setPlatform(originalPlatform);
+    setPlatform(originalPlatform as 'ios' | 'android' | 'web');
   });
 
   describe('rendering', () => {

@@ -14,19 +14,19 @@ describe('IncidentColoring', () => {
   const mockIncidentList = [
     {
       sentiment_label: 'Happy',
-      intensity: '3',
+      intensity: 3,
       timestamp: '2023-10-26T11:00:00.000Z',
       color_key: 0,
     },
     {
       sentiment_label: 'Sad',
-      intensity: '1',
+      intensity: 1,
       timestamp: '2023-10-26T11:30:00.000Z',
       color_key: 0,
     },
     {
       sentiment_label: 'Neutral',
-      intensity: '5',
+      intensity: 5,
       timestamp: '2023-10-26T10:00:00.000Z',
       color_key: 0,
     },

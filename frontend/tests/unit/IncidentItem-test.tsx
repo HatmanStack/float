@@ -46,7 +46,7 @@ jest.mock('@/components/Collapsible', () => {
 describe('IncidentItem', () => {
   const mockIncident = {
     sentiment_label: 'Happy',
-    intensity: '3',
+    intensity: 3,
     timestamp: '2023-12-20T12:00:00.000Z',
     user_summary: 'This is a summary of the incident.',
     user_short_summary: 'Short summary',
