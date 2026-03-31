@@ -9,10 +9,10 @@ import { useAuth } from '@/context/AuthContext';
 import useStyles from '@/constants/StylesConstants';
 import { Colors } from '@/constants/Colors';
 import * as WebBrowser from 'expo-web-browser';
-import axios from 'axios';
 
 // Only import and configure GoogleSignin on native platforms
-let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
+let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null =
+  null;
 if (Platform.OS !== 'web') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
@@ -63,9 +63,16 @@ function useAuthentication() {
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-        });        const googleUser: User = { id: userInfo.data.email, name: userInfo.data.email };
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const userInfo = await response.json();
+        const googleUser: User = { id: userInfo.email, name: userInfo.email };
         await AsyncStorage.setItem('user', JSON.stringify(googleUser));
         setUser(googleUser);
       } catch (error) {
