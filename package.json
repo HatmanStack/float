@@ -24,7 +24,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
-    "aws-sdk": "^2.1693.0",
+    "aws-sdk": "^2.1692.0",
     "detox": "^20.0.0",
     "expo": "~55.0.7",
     "husky": "^9.1.7",
@@ -46,8 +46,5 @@
       "ruff check --fix",
       "ruff format"
     ]
-  },
-  "dependencies": {
-    "vite-plugin-pwa": "^1.2.0"
   }
 }
