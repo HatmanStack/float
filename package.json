@@ -46,5 +46,8 @@
       "ruff check --fix",
       "ruff format"
     ]
+  },
+  "dependencies": {
+    "vite-plugin-pwa": "^1.2.0"
   }
 }
