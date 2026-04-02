@@ -51,15 +51,9 @@ jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
 }));
 
-// Mock axios
-const mockAxiosGet = jest.fn();
-
-jest.mock('axios', () => ({
-  __esModule: true,
-  default: {
-    get: (...args: any[]) => mockAxiosGet(...args),
-  },
-}));
+// Mock fetch for Google OAuth userinfo
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 // Mock ThemedView and ThemedText
 jest.mock('@/components/ThemedView', () => ({
@@ -199,7 +193,10 @@ describe('AuthScreen', () => {
       },
     };
 
-    mockAxiosGet.mockResolvedValue(mockUserInfo);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockUserInfo.data,
+    });
 
     const { getByText } = render(<CustomAuth />);
 

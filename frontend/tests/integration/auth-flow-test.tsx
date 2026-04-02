@@ -32,15 +32,14 @@ const AsyncStorage = mockAsyncStorage;
 // Mock Google Sign In module
 jest.mock('@react-native-google-signin/google-signin');
 
-// Mock axios for Google OAuth
-jest.mock('axios', () => ({
-  get: jest.fn().mockResolvedValue({
-    data: {
-      email: 'test@example.com',
-      name: 'Test User',
-    },
+// Mock fetch for Google OAuth userinfo
+global.fetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: async () => ({
+    email: 'test@example.com',
+    name: 'Test User',
   }),
-}));
+});
 
 // Mock @react-oauth/google
 jest.mock('@react-oauth/google', () => ({
