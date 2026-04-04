@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class AIService(ABC):
@@ -11,5 +11,5 @@ class AIService(ABC):
         self,
         input_data: Dict[str, Any],
         duration_minutes: int = 5,
-        qa_transcript: list | None = None,
+        qa_transcript: List[Dict[str, str]] | None = None,
     ) -> str: ...

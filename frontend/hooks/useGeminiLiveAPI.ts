@@ -60,14 +60,21 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
     transcriptRef.current = transcript;
   }, [transcript]);
 
-  const completeSession = useCallback(() => {
-    setState('complete');
-    wsRef.current?.close();
-    onTranscriptComplete(transcriptRef.current);
-  }, [onTranscriptComplete]);
+  const completeSession = useCallback(
+    (finalTranscript?: QAExchange[]) => {
+      setState('complete');
+      wsRef.current?.close();
+      onTranscriptComplete(finalTranscript ?? transcriptRef.current);
+    },
+    [onTranscriptComplete]
+  );
 
   const startSession = useCallback(async () => {
     try {
+      if (!LAMBDA_FUNCTION_URL) {
+        throw new Error('Missing EXPO_PUBLIC_LAMBDA_FUNCTION_URL configuration');
+      }
+
       setState('connecting');
       assistantExchangeCountRef.current = 0;
       setTranscript([]);
@@ -91,6 +98,7 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
 
       if (!wsUrl) {
         onError(new Error('No WebSocket endpoint returned'));
+        setState('idle');
         return;
       }
 
@@ -137,10 +145,11 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
                 if (serverContent.turnComplete) {
                   assistantExchangeCountRef.current += 1;
                   const exchange: QAExchange = { role: 'assistant', text: assistantText };
-                  setTranscript((prev) => [...prev, exchange]);
+                  const updatedTranscript = [...transcriptRef.current, exchange];
+                  setTranscript(updatedTranscript);
 
                   if (assistantExchangeCountRef.current >= MAX_ASSISTANT_EXCHANGES) {
-                    completeSession();
+                    completeSession(updatedTranscript);
                   } else {
                     setState('listening');
                   }

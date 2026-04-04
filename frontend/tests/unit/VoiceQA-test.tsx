@@ -140,16 +140,8 @@ describe('VoiceQA', () => {
     });
   });
 
-  it('requests microphone permission on mount', async () => {
-    renderVoiceQA();
-    await waitFor(() => {
-      expect(mockRequestPermissionsAsync).toHaveBeenCalled();
-    });
-  });
-
-  // Text fallback tests (Task 3)
-  it('shows text input when mic permission is denied', async () => {
-    mockRequestPermissionsAsync.mockResolvedValue({ granted: false });
+  // Text mode is default until audio modality is fully wired
+  it('shows text input in text mode (default)', async () => {
     mockHookReturn = { ...mockHookReturn, state: 'listening' };
     renderVoiceQA();
 
@@ -159,7 +151,6 @@ describe('VoiceQA', () => {
   });
 
   it('sends text message via send button in text mode', async () => {
-    mockRequestPermissionsAsync.mockResolvedValue({ granted: false });
     mockHookReturn = { ...mockHookReturn, state: 'listening' };
     renderVoiceQA();
 
@@ -175,7 +166,6 @@ describe('VoiceQA', () => {
   });
 
   it('shows mic not available message in text mode', async () => {
-    mockRequestPermissionsAsync.mockResolvedValue({ granted: false });
     mockHookReturn = { ...mockHookReturn, state: 'listening' };
     renderVoiceQA();
 
@@ -185,7 +175,6 @@ describe('VoiceQA', () => {
   });
 
   it('shows transcript correctly in text mode', async () => {
-    mockRequestPermissionsAsync.mockResolvedValue({ granted: false });
     mockHookReturn = {
       ...mockHookReturn,
       state: 'listening',

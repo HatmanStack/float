@@ -1385,6 +1385,28 @@ class TestGeminiTTSProvider:
             with pytest.raises(TTSError):
                 list(provider._stream_speech_internal("Test text"))
 
+    def test_stream_speech_raises_on_zero_chunks(self):
+        """Test _stream_speech_internal raises TTSError when no audio data returned."""
+        with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+
+            # Response with empty parts list
+            mock_response = MagicMock()
+            mock_candidate = MagicMock()
+            mock_content = MagicMock()
+            mock_content.parts = []
+            mock_candidate.content = mock_content
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+
+            from src.exceptions import TTSError
+            from src.providers.gemini_tts import GeminiTTSProvider
+
+            provider = GeminiTTSProvider()
+            with pytest.raises(TTSError, match="no audio data"):
+                list(provider._stream_speech_internal("Test text"))
+
 
 @pytest.mark.unit
 class TestMeditationPromptTranscript:

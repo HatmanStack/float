@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { Audio } from 'expo-av';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
@@ -35,7 +34,9 @@ const VoiceQA: React.FC<VoiceQAProps> = ({
   onSkip,
   onError,
 }) => {
-  const [textMode, setTextMode] = useState(false);
+  // Text-only mode until audio response modality is fully wired (voice input
+  // is captured but Gemini session uses TEXT responseModalities for now).
+  const textMode = true; // Text-only until audio response modality is wired
   const [textInput, setTextInput] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const hasCalledComplete = useRef(false);
@@ -52,17 +53,15 @@ const VoiceQA: React.FC<VoiceQAProps> = ({
     onError,
   });
 
-  // Request mic permission and start session on mount
+  // Start session on mount (text mode by default until audio is fully wired)
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
       try {
-        const { granted } = await Audio.requestPermissionsAsync();
         if (mounted) {
-          setTextMode(!granted);
+          await startSession();
         }
-        await startSession();
       } catch (error) {
         if (mounted) {
           onError(error instanceof Error ? error : new Error(String(error)));

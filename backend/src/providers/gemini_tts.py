@@ -12,18 +12,18 @@ from ..utils.circuit_breaker import gemini_tts_circuit
 
 logger = logging.getLogger(__name__)
 
-# Voice instructions for meditation TTS
-MEDITATION_VOICE_INSTRUCTIONS = """Speak in a calm, soothing, and gentle meditation guide voice.
-Use a slow, measured pace with natural pauses for breathing.
-Your tone should be warm, peaceful, and reassuring - like a trusted meditation instructor
-guiding someone through a relaxing session. Emphasize words related to relaxation,
-breathing, and letting go. When you encounter "..." in the text, pause naturally."""
-
 
 class GeminiTTSProvider(TTSService):
     def __init__(self):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        self._client: genai.Client | None = None
         self.model_name = settings.GEMINI_TTS_MODEL
+
+    @property
+    def client(self) -> genai.Client:
+        """Lazy-initialize genai.Client on first use to avoid requiring API key at construction."""
+        if self._client is None:
+            self._client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        return self._client
 
     def stream_speech(self, text: str) -> Iterator[bytes]:
         """Stream audio chunks from Gemini TTS.
@@ -79,6 +79,8 @@ class GeminiTTSProvider(TTSService):
 
             logger.info("Gemini TTS streaming completed successfully")
 
+        except TTSError:
+            raise
         except Exception as e:
             logger.error(f"Error in Gemini TTS streaming: {e}")
             raise TTSError(
