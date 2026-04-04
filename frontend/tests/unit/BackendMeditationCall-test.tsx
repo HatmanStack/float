@@ -554,6 +554,85 @@ describe('BackendMeditationCallStreaming', () => {
     ).rejects.toThrow('Audio generation failed');
   });
 
+  it('should include qa_transcript in payload when provided', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'completed',
+          result: {
+            base64: mockBase64,
+            music_list: ['music1'],
+          },
+        }),
+      }) as jest.Mock;
+
+    const qaTranscript = [
+      { role: 'assistant' as const, text: 'How are you feeling?' },
+      { role: 'user' as const, text: 'I feel stressed' },
+    ];
+
+    await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL,
+      undefined,
+      5,
+      undefined,
+      qaTranscript
+    );
+
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0];
+    const payload = JSON.parse(callArgs[1].body);
+    expect(payload.qa_transcript).toEqual(qaTranscript);
+  });
+
+  it('should omit qa_transcript from payload when undefined', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'pending',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          job_id: mockJobId,
+          status: 'completed',
+          result: {
+            base64: mockBase64,
+            music_list: ['music1'],
+          },
+        }),
+      }) as jest.Mock;
+
+    await BackendMeditationCallStreaming(
+      [0],
+      [defaultIncident],
+      ['music1'],
+      'testuser',
+      MOCK_LAMBDA_URL
+    );
+
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0];
+    const payload = JSON.parse(callArgs[1].body);
+    expect(payload.qa_transcript).toBeUndefined();
+  });
+
   it('should handle structured error messages', async () => {
     global.fetch = jest
       .fn()

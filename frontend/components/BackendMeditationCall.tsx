@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
-import type { JobStatusResponse, MeditationResult, StreamingInfo } from '@/types/api';
+import type { JobStatusResponse, MeditationResult, StreamingInfo, QATranscript } from '@/types/api';
 
 /**
  * Incident data structure
@@ -239,7 +239,8 @@ export async function BackendMeditationCallStreaming(
   lambdaUrl: string = LAMBDA_FUNCTION_URL,
   onStatusUpdate?: (status: JobStatusResponse) => void,
   durationMinutes: number = 5,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  qaTranscript?: QATranscript
 ): Promise<StreamingMeditationResponse> {
   const dict = getTransformedDict(resolvedIncidents, selectedIndexes);
 
@@ -251,6 +252,7 @@ export async function BackendMeditationCallStreaming(
     input_data: dict,
     user_id: userId,
     duration_minutes: durationMinutes,
+    ...(qaTranscript && { qa_transcript: qaTranscript }),
   };
 
   try {

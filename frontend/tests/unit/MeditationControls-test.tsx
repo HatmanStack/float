@@ -22,6 +22,19 @@ jest.mock('expo-av', () => ({
   },
 }));
 
+// Mock VoiceQA component
+let mockVoiceQAProps: Record<string, unknown> = {};
+jest.mock('@/components/ScreenComponents/VoiceQA', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: (props: Record<string, unknown>) => {
+      mockVoiceQAProps = props;
+      return React.createElement('VoiceQA', { testID: 'voice-qa' });
+    },
+  };
+});
+
 // Mock HLSPlayer component
 jest.mock('@/components/HLSPlayer', () => {
   const React = require('react');
@@ -266,6 +279,110 @@ describe('MeditationControls', () => {
       );
 
       expect(screen.getByTestId('activity-indicator')).toBeTruthy();
+    });
+  });
+
+  describe('Voice Q&A integration', () => {
+    const mockSentimentData = {
+      sentiment_label: ['Anxious'],
+      intensity: [4],
+      speech_to_text: ['stressed'],
+      added_text: ['work'],
+      summary: ['workplace stress'],
+    };
+
+    it('shows VoiceQA component when Generate is pressed with sentimentData', () => {
+      render(
+        <MeditationControls
+          isCalling={false}
+          meditationURI={''}
+          setMeditationURI={mockSetMeditationURI}
+          handleMeditationCall={mockHandleMeditationCall}
+          sentimentData={mockSentimentData}
+        />
+      );
+
+      fireEvent.press(screen.getByText('Generate'));
+      expect(screen.getByTestId('voice-qa')).toBeTruthy();
+    });
+
+    it('calls handleMeditationCall when Q&A completes', () => {
+      render(
+        <MeditationControls
+          isCalling={false}
+          meditationURI={''}
+          setMeditationURI={mockSetMeditationURI}
+          handleMeditationCall={mockHandleMeditationCall}
+          sentimentData={mockSentimentData}
+        />
+      );
+
+      fireEvent.press(screen.getByText('Generate'));
+
+      // Simulate Q&A completing via the captured props
+      const transcript = [{ role: 'assistant' as const, text: 'test' }];
+      act(() => {
+        (mockVoiceQAProps.onComplete as (t: unknown) => void)(transcript);
+      });
+
+      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5, transcript);
+    });
+
+    it('calls handleMeditationCall without transcript when Q&A is skipped', () => {
+      render(
+        <MeditationControls
+          isCalling={false}
+          meditationURI={''}
+          setMeditationURI={mockSetMeditationURI}
+          handleMeditationCall={mockHandleMeditationCall}
+          sentimentData={mockSentimentData}
+        />
+      );
+
+      fireEvent.press(screen.getByText('Generate'));
+
+      // Simulate skip
+      act(() => {
+        (mockVoiceQAProps.onSkip as () => void)();
+      });
+
+      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+    });
+
+    it('calls handleMeditationCall without transcript on Q&A error', () => {
+      render(
+        <MeditationControls
+          isCalling={false}
+          meditationURI={''}
+          setMeditationURI={mockSetMeditationURI}
+          handleMeditationCall={mockHandleMeditationCall}
+          sentimentData={mockSentimentData}
+        />
+      );
+
+      fireEvent.press(screen.getByText('Generate'));
+
+      // Simulate error
+      act(() => {
+        (mockVoiceQAProps.onError as (e: Error) => void)(new Error('test error'));
+      });
+
+      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+    });
+
+    it('falls back to direct meditation when no sentimentData', () => {
+      render(
+        <MeditationControls
+          isCalling={false}
+          meditationURI={''}
+          setMeditationURI={mockSetMeditationURI}
+          handleMeditationCall={mockHandleMeditationCall}
+        />
+      );
+
+      fireEvent.press(screen.getByText('Generate'));
+      // Should call meditation directly without Q&A
+      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
     });
   });
 });
