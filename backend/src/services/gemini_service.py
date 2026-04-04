@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiAIService(AIService):
-
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
         self.safety_settings = {
@@ -157,9 +156,7 @@ Data for meditation transcript:"""
         }
 
     @with_circuit_breaker(gemini_circuit)
-    def analyze_sentiment(
-        self, audio_file: str | None = None, user_text: str | None = None
-    ) -> str:
+    def analyze_sentiment(self, audio_file: str | None = None, user_text: str | None = None) -> str:
         """
         Analyze sentiment from audio and/or text input using Gemini.
 
@@ -176,7 +173,7 @@ Data for meditation transcript:"""
         """
         logger.info("Starting sentiment analysis")
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash", safety_settings=self.safety_settings
+            model_name=settings.GEMINI_AI_MODEL, safety_settings=self.safety_settings
         )
         text_response = None
         audio_response = None
@@ -269,7 +266,9 @@ Data for meditation transcript:"""
 
         # Get inspirational quote
         quote, author = self._get_inspirational_quote()
-        logger.info("Using quote: '%s' - %s", quote[:50] + "..." if len(quote) > 50 else quote, author)
+        logger.info(
+            "Using quote: '%s' - %s", quote[:50] + "..." if len(quote) > 50 else quote, author
+        )
 
         # Build prompt with duration-specific targets
         prompt_meditation = self.prompt_meditation_template.format(
@@ -281,7 +280,7 @@ Data for meditation transcript:"""
         )
 
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
+            model_name=settings.GEMINI_AI_MODEL,
             safety_settings=self.safety_settings,
         )
         try:
