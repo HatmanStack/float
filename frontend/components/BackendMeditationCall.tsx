@@ -5,7 +5,7 @@ import type { JobStatusResponse, MeditationResult, StreamingInfo } from '@/types
 /**
  * Incident data structure
  */
-interface IncidentData {
+export interface IncidentData {
   sentiment_label?: string;
   intensity?: number | string;
   speech_to_text?: string;
@@ -16,7 +16,7 @@ interface IncidentData {
 /**
  * Transformed dictionary structure for meditation
  */
-interface TransformedDict {
+export interface TransformedDict {
   sentiment_label: string[];
   intensity: number[];
   speech_to_text: string[];
@@ -51,7 +51,10 @@ const INITIAL_POLL_INTERVAL_MS = 1000; // Start with 1 second
 const MAX_POLL_INTERVAL_MS = 3000; // 3 seconds after fast window
 const MAX_TOTAL_WAIT_MS = 5 * 60 * 1000; // 5 minutes max total wait
 
-const getTransformedDict = (dict: IncidentData[], selectedIndexes: number[]): TransformedDict => {
+export const getTransformedDict = (
+  dict: IncidentData[],
+  selectedIndexes: number[]
+): TransformedDict => {
   const transformedDict: TransformedDict = {
     sentiment_label: [],
     intensity: [],

@@ -58,6 +58,33 @@ export interface DownloadResponse {
 /**
  * Meditation result with streaming support
  */
+/**
+ * Voice Q&A state machine states
+ */
+export type QAState =
+  | 'idle'
+  | 'connecting'
+  | 'listening'
+  | 'processing'
+  | 'responding'
+  | 'complete';
+
+/**
+ * Single exchange in a Q&A conversation
+ */
+export interface QAExchange {
+  role: 'assistant' | 'user';
+  text: string;
+}
+
+/**
+ * Full Q&A transcript (array of exchanges)
+ */
+export type QATranscript = QAExchange[];
+
+/**
+ * Meditation result with streaming support
+ */
 export interface MeditationResult {
   // Existing (for base64 fallback)
   meditationUri?: string;
