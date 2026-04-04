@@ -37,6 +37,13 @@ class SummaryRequestModel(BaseModel):
         return InferenceType.SUMMARY
 
 
+class QATranscriptItem(BaseModel):
+    """A single exchange in the Q&A transcript."""
+
+    role: str
+    text: str
+
+
 class MeditationRequestModel(BaseModel):
     """Request model for meditation generation."""
 
@@ -45,7 +52,7 @@ class MeditationRequestModel(BaseModel):
     input_data: Dict[str, Any] | List[Dict[str, Any]]
     music_list: List[str] = Field(default_factory=list)
     duration_minutes: Literal[3, 5, 10, 15, 20] = 5
-    qa_transcript: List[Dict[str, str]] | None = None
+    qa_transcript: List[QATranscriptItem] | None = None
 
     @field_validator("input_data", mode="before")
     @classmethod
@@ -95,7 +102,7 @@ class MeditationRequestModel(BaseModel):
             "duration_minutes": self.duration_minutes,
         }
         if self.qa_transcript:
-            result["qa_transcript"] = self.qa_transcript
+            result["qa_transcript"] = [item.model_dump() for item in self.qa_transcript]
         return result
 
 

@@ -33,7 +33,7 @@ const VoiceQA: React.FC<VoiceQAProps> = ({ sentimentData, onComplete, onSkip, on
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const hasCalledComplete = useRef(false);
 
-  const { state, transcript, startSession, endSession, sendTextMessage } = useGeminiLiveAPI({
+  const { state, transcript, startSession, sendTextMessage } = useGeminiLiveAPI({
     sentimentData,
     onTranscriptComplete: (t) => {
       if (!hasCalledComplete.current) {
@@ -216,7 +216,6 @@ const VoiceQA: React.FC<VoiceQAProps> = ({ sentimentData, onComplete, onSkip, on
 
       <Pressable
         onPress={() => {
-          endSession();
           onSkip();
         }}
         style={localStyles.skipButton}

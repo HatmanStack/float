@@ -66,11 +66,11 @@ class LambdaHandler:
         self.hls_service = HLSService(self.storage_service)
         self.download_service = DownloadService(self.storage_service, self.hls_service)
         self.audio_service = FFmpegAudioService(self.storage_service, hls_service=self.hls_service)
+        if validate_config:
+            settings.validate_keys()
         self.tts_provider = GeminiTTSProvider()
         self.fallback_tts_provider = OpenAITTSProvider()
         self.job_service = JobService(self.storage_service)
-        if validate_config:
-            settings.validate_keys()
 
     @staticmethod
     def _create_ai_service() -> AIService:
@@ -704,16 +704,18 @@ def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict
         return cors_middleware(lambda e, _: response)(event, None)
 
     logger.info(
-        "Token request received",
+        "Token request received (rate limit check)",
         extra={"data": {"user_id": user_id}},
     )
 
-    # Return API key as token (MVP approach - see ADR-2 in Phase-0.md)
-    # TODO: Replace with ephemeral token when Google provides the capability
+    # WARNING: MVP security concern — this returns the raw Gemini API key because Google
+    # does not yet support minting short-lived ephemeral tokens. This MUST be replaced
+    # with ephemeral tokens once that capability is available. See ADR-2 in Phase-0.md.
     token_response = create_success_response(
         {
             "token": settings.GEMINI_API_KEY,
-            "expires_in": 300,
+            "expires_in": 60,
+            "user_id": user_id,
             "endpoint": (
                 "wss://generativelanguage.googleapis.com/ws/"
                 "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"

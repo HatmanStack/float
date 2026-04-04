@@ -268,7 +268,11 @@ class TestMeditationRequestQATranscript:
             music_list=[],
             qa_transcript=transcript,
         )
-        assert req.qa_transcript == transcript
+        assert len(req.qa_transcript) == 2
+        assert req.qa_transcript[0].role == "assistant"
+        assert req.qa_transcript[0].text == "How are you feeling?"
+        assert req.qa_transcript[1].role == "user"
+        assert req.qa_transcript[1].text == "I'm stressed about work."
 
     def test_meditation_request_without_qa_transcript(self):
         """Test creating a MeditationRequestModel without qa_transcript."""

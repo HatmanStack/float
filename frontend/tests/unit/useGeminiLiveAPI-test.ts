@@ -102,7 +102,7 @@ describe('useGeminiLiveAPI', () => {
       ok: true,
       json: jest.fn().mockResolvedValue({
         token: MOCK_TOKEN,
-        ws_url: MOCK_WS_URL,
+        endpoint: MOCK_WS_URL,
       }),
     });
   });

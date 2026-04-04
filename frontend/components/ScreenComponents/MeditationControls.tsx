@@ -328,7 +328,8 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           setQaActive(false);
           handleMeditationCall(selectedDuration);
         }}
-        onError={() => {
+        onError={(error: Error) => {
+          console.error('Voice Q&A error, falling back to meditation without Q&A:', error);
           setQaActive(false);
           handleMeditationCall(selectedDuration);
         }}

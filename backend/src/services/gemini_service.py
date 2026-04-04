@@ -275,7 +275,9 @@ Return only the plain text meditation script with no markup or tags.
         qa_transcript = input_data.get("qa_transcript")
         if qa_transcript:
             exchanges = "\n".join(
-                f"  {entry['role'].capitalize()}: {entry['text']}" for entry in qa_transcript
+                f"  {str(entry.get('role', 'user')).capitalize()}: {entry.get('text', '')}"
+                for entry in qa_transcript
+                if entry.get("text")
             )
             qa_transcript_section = (
                 "\nAdditionally, the user participated in a brief check-in conversation before "

@@ -56,9 +56,6 @@ export interface DownloadResponse {
 }
 
 /**
- * Meditation result with streaming support
- */
-/**
  * Voice Q&A state machine states
  */
 export type QAState =

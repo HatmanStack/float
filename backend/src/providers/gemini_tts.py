@@ -53,10 +53,16 @@ class GeminiTTSProvider(TTSService):
                 ),
             )
 
+            chunks_yielded = 0
             if response.candidates and response.candidates[0].content:
                 for part in response.candidates[0].content.parts:
                     if part.inline_data and part.inline_data.data:
+                        chunks_yielded += 1
                         yield part.inline_data.data
+
+            if chunks_yielded == 0:
+                logger.error("Gemini TTS returned no audio data")
+                raise TTSError("Gemini TTS returned no audio data")
 
             logger.info("Gemini TTS streaming completed successfully")
 
@@ -74,9 +80,9 @@ class GeminiTTSProvider(TTSService):
         compatibility. For new code, prefer stream_speech which raises TTSError.
         """
         try:
-            logger.info(f"Creating Gemini voice for text: {text[:100]}...")
+            logger.info("Creating Gemini voice", extra={"data": {"text_length": len(text)}})
             with open(output_path, "wb") as f:
-                for chunk in self._stream_speech_internal(text):
+                for chunk in self.stream_speech(text):
                     f.write(chunk)
             logger.info(f"Audio successfully saved to: {output_path}")
             return True

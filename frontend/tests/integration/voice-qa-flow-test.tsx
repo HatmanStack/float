@@ -22,7 +22,7 @@ jest.mock('@/components/ScreenComponents/VoiceQA', () => {
   return {
     __esModule: true,
 
-    default: (props: any) => {
+    default: (props: Record<string, any>) => {
       capturedVoiceQAProps = props;
       return React.createElement(
         View,

@@ -9,6 +9,7 @@ interface UseGeminiLiveAPIOptions {
   sentimentData: TransformedDict;
   onTranscriptComplete: (transcript: QATranscript) => void;
   onError: (error: Error) => void;
+  userId?: string;
 }
 
 interface UseGeminiLiveAPIReturn {
@@ -45,7 +46,7 @@ function buildSystemPrompt(sentimentData: TransformedDict): string {
  * Handles token exchange, audio/text streaming, and transcript capture.
  */
 export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseGeminiLiveAPIReturn {
-  const { sentimentData, onTranscriptComplete, onError } = options;
+  const { sentimentData, onTranscriptComplete, onError, userId } = options;
 
   const [state, setState] = useState<QAState>('idle');
   const [transcript, setTranscript] = useState<QAExchange[]>([]);
@@ -73,17 +74,25 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
 
       // Fetch token from backend
       const baseUrl = LAMBDA_FUNCTION_URL.replace(/\/$/, '');
-      const tokenResponse = await fetch(`${baseUrl}/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const tokenResponse = await fetch(
+        `${baseUrl}/token?user_id=${encodeURIComponent(userId || 'guest')}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
 
       if (!tokenResponse.ok) {
         throw new Error(`Token request failed with status ${tokenResponse.status}`);
       }
 
       const tokenData = await tokenResponse.json();
-      const { token, ws_url: wsUrl } = tokenData;
+      const { token, endpoint: wsUrl } = tokenData;
+
+      if (!wsUrl) {
+        onError(new Error('No WebSocket endpoint returned'));
+        return;
+      }
 
       // Open WebSocket to Gemini Live API
       const wsEndpoint = `${wsUrl}?key=${token}`;
@@ -96,7 +105,8 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
           setup: {
             model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
             generationConfig: {
-              responseModalities: ['TEXT'],
+              responseModalities: ['AUDIO'],
+              input_audio_transcription: {},
             },
             systemInstruction: {
               parts: [{ text: buildSystemPrompt(sentimentData) }],
@@ -163,7 +173,7 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
       onError(error instanceof Error ? error : new Error(String(error)));
       setState('idle');
     }
-  }, [sentimentData, onError, completeSession]);
+  }, [sentimentData, onError, completeSession, userId]);
 
   const endSession = useCallback(() => {
     wsRef.current?.close();
