@@ -31,7 +31,9 @@ class TestOpenAITTSProvider:
             mock_streaming_response.iter_bytes.return_value = [b"audio_chunk"]
             mock_streaming_response.__enter__ = MagicMock(return_value=mock_streaming_response)
             mock_streaming_response.__exit__ = MagicMock(return_value=False)
-            mock_client.audio.speech.with_streaming_response.create.return_value = mock_streaming_response
+            mock_client.audio.speech.with_streaming_response.create.return_value = (
+                mock_streaming_response
+            )
 
             # Mock file operations
             with patch("builtins.open", create=True):
@@ -46,7 +48,9 @@ class TestOpenAITTSProvider:
         with patch("src.providers.openai_tts.openai.OpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_openai.return_value = mock_client
-            mock_client.audio.speech.with_streaming_response.create.side_effect = Exception("API Error")
+            mock_client.audio.speech.with_streaming_response.create.side_effect = Exception(
+                "API Error"
+            )
 
             provider = OpenAITTSProvider()
             result = provider.synthesize_speech("Test text", "/tmp/test.mp3")
@@ -64,7 +68,9 @@ class TestOpenAITTSProvider:
             mock_streaming_response.iter_bytes.return_value = [b"audio_chunk"]
             mock_streaming_response.__enter__ = MagicMock(return_value=mock_streaming_response)
             mock_streaming_response.__exit__ = MagicMock(return_value=False)
-            mock_client.audio.speech.with_streaming_response.create.return_value = mock_streaming_response
+            mock_client.audio.speech.with_streaming_response.create.return_value = (
+                mock_streaming_response
+            )
 
             # Mock file write failure
             with patch("builtins.open", side_effect=IOError("Write failed")):
@@ -153,8 +159,7 @@ class TestS3StorageService:
             from botocore.exceptions import ClientError
 
             mock_s3.put_object.side_effect = ClientError(
-                {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}},
-                "PutObject"
+                {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}}, "PutObject"
             )
 
             service = S3StorageService()
@@ -204,7 +209,7 @@ class TestS3StorageService:
                 "Contents": [
                     {"Key": "user123/file1.json"},
                     {"Key": "user123/file2.json"},
-                    {"Key": "user123/file3.json"}
+                    {"Key": "user123/file3.json"},
                 ]
             }
 
@@ -255,8 +260,7 @@ class TestS3StorageService:
             from botocore.exceptions import ClientError
 
             mock_s3.list_objects_v2.side_effect = ClientError(
-                {"Error": {"Code": "NoSuchBucket", "Message": "Bucket not found"}},
-                "ListObjectsV2"
+                {"Error": {"Code": "NoSuchBucket", "Message": "Bucket not found"}}, "ListObjectsV2"
             )
 
             service = S3StorageService()
@@ -287,7 +291,7 @@ class TestS3StorageService:
             result = service.upload_json(
                 bucket="test-bucket",
                 key="user@email.com/data/2024-01-01.json",
-                data={"test": "data"}
+                data={"test": "data"},
             )
 
             assert result is True
@@ -411,18 +415,13 @@ class TestFFmpegAudioService:
 
     def test_select_background_music_with_string_input(self, mock_storage_service):
         """Test select_background_music handles string input for used_music."""
-        mock_storage_service.list_objects.return_value = [
-            "Track1_300.wav",
-            "Track2_180.wav"
-        ]
+        mock_storage_service.list_objects.return_value = ["Track1_300.wav", "Track2_180.wav"]
 
         service = FFmpegAudioService(mock_storage_service)
 
         # Test with string that should be parsed
         result = service.select_background_music(
-            used_music="['Track1_300.wav']",
-            duration=250,
-            output_path="/tmp/music.mp3"
+            used_music="['Track1_300.wav']", duration=250, output_path="/tmp/music.mp3"
         )
 
         assert isinstance(result, list)
@@ -436,9 +435,7 @@ class TestFFmpegAudioService:
 
         # Test with single string (should be converted to list)
         result = service.select_background_music(
-            used_music="Track1_300.wav",
-            duration=250,
-            output_path="/tmp/music.mp3"
+            used_music="Track1_300.wav", duration=250, output_path="/tmp/music.mp3"
         )
 
         assert isinstance(result, list)
@@ -448,15 +445,13 @@ class TestFFmpegAudioService:
         mock_storage_service.list_objects.return_value = [
             "Track1_300.wav",
             "Track2_180.wav",
-            "Track3_240.wav"
+            "Track3_240.wav",
         ]
 
         service = FFmpegAudioService(mock_storage_service)
 
         result = service.select_background_music(
-            used_music=[],
-            duration=250,
-            output_path="/tmp/music.mp3"
+            used_music=[], duration=250, output_path="/tmp/music.mp3"
         )
 
         # Should select tracks with duration close to 250 seconds
@@ -464,18 +459,13 @@ class TestFFmpegAudioService:
 
     def test_select_background_music_fallback_to_300(self, mock_storage_service):
         """Test select_background_music falls back to 300s tracks."""
-        mock_storage_service.list_objects.return_value = [
-            "Track1_300.wav",
-            "Track2_300.wav"
-        ]
+        mock_storage_service.list_objects.return_value = ["Track1_300.wav", "Track2_300.wav"]
 
         service = FFmpegAudioService(mock_storage_service)
 
         # Request duration that doesn't match any tracks except 300s
         result = service.select_background_music(
-            used_music=[],
-            duration=100,
-            output_path="/tmp/music.mp3"
+            used_music=[], duration=100, output_path="/tmp/music.mp3"
         )
 
         assert isinstance(result, list)
@@ -620,7 +610,7 @@ class TestGeminiAIService:
             input_data = {
                 "sentiment_label": ["Sad"],
                 "intensity": [4],
-                "user_summary": ["Had a bad day"]
+                "user_summary": ["Had a bad day"],
             }
 
             result = service.generate_meditation(input_data)
@@ -646,7 +636,7 @@ class TestGeminiAIService:
                 input_data = {
                     "sentiment_label": [emotion],
                     "intensity": [3],
-                    "user_summary": [f"Feeling {emotion}"]
+                    "user_summary": [f"Feeling {emotion}"],
                 }
 
                 result = service.generate_meditation(input_data)
@@ -676,6 +666,7 @@ class TestGeminiAIService:
 
             with pytest.raises(Exception, match="Invalid API key"):
                 from src.services.gemini_service import GeminiAIService
+
                 GeminiAIService()
 
     def test_malformed_api_response_handled(self):
@@ -768,7 +759,7 @@ class TestGeminiAIService:
             service = GeminiAIService()
 
             # Verify safety settings exist
-            assert hasattr(service, 'safety_settings')
+            assert hasattr(service, "safety_settings")
             assert service.safety_settings is not None
             assert len(service.safety_settings) > 0
 
@@ -860,15 +851,16 @@ class TestJobServiceHLS:
                 "segments_completed": 0,
                 "segments_total": None,
                 "started_at": None,
-            }
+            },
         }
 
         service = JobService(mock_storage_service)
         service.update_streaming_progress(
-            "user123", "test-job",
+            "user123",
+            "test-job",
             segments_completed=5,
             segments_total=36,
-            playlist_url="https://s3.../playlist.m3u8"
+            playlist_url="https://s3.../playlist.m3u8",
         )
 
         # Verify save was called
@@ -894,7 +886,7 @@ class TestJobServiceHLS:
                 "segments_completed": 0,
                 "segments_total": None,
                 "started_at": None,
-            }
+            },
         }
 
         service = JobService(mock_storage_service)
@@ -919,7 +911,7 @@ class TestJobServiceHLS:
                 "segments_completed": 0,
                 "segments_total": None,
                 "started_at": None,
-            }
+            },
         }
 
         service = JobService(mock_storage_service)
@@ -951,7 +943,7 @@ class TestJobServiceHLS:
                 "available": False,
                 "url": None,
                 "downloaded": False,
-            }
+            },
         }
 
         service = JobService(mock_storage_service)
@@ -977,7 +969,7 @@ class TestJobServiceHLS:
                 "available": True,
                 "url": None,
                 "downloaded": False,
-            }
+            },
         }
 
         service = JobService(mock_storage_service)
@@ -1000,7 +992,7 @@ class TestJobServiceHLS:
                 "available": True,
                 "url": "https://s3.../download.mp3",
                 "downloaded": False,
-            }
+            },
         }
 
         service = JobService(mock_storage_service)
@@ -1164,7 +1156,9 @@ class TestFFmpegAudioServiceHLS:
 
         with (
             patch("subprocess.run") as mock_run,
-            patch("glob.glob", return_value=["/tmp/fade/segment_000.ts", "/tmp/fade/segment_001.ts"]),
+            patch(
+                "glob.glob", return_value=["/tmp/fade/segment_000.ts", "/tmp/fade/segment_001.ts"]
+            ),
             patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
             patch.object(service, "get_audio_duration", return_value=5.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
@@ -1301,3 +1295,92 @@ class TestFFmpegAudioServiceHLS:
         assert "2" in ffmpeg_args
         assert "-b:a" in ffmpeg_args
         assert "128k" in ffmpeg_args
+
+
+@pytest.mark.unit
+class TestGeminiTTSProvider:
+    """Test Gemini Text-to-Speech provider."""
+
+    def test_provider_name(self):
+        """Test provider returns correct name."""
+        with patch("src.providers.gemini_tts.genai.Client"):
+            from src.providers.gemini_tts import GeminiTTSProvider
+
+            provider = GeminiTTSProvider()
+            assert provider.get_provider_name() == "gemini"
+
+    def test_synthesize_speech_success(self):
+        """Test successful speech synthesis."""
+        with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+
+            # Mock the generate_content response
+            mock_part = MagicMock()
+            mock_part.inline_data.data = b"audio_chunk_data"
+            mock_candidate = MagicMock()
+            mock_candidate.content.parts = [mock_part]
+            mock_response = MagicMock()
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+
+            with patch("builtins.open", create=True):
+                from src.providers.gemini_tts import GeminiTTSProvider
+
+                provider = GeminiTTSProvider()
+                result = provider.synthesize_speech("Test text", "/tmp/test.mp3")
+
+                assert result is True
+                mock_client.models.generate_content.assert_called_once()
+
+    def test_synthesize_speech_api_error(self):
+        """Test error handling when Gemini API fails."""
+        with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.models.generate_content.side_effect = Exception("API Error")
+
+            from src.providers.gemini_tts import GeminiTTSProvider
+
+            provider = GeminiTTSProvider()
+            result = provider.synthesize_speech("Test text", "/tmp/test.mp3")
+
+            assert result is False
+
+    def test_stream_speech_yields_chunks(self):
+        """Test stream_speech yields audio bytes."""
+        with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+
+            # Mock the generate_content response
+            mock_part = MagicMock()
+            mock_part.inline_data.data = b"audio_chunk_data"
+            mock_candidate = MagicMock()
+            mock_candidate.content.parts = [mock_part]
+            mock_response = MagicMock()
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+
+            from src.providers.gemini_tts import GeminiTTSProvider
+
+            provider = GeminiTTSProvider()
+            # Use _stream_speech_internal to avoid circuit breaker
+            chunks = list(provider._stream_speech_internal("Test text"))
+
+            assert len(chunks) == 1
+            assert chunks[0] == b"audio_chunk_data"
+
+    def test_stream_speech_raises_tts_error(self):
+        """Test stream_speech raises TTSError on failure."""
+        with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.models.generate_content.side_effect = Exception("API Error")
+
+            from src.exceptions import TTSError
+            from src.providers.gemini_tts import GeminiTTSProvider
+
+            provider = GeminiTTSProvider()
+            with pytest.raises(TTSError):
+                list(provider._stream_speech_internal("Test text"))
