@@ -102,11 +102,17 @@ class GeminiTTSProvider(TTSService):
         leaving truncated files on failure.
         """
         import os
+        import tempfile
 
-        tmp_path = output_path + ".tmp"
+        tmp_fd = None
+        tmp_path = None
         try:
             logger.info("Creating Gemini voice", extra={"data": {"text_length": len(text)}})
-            with open(tmp_path, "wb") as f:
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=os.path.dirname(output_path) or ".", suffix=".tmp"
+            )
+            with os.fdopen(tmp_fd, "wb") as f:
+                tmp_fd = None  # fdopen takes ownership
                 for chunk in self.stream_speech(text):
                     f.write(chunk)
             os.replace(tmp_path, output_path)
@@ -114,7 +120,9 @@ class GeminiTTSProvider(TTSService):
             return True
         except Exception as e:
             logger.error(f"Error in Gemini TTS synthesis: {e}")
-            if os.path.exists(tmp_path):
+            if tmp_fd is not None:
+                os.close(tmp_fd)
+            if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
             return False
 

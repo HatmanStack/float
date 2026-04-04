@@ -2,8 +2,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { TransformedDict } from '@/components/BackendMeditationCall';
 import type { QAState, QAExchange, QATranscript } from '@/types/api';
 
-const LAMBDA_FUNCTION_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
 const MAX_ASSISTANT_EXCHANGES = 3;
+
+function getLambdaUrl(): string {
+  return process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL || '';
+}
 
 interface UseGeminiLiveAPIOptions {
   sentimentData: TransformedDict;
@@ -71,26 +74,25 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
   );
 
   const startSession = useCallback(async () => {
-    // Prevent overlapping sessions
-    if (
-      wsRef.current &&
-      (wsRef.current.readyState === WebSocket.CONNECTING ||
-        wsRef.current.readyState === WebSocket.OPEN)
-    ) {
+    // Prevent overlapping sessions (CONNECTING, OPEN, or CLOSING)
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
       return;
     }
 
     try {
-      if (!LAMBDA_FUNCTION_URL) {
+      const lambdaUrl = getLambdaUrl();
+      if (!lambdaUrl) {
         throw new Error('Missing EXPO_PUBLIC_LAMBDA_FUNCTION_URL configuration');
       }
 
       setState('connecting');
       assistantExchangeCountRef.current = 0;
+      transcriptRef.current = [];
+      assistantBufferRef.current = '';
       setTranscript([]);
 
       // Fetch token from backend
-      const baseUrl = LAMBDA_FUNCTION_URL.replace(/\/$/, '');
+      const baseUrl = lambdaUrl.replace(/\/$/, '');
       const tokenResponse = await fetch(
         `${baseUrl}/token?user_id=${encodeURIComponent(userId || 'guest')}`,
         {
