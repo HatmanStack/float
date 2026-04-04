@@ -275,6 +275,7 @@ function useIncidentDeletion() {
  */
 export default function TabTwoScreen(): React.ReactNode {
   const { incidentList, colorChangeArrayOfArrays, musicList } = useIncident();
+  const { user } = useAuth();
   const [renderKey, setRenderKey] = useState(0);
 
   const styles = useStyles();
@@ -363,6 +364,7 @@ export default function TabTwoScreen(): React.ReactNode {
           onStreamComplete={onStreamComplete}
           onStreamError={onStreamError}
           onPlaybackEnd={onPlaybackEnd}
+          userId={user?.id}
           sentimentData={
             selectedIndexes.length > 0
               ? getTransformedDict(incidentList, selectedIndexes)

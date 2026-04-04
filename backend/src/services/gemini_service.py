@@ -244,7 +244,12 @@ Return only the plain text meditation script with no markup or tags.
             return "Peace comes from within. Do not seek it without.", "Buddha"
 
     @with_circuit_breaker(gemini_circuit)
-    def generate_meditation(self, input_data: Dict[str, Any], duration_minutes: int = 5) -> str:
+    def generate_meditation(
+        self,
+        input_data: Dict[str, Any],
+        duration_minutes: int = 5,
+        qa_transcript: list | None = None,
+    ) -> str:
         """Generate a meditation script from sentiment data.
 
         Args:
@@ -272,7 +277,6 @@ Return only the plain text meditation script with no markup or tags.
 
         # Build Q&A transcript section if present
         qa_transcript_section = ""
-        qa_transcript = input_data.get("qa_transcript")
         if qa_transcript:
             exchanges = "\n".join(
                 f"  {str(entry.get('role', 'user')).capitalize()}: {entry.get('text', '')}"

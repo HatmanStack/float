@@ -3,11 +3,13 @@ from typing import Any, Dict, Optional
 
 
 class AIService(ABC):
+    @abstractmethod
+    def analyze_sentiment(self, audio_file: Optional[str], user_text: Optional[str]) -> str: ...
 
     @abstractmethod
-    def analyze_sentiment(
-        self, audio_file: Optional[str], user_text: Optional[str]
+    def generate_meditation(
+        self,
+        input_data: Dict[str, Any],
+        duration_minutes: int = 5,
+        qa_transcript: list | None = None,
     ) -> str: ...
-
-    @abstractmethod
-    def generate_meditation(self, input_data: Dict[str, Any], duration_minutes: int = 5) -> str: ...

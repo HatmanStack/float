@@ -22,7 +22,7 @@ jest.mock('@/components/ScreenComponents/VoiceQA', () => {
   return {
     __esModule: true,
 
-    default: (props: Record<string, any>) => {
+    default: (props: Record<string, unknown>) => {
       capturedVoiceQAProps = props;
       return React.createElement(
         View,
@@ -32,7 +32,7 @@ jest.mock('@/components/ScreenComponents/VoiceQA', () => {
           testID: 'mock-qa-complete',
           title: 'Complete QA',
           onPress: () => {
-            props.onComplete([
+            (props.onComplete as (...args: unknown[]) => void)([
               { role: 'assistant', text: 'How are you feeling?' },
               { role: 'user', text: 'Stressed about work' },
               { role: 'assistant', text: 'Let me create a meditation for you.' },
@@ -42,12 +42,12 @@ jest.mock('@/components/ScreenComponents/VoiceQA', () => {
         React.createElement(RNButton, {
           testID: 'mock-qa-skip',
           title: 'Skip QA',
-          onPress: () => props.onSkip(),
+          onPress: () => (props.onSkip as (...args: unknown[]) => void)(),
         }),
         React.createElement(RNButton, {
           testID: 'mock-qa-error',
           title: 'Error QA',
-          onPress: () => props.onError(new Error('QA failed')),
+          onPress: () => (props.onError as (...args: unknown[]) => void)(new Error('QA failed')),
         })
       );
     },

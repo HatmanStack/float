@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
@@ -42,6 +43,11 @@ from .middleware import (
 )
 
 logger = get_logger(__name__)
+
+# Module-level rate limiter (per Lambda instance, resets on cold start)
+_token_rate_limit: Dict[str, list] = {}
+TOKEN_RATE_LIMIT_MAX = 5  # max tokens per window
+TOKEN_RATE_LIMIT_WINDOW = 3600  # 1 hour in seconds
 
 # Feature flag for HLS streaming
 ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
@@ -200,10 +206,12 @@ class LambdaHandler:
             self.job_service.update_job_status(request.user_id, job_id, JobStatus.PROCESSING)
 
             input_data = self._ensure_input_data_is_dict(request.input_data)
-            if request.qa_transcript:
-                input_data["qa_transcript"] = request.qa_transcript
             meditation_text = self.ai_service.generate_meditation(
-                input_data, duration_minutes=request.duration_minutes
+                input_data,
+                duration_minutes=request.duration_minutes,
+                qa_transcript=[item.model_dump() for item in request.qa_transcript]
+                if request.qa_transcript
+                else None,
             )
             logger.info(
                 "Meditation text generated",
@@ -306,10 +314,12 @@ class LambdaHandler:
             else:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
                 input_data = self._ensure_input_data_is_dict(request.input_data)
-                if request.qa_transcript:
-                    input_data["qa_transcript"] = request.qa_transcript
                 meditation_text = self.ai_service.generate_meditation(
-                    input_data, duration_minutes=request.duration_minutes
+                    input_data,
+                    duration_minutes=request.duration_minutes,
+                    qa_transcript=[item.model_dump() for item in request.qa_transcript]
+                    if request.qa_transcript
+                    else None,
                 )
                 logger.info(
                     "Meditation text generated",
@@ -706,6 +716,27 @@ def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict
     logger.info(
         "Token request received (rate limit check)",
         extra={"data": {"user_id": user_id}},
+    )
+
+    # Rate limiting
+    now = time.time()
+    if user_id not in _token_rate_limit:
+        _token_rate_limit[user_id] = []
+    # Clean expired entries
+    _token_rate_limit[user_id] = [
+        t for t in _token_rate_limit[user_id] if now - t < TOKEN_RATE_LIMIT_WINDOW
+    ]
+    if len(_token_rate_limit[user_id]) >= TOKEN_RATE_LIMIT_MAX:
+        logger.warning(
+            "Token rate limit exceeded",
+            extra={"data": {"user_id": user_id, "count": len(_token_rate_limit[user_id])}},
+        )
+        response = create_error_response(429, "Rate limit exceeded. Try again later.")
+        return cors_middleware(lambda e, _: response)(event, None)
+    _token_rate_limit[user_id].append(now)
+    logger.info(
+        "Token issued",
+        extra={"data": {"user_id": user_id, "timestamp": now}},
     )
 
     # WARNING: MVP security concern — this returns the raw Gemini API key because Google

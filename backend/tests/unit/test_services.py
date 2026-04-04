@@ -1407,13 +1407,13 @@ class TestMeditationPromptTranscript:
                 "sentiment_label": ["Sad"],
                 "intensity": [4],
                 "user_summary": ["Had a bad day"],
-                "qa_transcript": [
-                    {"role": "assistant", "text": "How are you feeling?"},
-                    {"role": "user", "text": "Stressed about work."},
-                ],
             }
+            qa_transcript = [
+                {"role": "assistant", "text": "How are you feeling?"},
+                {"role": "user", "text": "Stressed about work."},
+            ]
 
-            service.generate_meditation(input_data)
+            service.generate_meditation(input_data, qa_transcript=qa_transcript)
 
             # Capture the prompt passed to generate_content
             call_args = mock_model.generate_content.call_args

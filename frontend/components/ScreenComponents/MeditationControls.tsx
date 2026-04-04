@@ -38,6 +38,7 @@ interface MeditationControlsProps {
   onPlaybackEnd?: () => void;
   // Voice Q&A props
   sentimentData?: TransformedDict;
+  userId?: string;
 }
 
 /**
@@ -130,6 +131,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   onStreamError,
   onPlaybackEnd,
   sentimentData,
+  userId,
 }: MeditationControlsProps): React.JSX.Element => {
   const styles = useStyles();
   const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
@@ -320,6 +322,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
     return (
       <VoiceQA
         sentimentData={sentimentData}
+        userId={userId}
         onComplete={(transcript) => {
           setQaActive(false);
           handleMeditationCall(selectedDuration, transcript);

@@ -105,9 +105,9 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
           setup: {
             model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
             generationConfig: {
-              responseModalities: ['AUDIO'],
-              input_audio_transcription: {},
+              responseModalities: ['TEXT'],
             },
+            input_audio_transcription: {},
             systemInstruction: {
               parts: [{ text: buildSystemPrompt(sentimentData) }],
             },
@@ -148,6 +148,15 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
               }
             } else if (serverContent.turnComplete) {
               setState('listening');
+            }
+
+            // Handle user speech transcription from voice input
+            if (serverContent.inputTranscription) {
+              const { text, finished } = serverContent.inputTranscription;
+              if (finished && text) {
+                const exchange: QAExchange = { role: 'user', text };
+                setTranscript((prev) => [...prev, exchange]);
+              }
             }
           }
 

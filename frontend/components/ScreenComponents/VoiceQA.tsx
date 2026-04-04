@@ -18,6 +18,7 @@ import type { QATranscript } from '@/types/api';
 
 interface VoiceQAProps {
   sentimentData: TransformedDict;
+  userId?: string;
   onComplete: (transcript: QATranscript) => void;
   onSkip: () => void;
   onError: (error: Error) => void;
@@ -27,7 +28,13 @@ interface VoiceQAProps {
  * Inline voice Q&A component that replaces the Generate button during conversation.
  * Falls back to text input when microphone permission is denied.
  */
-const VoiceQA: React.FC<VoiceQAProps> = ({ sentimentData, onComplete, onSkip, onError }) => {
+const VoiceQA: React.FC<VoiceQAProps> = ({
+  sentimentData,
+  userId,
+  onComplete,
+  onSkip,
+  onError,
+}) => {
   const [textMode, setTextMode] = useState(false);
   const [textInput, setTextInput] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -35,6 +42,7 @@ const VoiceQA: React.FC<VoiceQAProps> = ({ sentimentData, onComplete, onSkip, on
 
   const { state, transcript, startSession, sendTextMessage } = useGeminiLiveAPI({
     sentimentData,
+    userId,
     onTranscriptComplete: (t) => {
       if (!hasCalledComplete.current) {
         hasCalledComplete.current = true;

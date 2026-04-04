@@ -40,7 +40,7 @@ class SummaryRequestModel(BaseModel):
 class QATranscriptItem(BaseModel):
     """A single exchange in the Q&A transcript."""
 
-    role: str
+    role: Literal["user", "assistant"]
     text: str
 
 
