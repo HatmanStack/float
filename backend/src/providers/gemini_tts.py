@@ -8,7 +8,7 @@ from google.genai import types
 from ..config.settings import settings
 from ..exceptions import TTSError
 from ..services.tts_service import TTSService
-from ..utils.circuit_breaker import gemini_tts_circuit, with_circuit_breaker
+from ..utils.circuit_breaker import gemini_tts_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +25,28 @@ class GeminiTTSProvider(TTSService):
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model_name = settings.GEMINI_TTS_MODEL
 
-    @with_circuit_breaker(gemini_tts_circuit)
     def stream_speech(self, text: str) -> Iterator[bytes]:
         """Stream audio chunks from Gemini TTS.
+
+        Circuit breaker bookkeeping is done during iteration (not at return time)
+        so that success/failure reflect actual audio consumption.
 
         Raises:
             TTSError: If TTS synthesis fails.
             CircuitBreakerOpenError: If circuit breaker is open.
         """
-        return self._stream_speech_internal(text)
+        if not gemini_tts_circuit.can_execute():
+            from ..exceptions import CircuitBreakerOpenError
+
+            raise CircuitBreakerOpenError(gemini_tts_circuit.name)
+
+        try:
+            for chunk in self._stream_speech_internal(text):
+                yield chunk
+            gemini_tts_circuit.record_success()
+        except Exception:
+            gemini_tts_circuit.record_failure()
+            raise
 
     def _stream_speech_internal(self, text: str) -> Iterator[bytes]:
         """Internal streaming without circuit breaker for synthesize_speech."""

@@ -192,12 +192,20 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
 
   const sendAudioChunk = useCallback((chunk: ArrayBuffer) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      // Encode in 32k slices to avoid RangeError from spread on large buffers
+      const bytes = new Uint8Array(chunk);
+      const SLICE_SIZE = 32768;
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += SLICE_SIZE) {
+        const slice = bytes.subarray(i, Math.min(i + SLICE_SIZE, bytes.length));
+        binary += String.fromCharCode.apply(null, Array.from(slice));
+      }
       const message = {
         realtimeInput: {
           mediaChunks: [
             {
               mimeType: 'audio/pcm;rate=16000',
-              data: btoa(String.fromCharCode(...new Uint8Array(chunk))),
+              data: btoa(binary),
             },
           ],
         },

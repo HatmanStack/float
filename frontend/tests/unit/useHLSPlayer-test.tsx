@@ -9,8 +9,9 @@ import { renderHook, act } from '@testing-library/react-native';
 if (typeof document === 'undefined') {
   const { JSDOM } = require('jsdom');
   const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
-  (global as any).document = dom.window.document;
-  (global as any).HTMLAudioElement = dom.window.HTMLAudioElement;
+  const g = globalThis as typeof globalThis & { document: Document; HTMLAudioElement: unknown };
+  g.document = dom.window.document;
+  g.HTMLAudioElement = dom.window.HTMLAudioElement;
 }
 
 // Mock HLS.js before importing the hook

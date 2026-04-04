@@ -349,4 +349,49 @@ describe('useGeminiLiveAPI', () => {
 
     expect(mockOnError).toHaveBeenCalledWith(expect.any(Error));
   });
+
+  it('should call onError and revert to idle on WebSocket error', async () => {
+    const { result } = renderHook(() =>
+      useGeminiLiveAPI({
+        sentimentData: mockSentimentData,
+        onTranscriptComplete: mockOnTranscriptComplete,
+        onError: mockOnError,
+      })
+    );
+
+    await act(async () => {
+      await result.current.startSession();
+    });
+
+    await act(async () => {
+      MockWebSocket.lastInstance!.simulateError();
+    });
+
+    expect(mockOnError).toHaveBeenCalledWith(expect.any(Error));
+    expect(result.current.state).toBe('idle');
+  });
+
+  it('should revert to idle on WebSocket close when not complete', async () => {
+    const { result } = renderHook(() =>
+      useGeminiLiveAPI({
+        sentimentData: mockSentimentData,
+        onTranscriptComplete: mockOnTranscriptComplete,
+        onError: mockOnError,
+      })
+    );
+
+    await act(async () => {
+      await result.current.startSession();
+    });
+
+    await act(async () => {
+      MockWebSocket.lastInstance!.simulateOpen();
+    });
+
+    await act(async () => {
+      MockWebSocket.lastInstance!.simulateClose();
+    });
+
+    expect(result.current.state).toBe('idle');
+  });
 });
