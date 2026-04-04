@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     FFMPEG_PATH: str = "/opt/bin/ffmpeg"
     TEMP_DIR: str = "/tmp"
     AUDIO_SAMPLE_RATE: int = 44100
+    GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
+    GEMINI_AI_MODEL: str = "gemini-2.5-flash"
     GEMINI_SAFETY_LEVEL: int = 4
 
     model_config = {
