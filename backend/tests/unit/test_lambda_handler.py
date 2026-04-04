@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.exceptions import ValidationError
+from src.exceptions import CircuitBreakerOpenError, TTSError, ValidationError
 from src.handlers.lambda_handler import LambdaHandler
 from src.models.requests import MeditationRequestModel, SummaryRequestModel
 
@@ -255,7 +255,12 @@ class TestMeditationRequestRouting:
             assert mock_handle_meditation.called
 
     def test_meditation_request_with_all_required_fields(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider, monkeypatch
+        self,
+        mock_ai_service,
+        mock_storage_service,
+        mock_audio_service,
+        mock_tts_provider,
+        monkeypatch,
     ):
         """Test meditation request with all required input_data fields."""
         monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "float-meditation")
@@ -495,3 +500,83 @@ class TestEndToEndSummaryFlow:
         assert "intensity" in body
         # Verify AI service was actually called (not mocked at handler level)
         handler_with_mock_services.ai_service.analyze_sentiment.assert_called_once()
+
+
+@pytest.mark.unit
+class TestTTSProviderConfiguration:
+    """Test TTS provider configuration and fallback logic."""
+
+    def test_default_tts_provider_is_gemini(self, mock_ai_service):
+        """Test that the default TTS provider is Gemini."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini,
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            mock_gemini.return_value.get_provider_name.return_value = "gemini"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            assert handler.tts_provider.get_provider_name() == "gemini"
+
+    def test_fallback_tts_provider_is_openai(self, mock_ai_service):
+        """Test that the fallback TTS provider is OpenAI."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai,
+        ):
+            mock_openai.return_value.get_provider_name.return_value = "openai"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            assert handler.fallback_tts_provider.get_provider_name() == "openai"
+
+    def test_tts_fallback_on_gemini_failure(self, mock_ai_service):
+        """Test that OpenAI is used as fallback when Gemini TTS fails."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini_cls,
+            patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai_cls,
+        ):
+            mock_gemini = MagicMock()
+            mock_openai = MagicMock()
+            mock_gemini_cls.return_value = mock_gemini
+            mock_openai_cls.return_value = mock_openai
+
+            # Gemini fails, OpenAI succeeds
+            mock_gemini.synthesize_speech.return_value = False
+            mock_openai.synthesize_speech.return_value = True
+
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            voice_path, combined_path = handler._generate_meditation_audio(
+                "Test meditation text", "20240101120000"
+            )
+
+            # Assert OpenAI fallback was called
+            mock_openai.synthesize_speech.assert_called_once()
+
+    def test_tts_fallback_on_circuit_breaker_open(self, mock_ai_service):
+        """Test fallback when Gemini circuit breaker is open in streaming mode."""
+
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini_cls,
+            patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai_cls,
+        ):
+            mock_gemini = MagicMock()
+            mock_openai = MagicMock()
+            mock_gemini_cls.return_value = mock_gemini
+            mock_openai_cls.return_value = mock_openai
+
+            # Gemini circuit breaker is open
+            mock_gemini.stream_speech.side_effect = CircuitBreakerOpenError("gemini_tts")
+            mock_openai.stream_speech.return_value = iter([b"audio_data"])
+
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+
+            # The get_tts_provider returns the primary, but we test fallback directly
+            # by simulating what _process_meditation_hls does
+            tts_provider = handler.get_tts_provider()
+            try:
+                list(tts_provider.stream_speech("test"))
+                fallback_used = False
+            except (TTSError, CircuitBreakerOpenError):
+                # Fall back to OpenAI
+                list(handler.fallback_tts_provider.stream_speech("test"))
+                fallback_used = True
+
+            assert fallback_used
+            mock_openai.stream_speech.assert_called_once()

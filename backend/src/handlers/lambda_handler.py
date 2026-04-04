@@ -11,9 +11,10 @@ from ..config.constants import (
     HTTP_NOT_FOUND,
 )
 from ..config.settings import settings
-from ..exceptions import TTSError
+from ..exceptions import CircuitBreakerOpenError, TTSError
 from ..models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
+from ..providers.gemini_tts import GeminiTTSProvider
 from ..providers.openai_tts import OpenAITTSProvider
 from ..services.ai_service import AIService
 from ..services.download_service import DownloadService
@@ -65,7 +66,8 @@ class LambdaHandler:
         self.hls_service = HLSService(self.storage_service)
         self.download_service = DownloadService(self.storage_service, self.hls_service)
         self.audio_service = FFmpegAudioService(self.storage_service, hls_service=self.hls_service)
-        self.tts_provider = OpenAITTSProvider()
+        self.tts_provider = GeminiTTSProvider()
+        self.fallback_tts_provider = OpenAITTSProvider()
         self.job_service = JobService(self.storage_service)
         if validate_config:
             settings.validate_keys()
@@ -107,7 +109,10 @@ class LambdaHandler:
         tts_provider = self.get_tts_provider()
         success = tts_provider.synthesize_speech(meditation_text, voice_path)
         if not success:
-            raise TTSError("Failed to generate speech audio")
+            logger.warning("Primary TTS provider failed, trying fallback")
+            success = self.fallback_tts_provider.synthesize_speech(meditation_text, voice_path)
+            if not success:
+                raise TTSError("Failed to generate speech audio with both primary and fallback TTS")
         logger.debug("Voice generation completed")
         return voice_path, combined_path
 
@@ -288,15 +293,13 @@ class LambdaHandler:
                     )
 
                 # Use batch mode for cached audio
-                _, total_segments, _ = (
-                    self.audio_service.combine_voice_and_music_hls(
-                        voice_path=voice_path,
-                        music_list=request.music_list,
-                        timestamp=timestamp,
-                        user_id=request.user_id,
-                        job_id=job_id,
-                        progress_callback=progress_callback,
-                    )
+                _, total_segments, _ = self.audio_service.combine_voice_and_music_hls(
+                    voice_path=voice_path,
+                    music_list=request.music_list,
+                    timestamp=timestamp,
+                    user_id=request.user_id,
+                    job_id=job_id,
+                    progress_callback=progress_callback,
                 )
             else:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
@@ -334,9 +337,13 @@ class LambdaHandler:
                     extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}},
                 )
 
-                # Get TTS stream generator
+                # Get TTS stream generator with fallback
                 tts_provider = self.get_tts_provider()
-                voice_generator = tts_provider.stream_speech(meditation_text)
+                try:
+                    voice_generator = tts_provider.stream_speech(meditation_text)
+                except (TTSError, CircuitBreakerOpenError):
+                    logger.warning("Primary TTS streaming failed, trying fallback provider")
+                    voice_generator = self.fallback_tts_provider.stream_speech(meditation_text)
 
                 # Track if we've marked streaming started
                 streaming_started = False
