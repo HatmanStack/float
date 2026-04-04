@@ -10,6 +10,22 @@ from src.handlers.lambda_handler import LambdaHandler
 from src.models.requests import MeditationRequestModel, SummaryRequestModel
 
 
+@pytest.fixture(autouse=True)
+def _patch_tts_providers():
+    """Patch TTS providers to avoid API key validation during handler init."""
+    with (
+        patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini,
+        patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai,
+    ):
+        mock_gemini.return_value.get_provider_name.return_value = "gemini"
+        mock_gemini.return_value.synthesize_speech.return_value = True
+        mock_gemini.return_value.stream_speech.return_value = iter([b"audio"])
+        mock_openai.return_value.get_provider_name.return_value = "openai"
+        mock_openai.return_value.synthesize_speech.return_value = True
+        mock_openai.return_value.stream_speech.return_value = iter([b"audio"])
+        yield
+
+
 @pytest.fixture
 def mock_audio_service():
     """Mock audio service for testing."""
