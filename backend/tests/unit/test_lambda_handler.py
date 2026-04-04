@@ -580,3 +580,77 @@ class TestTTSProviderConfiguration:
 
             assert fallback_used
             mock_openai.stream_speech.assert_called_once()
+
+
+@pytest.mark.unit
+class TestTokenEndpoint:
+    """Test token exchange endpoint for Gemini Live API."""
+
+    def _make_token_event(self, user_id=None):
+        """Create a mock API Gateway event for POST /token."""
+        query_params = {"user_id": user_id} if user_id else {}
+        return {
+            "rawPath": "/production/token",
+            "requestContext": {"http": {"method": "POST"}},
+            "queryStringParameters": query_params,
+        }
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_returns_token(self, mock_get_handler, mock_ai_service):
+        """Test POST /token returns token payload."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "test-gemini-key"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="test-user")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 200
+            body = json.loads(response["body"])
+            assert "token" in body
+            assert "endpoint" in body
+            assert "expires_in" in body
+            assert body["token"] == mock_settings.GEMINI_API_KEY
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_missing_user_id(self, mock_get_handler, mock_ai_service):
+        """Test POST /token without user_id returns 400."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event()
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 400
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_cors_headers(self, mock_get_handler, mock_ai_service):
+        """Test POST /token response includes CORS headers."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "test-gemini-key"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="test-user")
+            response = lambda_handler(event, None)
+
+            assert "Access-Control-Allow-Origin" in response.get("headers", {})

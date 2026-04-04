@@ -583,6 +583,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == "POST" and "/download" in raw_path:
             return _handle_download_request(handler, event)
 
+        # Check for token request (POST /token)
+        if http_method == "POST" and "/token" in raw_path:
+            return _handle_token_request(handler, event)
+
         result: Dict[str, Any] = handler.handle_request(event, context)
         return result
     except Exception:
@@ -685,3 +689,35 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
 
     response = create_success_response(result)
     return cors_middleware(lambda e, _: response)(event, None)
+
+
+def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle POST /token requests for Gemini Live API authentication."""
+    from .middleware import cors_middleware
+
+    # Get user_id from query params
+    query_params = event.get("queryStringParameters", {}) or {}
+    user_id = query_params.get("user_id", "")
+
+    if not user_id:
+        response = create_error_response(HTTP_BAD_REQUEST, "Missing user_id parameter")
+        return cors_middleware(lambda e, _: response)(event, None)
+
+    logger.info(
+        "Token request received",
+        extra={"data": {"user_id": user_id}},
+    )
+
+    # Return API key as token (MVP approach - see ADR-2 in Phase-0.md)
+    # TODO: Replace with ephemeral token when Google provides the capability
+    token_response = create_success_response(
+        {
+            "token": settings.GEMINI_API_KEY,
+            "expires_in": 300,
+            "endpoint": (
+                "wss://generativelanguage.googleapis.com/ws/"
+                "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+            ),
+        }
+    )
+    return cors_middleware(lambda e, _: token_response)(event, None)
