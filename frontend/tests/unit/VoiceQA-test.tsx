@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
-import type { QATranscript } from '@/types/api';
+import type { QATranscript, QAState, QAExchange } from '@/types/api';
 
 // Mock useGeminiLiveAPI hook
 const mockStartSession = jest.fn().mockResolvedValue(undefined);
@@ -8,9 +8,16 @@ const mockEndSession = jest.fn();
 const mockSendAudioChunk = jest.fn();
 const mockSendTextMessage = jest.fn();
 
-let mockHookReturn = {
-  state: 'idle' as const,
-  transcript: [] as { role: 'assistant' | 'user'; text: string }[],
+let mockHookReturn: {
+  state: QAState;
+  transcript: QAExchange[];
+  startSession: jest.Mock;
+  endSession: jest.Mock;
+  sendAudioChunk: jest.Mock;
+  sendTextMessage: jest.Mock;
+} = {
+  state: 'idle',
+  transcript: [],
   startSession: mockStartSession,
   endSession: mockEndSession,
   sendAudioChunk: mockSendAudioChunk,
