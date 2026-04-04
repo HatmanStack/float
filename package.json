@@ -33,6 +33,9 @@
     "react-dom": "19.2.3",
     "react-test-renderer": "19.2.3"
   },
+  "overrides": {
+    "jsdom": "^23.0.0"
+  },
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [
       "eslint --config ./frontend/eslint.config.js --fix",
