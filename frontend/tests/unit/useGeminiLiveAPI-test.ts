@@ -156,7 +156,7 @@ describe('useGeminiLiveAPI', () => {
     expect(MockWebSocket.lastInstance!.url).toContain(MOCK_WS_URL);
   });
 
-  it('should transition to connecting then listening on WebSocket open', async () => {
+  it('should transition to connecting then listening on setupComplete', async () => {
     const { result } = renderHook(() =>
       useGeminiLiveAPI({
         sentimentData: mockSentimentData,
@@ -173,6 +173,13 @@ describe('useGeminiLiveAPI', () => {
 
     await act(async () => {
       MockWebSocket.lastInstance!.simulateOpen();
+    });
+
+    // State stays connecting until server acknowledges setup
+    expect(result.current.state).toBe('connecting');
+
+    await act(async () => {
+      MockWebSocket.lastInstance!.simulateMessage({ setupComplete: true });
     });
 
     expect(result.current.state).toBe('listening');

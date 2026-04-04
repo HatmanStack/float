@@ -40,13 +40,20 @@ class GeminiTTSProvider(TTSService):
 
             raise CircuitBreakerOpenError(gemini_tts_circuit.name)
 
+        completed = False
         try:
             for chunk in self._stream_speech_internal(text):
                 yield chunk
+            completed = True
             gemini_tts_circuit.record_success()
+        except GeneratorExit:
+            raise
         except Exception:
             gemini_tts_circuit.record_failure()
             raise
+        finally:
+            if not completed:
+                gemini_tts_circuit.release_half_open_probe()
 
     def _stream_speech_internal(self, text: str) -> Iterator[bytes]:
         """Internal streaming without circuit breaker for synthesize_speech."""
@@ -91,18 +98,24 @@ class GeminiTTSProvider(TTSService):
     def synthesize_speech(self, text: str, output_path: str) -> bool:
         """Synthesize speech to a file using streaming.
 
-        Note: This method catches exceptions and returns bool for backward
-        compatibility. For new code, prefer stream_speech which raises TTSError.
+        Writes to a temp file and atomically renames on success to avoid
+        leaving truncated files on failure.
         """
+        import os
+
+        tmp_path = output_path + ".tmp"
         try:
             logger.info("Creating Gemini voice", extra={"data": {"text_length": len(text)}})
-            with open(output_path, "wb") as f:
+            with open(tmp_path, "wb") as f:
                 for chunk in self.stream_speech(text):
                     f.write(chunk)
+            os.replace(tmp_path, output_path)
             logger.info(f"Audio successfully saved to: {output_path}")
             return True
         except Exception as e:
             logger.error(f"Error in Gemini TTS synthesis: {e}")
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
             return False
 
     def get_provider_name(self) -> str:

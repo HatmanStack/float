@@ -54,6 +54,7 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
   const wsRef = useRef<WebSocket | null>(null);
   const assistantExchangeCountRef = useRef(0);
   const transcriptRef = useRef<QAExchange[]>([]);
+  const assistantBufferRef = useRef('');
 
   // Keep transcriptRef in sync
   useEffect(() => {
@@ -70,6 +71,15 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
   );
 
   const startSession = useCallback(async () => {
+    // Prevent overlapping sessions
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.CONNECTING ||
+        wsRef.current.readyState === WebSocket.OPEN)
+    ) {
+      return;
+    }
+
     try {
       if (!LAMBDA_FUNCTION_URL) {
         throw new Error('Missing EXPO_PUBLIC_LAMBDA_FUNCTION_URL configuration');
@@ -122,7 +132,7 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
           },
         };
         ws.send(JSON.stringify(setupMessage));
-        setState('listening');
+        // State transitions to 'listening' on setupComplete, not here
       };
 
       ws.onmessage = (event: MessageEvent) => {
@@ -133,27 +143,33 @@ export default function useGeminiLiveAPI(options: UseGeminiLiveAPIOptions): UseG
           if (data.serverContent) {
             const serverContent = data.serverContent;
 
+            // Accumulate assistant text chunks into buffer
             if (serverContent.modelTurn?.parts) {
               const textParts = serverContent.modelTurn.parts
                 .filter((p: { text?: string }) => p.text)
                 .map((p: { text: string }) => p.text);
 
               if (textParts.length > 0) {
-                const assistantText = textParts.join('');
+                assistantBufferRef.current += textParts.join('');
                 setState('responding');
+              }
+            }
 
-                if (serverContent.turnComplete) {
-                  assistantExchangeCountRef.current += 1;
-                  const exchange: QAExchange = { role: 'assistant', text: assistantText };
-                  const updatedTranscript = [...transcriptRef.current, exchange];
-                  setTranscript(updatedTranscript);
+            // On turn complete, flush buffer to transcript
+            if (serverContent.turnComplete && assistantBufferRef.current) {
+              assistantExchangeCountRef.current += 1;
+              const exchange: QAExchange = {
+                role: 'assistant',
+                text: assistantBufferRef.current,
+              };
+              assistantBufferRef.current = '';
+              const updatedTranscript = [...transcriptRef.current, exchange];
+              setTranscript(updatedTranscript);
 
-                  if (assistantExchangeCountRef.current >= MAX_ASSISTANT_EXCHANGES) {
-                    completeSession(updatedTranscript);
-                  } else {
-                    setState('listening');
-                  }
-                }
+              if (assistantExchangeCountRef.current >= MAX_ASSISTANT_EXCHANGES) {
+                completeSession(updatedTranscript);
+              } else {
+                setState('listening');
               }
             } else if (serverContent.turnComplete) {
               setState('listening');

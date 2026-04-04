@@ -1324,7 +1324,11 @@ class TestGeminiTTSProvider:
             mock_response.candidates = [mock_candidate]
             mock_client.models.generate_content.return_value = mock_response
 
-            with patch("builtins.open", create=True):
+            with (
+                patch("builtins.open", create=True),
+                patch("os.replace"),
+                patch("os.path.exists", return_value=False),
+            ):
                 from src.providers.gemini_tts import GeminiTTSProvider
 
                 provider = GeminiTTSProvider()

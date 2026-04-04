@@ -153,6 +153,14 @@ class CircuitBreaker:
         # OPEN state
         return False
 
+    def release_half_open_probe(self) -> None:
+        """Release the half-open probe flag without changing circuit state.
+
+        Called when a generator is abandoned (GeneratorExit) — the request
+        wasn't a success or failure, just cancelled. Unblocks the next probe.
+        """
+        self._half_open_request_in_progress = False
+
     def reset(self) -> None:
         """Manually reset circuit breaker to closed state."""
         self._failures = 0
