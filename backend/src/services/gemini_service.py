@@ -144,7 +144,7 @@ feel spacious and unhurried, with generous silence between thoughts.
 IMPORTANT: The meditation should be approximately {target_words} words ({target_chars} characters) to achieve
 a {duration_minutes}-minute spoken meditation. This is the target length - aim to be within 10% of this target.
 Return only the plain text meditation script with no markup or tags.
-Data for meditation transcript:"""
+{qa_transcript_section}Data for meditation transcript:"""
 
         # Duration to target words/chars mapping (~150 wpm spoken + pauses for breathing)
         self.duration_targets = {
@@ -270,6 +270,20 @@ Data for meditation transcript:"""
             "Using quote: '%s' - %s", quote[:50] + "..." if len(quote) > 50 else quote, author
         )
 
+        # Build Q&A transcript section if present
+        qa_transcript_section = ""
+        qa_transcript = input_data.get("qa_transcript")
+        if qa_transcript:
+            exchanges = "\n".join(
+                f"  {entry['role'].capitalize()}: {entry['text']}" for entry in qa_transcript
+            )
+            qa_transcript_section = (
+                "\nAdditionally, the user participated in a brief check-in conversation before "
+                "this meditation. Use the insights from this conversation to make the meditation "
+                "more personal and targeted:\n\nCheck-in transcript:\n"
+                f"{exchanges}\n\n"
+            )
+
         # Build prompt with duration-specific targets
         prompt_meditation = self.prompt_meditation_template.format(
             target_words=targets["words"],
@@ -277,6 +291,7 @@ Data for meditation transcript:"""
             duration_minutes=duration_minutes,
             inspirational_quote=quote,
             quote_author=author,
+            qa_transcript_section=qa_transcript_section,
         )
 
         model = genai.GenerativeModel(

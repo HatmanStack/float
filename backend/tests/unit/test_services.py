@@ -1384,3 +1384,64 @@ class TestGeminiTTSProvider:
             provider = GeminiTTSProvider()
             with pytest.raises(TTSError):
                 list(provider._stream_speech_internal("Test text"))
+
+
+@pytest.mark.unit
+class TestMeditationPromptTranscript:
+    """Test meditation prompt includes Q&A transcript when present."""
+
+    def test_meditation_prompt_includes_transcript(self):
+        """Test that the meditation prompt includes transcript when provided."""
+        with patch("src.services.gemini_service.genai") as mock_genai:
+            from src.services.gemini_service import GeminiAIService
+
+            mock_model = MagicMock()
+            mock_genai.GenerativeModel.return_value = mock_model
+
+            mock_response = MagicMock()
+            mock_response.text = "A calm meditation..."
+            mock_model.generate_content.return_value = mock_response
+
+            service = GeminiAIService()
+            input_data = {
+                "sentiment_label": ["Sad"],
+                "intensity": [4],
+                "user_summary": ["Had a bad day"],
+                "qa_transcript": [
+                    {"role": "assistant", "text": "How are you feeling?"},
+                    {"role": "user", "text": "Stressed about work."},
+                ],
+            }
+
+            service.generate_meditation(input_data)
+
+            # Capture the prompt passed to generate_content
+            call_args = mock_model.generate_content.call_args
+            prompt = call_args[0][0][0]
+            assert "Check-in transcript" in prompt
+            assert "Stressed about work" in prompt
+
+    def test_meditation_prompt_without_transcript(self):
+        """Test that the meditation prompt has no transcript section when absent."""
+        with patch("src.services.gemini_service.genai") as mock_genai:
+            from src.services.gemini_service import GeminiAIService
+
+            mock_model = MagicMock()
+            mock_genai.GenerativeModel.return_value = mock_model
+
+            mock_response = MagicMock()
+            mock_response.text = "A calm meditation..."
+            mock_model.generate_content.return_value = mock_response
+
+            service = GeminiAIService()
+            input_data = {
+                "sentiment_label": ["Sad"],
+                "intensity": [4],
+                "user_summary": ["Had a bad day"],
+            }
+
+            service.generate_meditation(input_data)
+
+            call_args = mock_model.generate_content.call_args
+            prompt = call_args[0][0][0]
+            assert "Check-in transcript" not in prompt

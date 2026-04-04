@@ -249,3 +249,58 @@ class TestMeditationResponse:
         json_str = resp.to_json()
         assert "base64audiodata" in json_str
         assert "meditation" in json_str
+
+
+@pytest.mark.unit
+class TestMeditationRequestQATranscript:
+    """Test qa_transcript field on MeditationRequestModel."""
+
+    def test_meditation_request_with_qa_transcript(self):
+        """Test creating a MeditationRequestModel with qa_transcript."""
+        transcript = [
+            {"role": "assistant", "text": "How are you feeling?"},
+            {"role": "user", "text": "I'm stressed about work."},
+        ]
+        req = MeditationRequestModel(
+            user_id="user-123",
+            inference_type="meditation",
+            input_data={"sentiment": "Sad"},
+            music_list=[],
+            qa_transcript=transcript,
+        )
+        assert req.qa_transcript == transcript
+
+    def test_meditation_request_without_qa_transcript(self):
+        """Test creating a MeditationRequestModel without qa_transcript."""
+        req = MeditationRequestModel(
+            user_id="user-123",
+            inference_type="meditation",
+            input_data={"sentiment": "Sad"},
+            music_list=[],
+        )
+        assert req.qa_transcript is None
+
+    def test_meditation_request_to_dict_with_transcript(self):
+        """Test to_dict includes qa_transcript when present."""
+        transcript = [{"role": "assistant", "text": "How are you?"}]
+        req = MeditationRequestModel(
+            user_id="user-123",
+            inference_type="meditation",
+            input_data={"sentiment": "Sad"},
+            music_list=[],
+            qa_transcript=transcript,
+        )
+        d = req.to_dict()
+        assert "qa_transcript" in d
+        assert d["qa_transcript"] == transcript
+
+    def test_meditation_request_to_dict_without_transcript(self):
+        """Test to_dict omits qa_transcript when None."""
+        req = MeditationRequestModel(
+            user_id="user-123",
+            inference_type="meditation",
+            input_data={"sentiment": "Sad"},
+            music_list=[],
+        )
+        d = req.to_dict()
+        assert "qa_transcript" not in d

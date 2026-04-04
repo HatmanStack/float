@@ -200,6 +200,8 @@ class LambdaHandler:
             self.job_service.update_job_status(request.user_id, job_id, JobStatus.PROCESSING)
 
             input_data = self._ensure_input_data_is_dict(request.input_data)
+            if request.qa_transcript:
+                input_data["qa_transcript"] = request.qa_transcript
             meditation_text = self.ai_service.generate_meditation(
                 input_data, duration_minutes=request.duration_minutes
             )
@@ -304,6 +306,8 @@ class LambdaHandler:
             else:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
                 input_data = self._ensure_input_data_is_dict(request.input_data)
+                if request.qa_transcript:
+                    input_data["qa_transcript"] = request.qa_transcript
                 meditation_text = self.ai_service.generate_meditation(
                     input_data, duration_minutes=request.duration_minutes
                 )

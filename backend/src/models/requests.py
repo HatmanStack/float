@@ -45,6 +45,7 @@ class MeditationRequestModel(BaseModel):
     input_data: Dict[str, Any] | List[Dict[str, Any]]
     music_list: List[str] = Field(default_factory=list)
     duration_minutes: Literal[3, 5, 10, 15, 20] = 5
+    qa_transcript: List[Dict[str, str]] | None = None
 
     @field_validator("input_data", mode="before")
     @classmethod
@@ -86,13 +87,16 @@ class MeditationRequestModel(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
-        return {
+        result = {
             "user_id": self.user_id,
             "inference_type": self.inference_type,
             "input_data": self.input_data,
             "music_list": self.music_list,
             "duration_minutes": self.duration_minutes,
         }
+        if self.qa_transcript:
+            result["qa_transcript"] = self.qa_transcript
+        return result
 
 
 # Discriminated union - Pydantic picks correct model based on inference_type
