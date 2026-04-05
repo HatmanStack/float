@@ -26,7 +26,7 @@ dependencies = [
     "googleapis-common-protos==1.63.2",
     "grpcio==1.65.4",
     "grpcio-status==1.62.3",
-    "httplib2==0.22.0",
+    "httplib2==0.31.2",
     "idna==3.7",
     "proto-plus==1.24.0",
     "protobuf>=5.29.4",
