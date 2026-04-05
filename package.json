@@ -34,7 +34,8 @@
     "react-test-renderer": "19.2.3"
   },
   "overrides": {
-    "jsdom": "^23.0.0"
+    "jsdom": "^23.0.0",
+    "@types/react": "~19.1"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [
