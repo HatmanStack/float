@@ -4,7 +4,12 @@ import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { BackendMeditationCallStreaming, StreamingMeditationResponse } from '@/components/BackendMeditationCall';
+import {
+  BackendMeditationCallStreaming,
+  StreamingMeditationResponse,
+  getTransformedDict,
+} from '@/components/BackendMeditationCall';
+import type { QATranscript } from '@/types/api';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useIncident, Incident } from '@/context/IncidentContext';
@@ -67,13 +72,16 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
   const [meditationURI, setMeditationURI] = useState('');
   const [isCalling, setIsCalling] = useState(false);
   const durationRef = useRef(5); // Use ref to avoid race condition with state
+  const qaTranscriptRef = useRef<QATranscript | undefined>(undefined);
   const { setMusicList } = useIncident();
   const { user } = useAuth();
 
   // Streaming state
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingResponse, setStreamingResponse] = useState<StreamingMeditationResponse | null>(null);
+  const [streamingResponse, setStreamingResponse] = useState<StreamingMeditationResponse | null>(
+    null
+  );
   // Download only available after full generation completes
   const [generationComplete, setGenerationComplete] = useState(false);
 
@@ -95,7 +103,9 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
                 setIsStreaming(true);
               }
             },
-            durationRef.current
+            durationRef.current,
+            undefined, // signal
+            qaTranscriptRef.current
           );
 
           // Store response for download functionality
@@ -164,19 +174,23 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     };
   }, [streamingResponse, playlistUrl, generationComplete]);
 
-  const handleMeditationCall = useCallback((duration: number = 5) => {
-    if (selectedIndexes.length === 0) {
-      return;
-    }
-    // Reset state for new meditation
-    setMeditationURI('');
-    setPlaylistUrl(null);
-    setIsStreaming(false);
-    setGenerationComplete(false);
-    setStreamingResponse(null);
-    durationRef.current = duration; // Set ref synchronously before triggering effect
-    setIsCalling(true);
-  }, [selectedIndexes]);
+  const handleMeditationCall = useCallback(
+    (duration: number = 5, qaTranscript?: QATranscript) => {
+      if (selectedIndexes.length === 0) {
+        return;
+      }
+      // Reset state for new meditation
+      setMeditationURI('');
+      setPlaylistUrl(null);
+      setIsStreaming(false);
+      setGenerationComplete(false);
+      setStreamingResponse(null);
+      durationRef.current = duration; // Set ref synchronously before triggering effect
+      qaTranscriptRef.current = qaTranscript;
+      setIsCalling(true);
+    },
+    [selectedIndexes]
+  );
 
   const handleStreamComplete = useCallback(() => {
     // Stream generation has finished (all segments uploaded)
@@ -240,8 +254,9 @@ function useIncidentDeletion() {
           (incidentList[asyncDeleteIncident].notificationId ?? '') as string
         );
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      /* eslint-disable react-hooks/set-state-in-effect */
       setAsyncDeleteIncident(null);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [asyncDeleteIncident, incidentList, setIncidentList, cancelScheduledNotification]);
 
@@ -260,6 +275,7 @@ function useIncidentDeletion() {
  */
 export default function TabTwoScreen(): React.ReactNode {
   const { incidentList, colorChangeArrayOfArrays, musicList } = useIncident();
+  const { user } = useAuth();
   const [renderKey, setRenderKey] = useState(0);
 
   const styles = useStyles();
@@ -348,6 +364,12 @@ export default function TabTwoScreen(): React.ReactNode {
           onStreamComplete={onStreamComplete}
           onStreamError={onStreamError}
           onPlaybackEnd={onPlaybackEnd}
+          userId={user?.id}
+          sentimentData={
+            selectedIndexes.length > 0
+              ? getTransformedDict(incidentList, selectedIndexes)
+              : undefined
+          }
         />
         <DownloadButton
           downloadAvailable={downloadAvailable}

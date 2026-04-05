@@ -5,9 +5,25 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.exceptions import ValidationError
+from src.exceptions import CircuitBreakerOpenError, TTSError, ValidationError
 from src.handlers.lambda_handler import LambdaHandler
 from src.models.requests import MeditationRequestModel, SummaryRequestModel
+
+
+@pytest.fixture(autouse=True)
+def _patch_tts_providers():
+    """Patch TTS providers to avoid API key validation during handler init."""
+    with (
+        patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini,
+        patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai,
+    ):
+        mock_gemini.return_value.get_provider_name.return_value = "gemini"
+        mock_gemini.return_value.synthesize_speech.return_value = True
+        mock_gemini.return_value.stream_speech.return_value = iter([b"audio"])
+        mock_openai.return_value.get_provider_name.return_value = "openai"
+        mock_openai.return_value.synthesize_speech.return_value = True
+        mock_openai.return_value.stream_speech.return_value = iter([b"audio"])
+        yield
 
 
 @pytest.fixture
@@ -255,7 +271,12 @@ class TestMeditationRequestRouting:
             assert mock_handle_meditation.called
 
     def test_meditation_request_with_all_required_fields(
-        self, mock_ai_service, mock_storage_service, mock_audio_service, mock_tts_provider, monkeypatch
+        self,
+        mock_ai_service,
+        mock_storage_service,
+        mock_audio_service,
+        mock_tts_provider,
+        monkeypatch,
     ):
         """Test meditation request with all required input_data fields."""
         monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "float-meditation")
@@ -495,3 +516,140 @@ class TestEndToEndSummaryFlow:
         assert "intensity" in body
         # Verify AI service was actually called (not mocked at handler level)
         handler_with_mock_services.ai_service.analyze_sentiment.assert_called_once()
+
+
+@pytest.mark.unit
+class TestTTSProviderConfiguration:
+    """Test TTS provider configuration and fallback logic."""
+
+    def test_default_tts_provider_is_gemini(self, mock_ai_service):
+        """Test that the default TTS provider is Gemini."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini,
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            mock_gemini.return_value.get_provider_name.return_value = "gemini"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            assert handler.tts_provider.get_provider_name() == "gemini"
+
+    def test_fallback_tts_provider_is_openai(self, mock_ai_service):
+        """Test that the fallback TTS provider is OpenAI."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai,
+        ):
+            mock_openai.return_value.get_provider_name.return_value = "openai"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            assert handler.fallback_tts_provider.get_provider_name() == "openai"
+
+    def test_tts_fallback_on_gemini_failure(self, mock_ai_service):
+        """Test that OpenAI is used as fallback when Gemini TTS fails."""
+        handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+        mock_gemini = MagicMock()
+        mock_openai = MagicMock()
+        handler.tts_provider = mock_gemini
+        handler.fallback_tts_provider = mock_openai
+
+        mock_gemini.synthesize_speech.return_value = False
+        mock_openai.synthesize_speech.return_value = True
+
+        voice_path, combined_path = handler._generate_meditation_audio(
+            "Test meditation text", "20240101120000"
+        )
+        mock_openai.synthesize_speech.assert_called_once()
+
+    def test_tts_fallback_on_circuit_breaker_open(self, mock_ai_service):
+        """Test fallback when Gemini circuit breaker is open in streaming mode."""
+        handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+        mock_gemini = MagicMock()
+        mock_openai = MagicMock()
+        handler.tts_provider = mock_gemini
+        handler.fallback_tts_provider = mock_openai
+
+        mock_gemini.stream_speech.side_effect = CircuitBreakerOpenError("gemini_tts")
+        mock_openai.stream_speech.return_value = iter([b"audio_data"])
+
+        tts_provider = handler.get_tts_provider()
+        try:
+            list(tts_provider.stream_speech("test"))
+            fallback_used = False
+        except (TTSError, CircuitBreakerOpenError):
+            list(handler.fallback_tts_provider.stream_speech("test"))
+            fallback_used = True
+
+        assert fallback_used
+        mock_openai.stream_speech.assert_called_once()
+
+
+@pytest.mark.unit
+class TestTokenEndpoint:
+    """Test token exchange endpoint for Gemini Live API."""
+
+    def _make_token_event(self, user_id=None):
+        """Create a mock API Gateway event for POST /token."""
+        query_params = {"user_id": user_id} if user_id else {}
+        return {
+            "rawPath": "/production/token",
+            "requestContext": {"http": {"method": "POST"}},
+            "queryStringParameters": query_params,
+        }
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_returns_token(self, mock_get_handler, mock_ai_service):
+        """Test POST /token returns token payload."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "test-gemini-key"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="test-user")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 200
+            body = json.loads(response["body"])
+            assert "token" in body
+            assert "endpoint" in body
+            assert "expires_in" in body
+            assert body["token"] == mock_settings.GEMINI_API_KEY
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_missing_user_id(self, mock_get_handler, mock_ai_service):
+        """Test POST /token without user_id returns 400."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event()
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 400
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_cors_headers(self, mock_get_handler, mock_ai_service):
+        """Test POST /token response includes CORS headers."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "test-gemini-key"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="test-user")
+            response = lambda_handler(event, None)
+
+            assert "Access-Control-Allow-Origin" in response.get("headers", {})

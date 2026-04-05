@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiAIService(AIService):
-
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
         self.safety_settings = {
@@ -145,7 +144,7 @@ feel spacious and unhurried, with generous silence between thoughts.
 IMPORTANT: The meditation should be approximately {target_words} words ({target_chars} characters) to achieve
 a {duration_minutes}-minute spoken meditation. This is the target length - aim to be within 10% of this target.
 Return only the plain text meditation script with no markup or tags.
-Data for meditation transcript:"""
+{qa_transcript_section}Data for meditation transcript:"""
 
         # Duration to target words/chars mapping (~150 wpm spoken + pauses for breathing)
         self.duration_targets = {
@@ -157,9 +156,7 @@ Data for meditation transcript:"""
         }
 
     @with_circuit_breaker(gemini_circuit)
-    def analyze_sentiment(
-        self, audio_file: str | None = None, user_text: str | None = None
-    ) -> str:
+    def analyze_sentiment(self, audio_file: str | None = None, user_text: str | None = None) -> str:
         """
         Analyze sentiment from audio and/or text input using Gemini.
 
@@ -176,7 +173,7 @@ Data for meditation transcript:"""
         """
         logger.info("Starting sentiment analysis")
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash", safety_settings=self.safety_settings
+            model_name=settings.GEMINI_AI_MODEL, safety_settings=self.safety_settings
         )
         text_response = None
         audio_response = None
@@ -247,7 +244,12 @@ Data for meditation transcript:"""
             return "Peace comes from within. Do not seek it without.", "Buddha"
 
     @with_circuit_breaker(gemini_circuit)
-    def generate_meditation(self, input_data: Dict[str, Any], duration_minutes: int = 5) -> str:
+    def generate_meditation(
+        self,
+        input_data: Dict[str, Any],
+        duration_minutes: int = 5,
+        qa_transcript: list | None = None,
+    ) -> str:
         """Generate a meditation script from sentiment data.
 
         Args:
@@ -269,7 +271,24 @@ Data for meditation transcript:"""
 
         # Get inspirational quote
         quote, author = self._get_inspirational_quote()
-        logger.info("Using quote: '%s' - %s", quote[:50] + "..." if len(quote) > 50 else quote, author)
+        logger.info(
+            "Using quote: '%s' - %s", quote[:50] + "..." if len(quote) > 50 else quote, author
+        )
+
+        # Build Q&A transcript section if present
+        qa_transcript_section = ""
+        if qa_transcript:
+            exchanges = "\n".join(
+                f"  {str(entry.get('role', 'user')).capitalize()}: {entry.get('text', '')}"
+                for entry in qa_transcript
+                if entry.get("text")
+            )
+            qa_transcript_section = (
+                "\nAdditionally, the user participated in a brief check-in conversation before "
+                "this meditation. Use the insights from this conversation to make the meditation "
+                "more personal and targeted:\n\nCheck-in transcript:\n"
+                f"{exchanges}\n\n"
+            )
 
         # Build prompt with duration-specific targets
         prompt_meditation = self.prompt_meditation_template.format(
@@ -278,10 +297,11 @@ Data for meditation transcript:"""
             duration_minutes=duration_minutes,
             inspirational_quote=quote,
             quote_author=author,
+            qa_transcript_section=qa_transcript_section,
         )
 
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
+            model_name=settings.GEMINI_AI_MODEL,
             safety_settings=self.safety_settings,
         )
         try:

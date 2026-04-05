@@ -1,11 +1,18 @@
 /**
- * @jest-environment jsdom
- *
  * Tests for useHLSPlayer hook
  * Tests the web implementation with mocked HLS.js
  */
 
 import { renderHook, act } from '@testing-library/react-native';
+
+// Provide a minimal document global for web hook testing (default env is node, not jsdom)
+if (typeof document === 'undefined') {
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+  const g = globalThis as typeof globalThis & { document: Document; HTMLAudioElement: unknown };
+  g.document = dom.window.document;
+  g.HTMLAudioElement = dom.window.HTMLAudioElement;
+}
 
 // Mock HLS.js before importing the hook
 const mockHlsInstance = {

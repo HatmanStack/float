@@ -20,7 +20,6 @@ breathing, and letting go. When you encounter "..." in the text, pause naturally
 
 
 class OpenAITTSProvider(TTSService):
-
     def __init__(self):
         self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -59,7 +58,7 @@ class OpenAITTSProvider(TTSService):
         compatibility. For new code, prefer stream_speech which raises TTSError.
         """
         try:
-            logger.info(f"Creating OpenAI voice for text: {text[:100]}...")
+            logger.info("Creating OpenAI voice", extra={"data": {"text_length": len(text)}})
             with open(output_path, "wb") as f:
                 for chunk in self._stream_speech_internal(text):
                     f.write(chunk)

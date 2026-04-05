@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,9 +12,10 @@ from ..config.constants import (
     HTTP_NOT_FOUND,
 )
 from ..config.settings import settings
-from ..exceptions import TTSError
+from ..exceptions import CircuitBreakerOpenError, TTSError
 from ..models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
+from ..providers.gemini_tts import GeminiTTSProvider
 from ..providers.openai_tts import OpenAITTSProvider
 from ..services.ai_service import AIService
 from ..services.download_service import DownloadService
@@ -42,6 +44,11 @@ from .middleware import (
 
 logger = get_logger(__name__)
 
+# Module-level rate limiter (per Lambda instance, resets on cold start)
+_token_rate_limit: Dict[str, list] = {}
+TOKEN_RATE_LIMIT_MAX = 5  # max tokens per window
+TOKEN_RATE_LIMIT_WINDOW = 3600  # 1 hour in seconds
+
 # Feature flag for HLS streaming
 ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
 
@@ -65,10 +72,11 @@ class LambdaHandler:
         self.hls_service = HLSService(self.storage_service)
         self.download_service = DownloadService(self.storage_service, self.hls_service)
         self.audio_service = FFmpegAudioService(self.storage_service, hls_service=self.hls_service)
-        self.tts_provider = OpenAITTSProvider()
-        self.job_service = JobService(self.storage_service)
         if validate_config:
             settings.validate_keys()
+        self.tts_provider = GeminiTTSProvider()
+        self.fallback_tts_provider = OpenAITTSProvider()
+        self.job_service = JobService(self.storage_service)
 
     @staticmethod
     def _create_ai_service() -> AIService:
@@ -107,7 +115,10 @@ class LambdaHandler:
         tts_provider = self.get_tts_provider()
         success = tts_provider.synthesize_speech(meditation_text, voice_path)
         if not success:
-            raise TTSError("Failed to generate speech audio")
+            logger.warning("Primary TTS provider failed, trying fallback")
+            success = self.fallback_tts_provider.synthesize_speech(meditation_text, voice_path)
+            if not success:
+                raise TTSError("Failed to generate speech audio with both primary and fallback TTS")
         logger.debug("Voice generation completed")
         return voice_path, combined_path
 
@@ -196,7 +207,11 @@ class LambdaHandler:
 
             input_data = self._ensure_input_data_is_dict(request.input_data)
             meditation_text = self.ai_service.generate_meditation(
-                input_data, duration_minutes=request.duration_minutes
+                input_data,
+                duration_minutes=request.duration_minutes,
+                qa_transcript=[item.model_dump() for item in request.qa_transcript]
+                if request.qa_transcript
+                else None,
             )
             logger.info(
                 "Meditation text generated",
@@ -288,21 +303,23 @@ class LambdaHandler:
                     )
 
                 # Use batch mode for cached audio
-                _, total_segments, _ = (
-                    self.audio_service.combine_voice_and_music_hls(
-                        voice_path=voice_path,
-                        music_list=request.music_list,
-                        timestamp=timestamp,
-                        user_id=request.user_id,
-                        job_id=job_id,
-                        progress_callback=progress_callback,
-                    )
+                _, total_segments, _ = self.audio_service.combine_voice_and_music_hls(
+                    voice_path=voice_path,
+                    music_list=request.music_list,
+                    timestamp=timestamp,
+                    user_id=request.user_id,
+                    job_id=job_id,
+                    progress_callback=progress_callback,
                 )
             else:
                 # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
                 input_data = self._ensure_input_data_is_dict(request.input_data)
                 meditation_text = self.ai_service.generate_meditation(
-                    input_data, duration_minutes=request.duration_minutes
+                    input_data,
+                    duration_minutes=request.duration_minutes,
+                    qa_transcript=[item.model_dump() for item in request.qa_transcript]
+                    if request.qa_transcript
+                    else None,
                 )
                 logger.info(
                     "Meditation text generated",
@@ -334,9 +351,13 @@ class LambdaHandler:
                     extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}},
                 )
 
-                # Get TTS stream generator
+                # Get TTS stream generator with fallback
                 tts_provider = self.get_tts_provider()
-                voice_generator = tts_provider.stream_speech(meditation_text)
+                try:
+                    voice_generator = tts_provider.stream_speech(meditation_text)
+                except (TTSError, CircuitBreakerOpenError):
+                    logger.warning("Primary TTS streaming failed, trying fallback provider")
+                    voice_generator = self.fallback_tts_provider.stream_speech(meditation_text)
 
                 # Track if we've marked streaming started
                 streaming_started = False
@@ -572,6 +593,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == "POST" and "/download" in raw_path:
             return _handle_download_request(handler, event)
 
+        # Check for token request (POST /token)
+        if http_method == "POST" and "/token" in raw_path:
+            return _handle_token_request(handler, event)
+
         result: Dict[str, Any] = handler.handle_request(event, context)
         return result
     except Exception:
@@ -674,3 +699,58 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
 
     response = create_success_response(result)
     return cors_middleware(lambda e, _: response)(event, None)
+
+
+def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle POST /token requests for Gemini Live API authentication."""
+    from .middleware import cors_middleware
+
+    # Get user_id from query params
+    query_params = event.get("queryStringParameters", {}) or {}
+    user_id = query_params.get("user_id", "")
+
+    if not user_id:
+        response = create_error_response(HTTP_BAD_REQUEST, "Missing user_id parameter")
+        return cors_middleware(lambda e, _: response)(event, None)
+
+    logger.info(
+        "Token request received (rate limit check)",
+        extra={"data": {"user_id": user_id}},
+    )
+
+    # Rate limiting
+    now = time.time()
+    if user_id not in _token_rate_limit:
+        _token_rate_limit[user_id] = []
+    # Clean expired entries
+    _token_rate_limit[user_id] = [
+        t for t in _token_rate_limit[user_id] if now - t < TOKEN_RATE_LIMIT_WINDOW
+    ]
+    if len(_token_rate_limit[user_id]) >= TOKEN_RATE_LIMIT_MAX:
+        logger.warning(
+            "Token rate limit exceeded",
+            extra={"data": {"user_id": user_id, "count": len(_token_rate_limit[user_id])}},
+        )
+        response = create_error_response(429, "Rate limit exceeded. Try again later.")
+        return cors_middleware(lambda e, _: response)(event, None)
+    _token_rate_limit[user_id].append(now)
+    logger.info(
+        "Token issued",
+        extra={"data": {"user_id": user_id, "timestamp": now}},
+    )
+
+    # WARNING: MVP security concern — this returns the raw Gemini API key because Google
+    # does not yet support minting short-lived ephemeral tokens. This MUST be replaced
+    # with ephemeral tokens once that capability is available. See ADR-2 in Phase-0.md.
+    token_response = create_success_response(
+        {
+            "token": settings.GEMINI_API_KEY,
+            "expires_in": 60,
+            "user_id": user_id,
+            "endpoint": (
+                "wss://generativelanguage.googleapis.com/ws/"
+                "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+            ),
+        }
+    )
+    return cors_middleware(lambda e, _: token_response)(event, None)

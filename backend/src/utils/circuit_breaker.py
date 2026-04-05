@@ -81,9 +81,10 @@ class CircuitBreaker:
     def state(self) -> CircuitState:
         """Get current circuit state, transitioning to HALF_OPEN if appropriate."""
         if self._state == CircuitState.OPEN:
-            if self._last_failure_time and (
-                time.time() - self._last_failure_time
-            ) > self.recovery_timeout:
+            if (
+                self._last_failure_time
+                and (time.time() - self._last_failure_time) > self.recovery_timeout
+            ):
                 self._state = CircuitState.HALF_OPEN
                 logger.info(
                     "Circuit breaker transitioning to half-open",
@@ -152,6 +153,14 @@ class CircuitBreaker:
         # OPEN state
         return False
 
+    def release_half_open_probe(self) -> None:
+        """Release the half-open probe flag without changing circuit state.
+
+        Called when a generator is abandoned (GeneratorExit) — the request
+        wasn't a success or failure, just cancelled. Unblocks the next probe.
+        """
+        self._half_open_request_in_progress = False
+
     def reset(self) -> None:
         """Manually reset circuit breaker to closed state."""
         self._failures = 0
@@ -208,6 +217,13 @@ def with_circuit_breaker(breaker: CircuitBreaker):
 # OpenAI TTS - relatively reliable but can have rate limits
 openai_circuit = CircuitBreaker(
     name="openai_tts",
+    failure_threshold=3,
+    recovery_timeout=60.0,  # 1 minute
+)
+
+# Gemini TTS - dedicated breaker for TTS service
+gemini_tts_circuit = CircuitBreaker(
+    name="gemini_tts",
     failure_threshold=3,
     recovery_timeout=60.0,  # 1 minute
 )

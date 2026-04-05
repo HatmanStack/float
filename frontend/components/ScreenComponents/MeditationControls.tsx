@@ -6,6 +6,9 @@ import useStyles from '@/constants/StylesConstants';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { HLSPlayer, HLSPlayerRef } from '@/components/HLSPlayer';
+import VoiceQA from '@/components/ScreenComponents/VoiceQA';
+import type { TransformedDict } from '@/components/BackendMeditationCall';
+import type { QATranscript } from '@/types/api';
 
 /**
  * Duration options for meditation
@@ -25,7 +28,7 @@ interface MeditationControlsProps {
   isCalling: boolean;
   meditationURI: string;
   setMeditationURI: (uri: string) => void;
-  handleMeditationCall: (durationMinutes: number) => void;
+  handleMeditationCall: (durationMinutes: number, qaTranscript?: QATranscript) => void;
   // HLS streaming props
   playlistUrl?: string | null;
   isStreaming?: boolean;
@@ -33,6 +36,9 @@ interface MeditationControlsProps {
   onStreamError?: (error: Error) => void;
   // Callback when playback ends (to reset UI to Generate button)
   onPlaybackEnd?: () => void;
+  // Voice Q&A props
+  sentimentData?: TransformedDict;
+  userId?: string;
 }
 
 /**
@@ -124,12 +130,17 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   onStreamComplete,
   onStreamError,
   onPlaybackEnd,
+  sentimentData,
+  userId,
 }: MeditationControlsProps): React.JSX.Element => {
   const styles = useStyles();
   const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
 
   // Duration selector state (must be before any early returns)
   const [selectedDuration, setSelectedDuration] = useState(5);
+
+  // Voice Q&A state
+  const [qaActive, setQaActive] = useState(false);
 
   // HLS player state
   const hlsPlayerRef = useRef<HLSPlayerRef>(null);
@@ -138,7 +149,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
 
   // HLS playback controls
   const handleHLSPlay = useCallback(() => {
-    setIsHLSPlaying(prev => {
+    setIsHLSPlaying((prev) => {
       if (prev) {
         hlsPlayerRef.current?.pause();
         return false;
@@ -170,11 +181,14 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
     onStreamComplete?.();
   }, [onStreamComplete]);
 
-  const handleHLSError = useCallback((error: Error) => {
-    setHlsError(error);
-    setIsHLSPlaying(false);
-    onStreamError?.(error);
-  }, [onStreamError]);
+  const handleHLSError = useCallback(
+    (error: Error) => {
+      setHlsError(error);
+      setIsHLSPlaying(false);
+      onStreamError?.(error);
+    },
+    [onStreamError]
+  );
 
   // Determine which mode we're in
   const useStreamingMode = isStreaming && playlistUrl;
@@ -303,12 +317,40 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
     );
   }
 
-  // No content yet: show generate button (centered) with duration selector to the right
+  // No content yet: show Q&A or generate button
+  if (qaActive && sentimentData) {
+    return (
+      <VoiceQA
+        sentimentData={sentimentData}
+        userId={userId}
+        onComplete={(transcript) => {
+          setQaActive(false);
+          handleMeditationCall(selectedDuration, transcript);
+        }}
+        onSkip={() => {
+          setQaActive(false);
+          handleMeditationCall(selectedDuration);
+        }}
+        onError={(error: Error) => {
+          console.error('Voice Q&A error, falling back to meditation without Q&A:', error);
+          setQaActive(false);
+          handleMeditationCall(selectedDuration);
+        }}
+      />
+    );
+  }
+
   return (
     <View style={localStyles.generateContainer}>
       <View style={localStyles.spacer} />
       <Pressable
-        onPress={() => handleMeditationCall(selectedDuration)}
+        onPress={() => {
+          if (sentimentData) {
+            setQaActive(true);
+          } else {
+            handleMeditationCall(selectedDuration);
+          }
+        }}
         style={({ pressed }) => [
           {
             backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'],
