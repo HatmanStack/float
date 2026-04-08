@@ -1159,8 +1159,7 @@ class TestFFmpegAudioServiceHLS:
             patch(
                 "glob.glob", return_value=["/tmp/fade/segment_000.ts", "/tmp/fade/segment_001.ts"]
             ),
-            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
-            patch.object(service, "get_audio_duration", return_value=5.0),
+            patch.object(service, "get_audio_duration", side_effect=[120.0, 5.0, 5.0]),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1201,7 +1200,7 @@ class TestFFmpegAudioServiceHLS:
         with (
             patch("subprocess.run") as mock_run,
             patch("glob.glob", return_value=[]),
-            patch.object(service, "_get_audio_duration_from_file", return_value=60.0),
+            patch.object(service, "get_audio_duration", return_value=60.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1226,7 +1225,7 @@ class TestFFmpegAudioServiceHLS:
 
         segment_durations = [5.0, 5.0]
 
-        with patch.object(service, "_get_audio_duration_from_file", return_value=0.0):
+        with patch.object(service, "get_audio_duration", return_value=0.0):
             result = service._append_fade_segments(
                 music_path="/tmp/music.mp3",
                 total_streamed_duration=10.0,
@@ -1249,7 +1248,7 @@ class TestFFmpegAudioServiceHLS:
 
         with (
             patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ffmpeg")),
-            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch.object(service, "get_audio_duration", return_value=120.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1274,7 +1273,7 @@ class TestFFmpegAudioServiceHLS:
         with (
             patch("subprocess.run") as mock_run,
             patch("glob.glob", return_value=[]),
-            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch.object(service, "get_audio_duration", return_value=120.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):

@@ -73,7 +73,9 @@ class FFmpegAudioService(AudioService):
             )
             duration_lines = [line for line in result.stderr.split("\n") if "Duration" in line]
             if not duration_lines:
-                logger.warning("No Duration line in ffmpeg output", extra={"data": {"file": file_path}})
+                logger.warning(
+                    "No Duration line in ffmpeg output", extra={"data": {"file": file_path}}
+                )
                 return 0.0
             duration_str = duration_lines[0].split(",")[0].split("Duration:")[1].strip()
             h, m, s = map(float, duration_str.split(":"))
@@ -443,27 +445,6 @@ class FFmpegAudioService(AudioService):
             return int(matches[-1])
         return None
 
-    def _get_audio_duration_from_file(self, audio_path: str) -> float:
-        """Get audio duration using ffmpeg (ffprobe not available in Lambda layer)."""
-        try:
-            # Use ffmpeg to probe the file - same approach as get_audio_duration
-            result = subprocess.run(
-                [self.ffmpeg_executable, "-i", audio_path, "-f", "null", "-"],
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=30,
-            )
-            # Parse duration from stderr output
-            for line in result.stderr.split("\n"):
-                if "Duration" in line:
-                    duration_str = line.split(",")[0].split("Duration:")[1].strip()
-                    h, m, s = map(float, duration_str.split(":"))
-                    return h * 3600 + m * 60 + s
-            return 0.0
-        except Exception as e:
-            logger.warning(f"Could not get audio duration: {e}")
-            return 0.0
-
     def _append_fade_segments(
         self,
         music_path: str,
@@ -483,7 +464,7 @@ class FFmpegAudioService(AudioService):
         fade_duration = HLS_FADE_DURATION_SECONDS
 
         # Calculate music offset so fade picks up where the streamed music left off
-        music_file_duration = self._get_audio_duration_from_file(music_path)
+        music_file_duration = self.get_audio_duration(music_path)
         if music_file_duration <= 0:
             logger.warning("Could not determine music duration, skipping fade segments")
             return total_segments
