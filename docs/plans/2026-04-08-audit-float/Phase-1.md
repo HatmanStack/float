@@ -78,12 +78,12 @@ diffs.
 
 **Verification Checklist:**
 
-- [ ] `frontend/constants/Colors.ts` is under 200 lines
-- [ ] Every existing import of `Colors` resolves and compiles
-- [ ] `npm run lint` passes
-- [ ] `npm test` passes (snapshots may need updating)
-- [ ] No new `eslint-disable` comments introduced
-- [ ] Visually inspect at least one screen using `IncidentColoring` (note in PR
+- [x] `frontend/constants/Colors.ts` is under 200 lines
+- [x] Every existing import of `Colors` resolves and compiles
+- [x] `npm run lint` passes
+- [x] `npm test` passes (snapshots may need updating)
+- [x] No new `eslint-disable` comments introduced
+- [x] Visually inspect at least one screen using `IncidentColoring` (note in PR
       description; do not gate on the manual check)
 
 **Testing Instructions:**
@@ -134,10 +134,10 @@ against `requests==2.32.3`. The fix is in 2.33.0 per the audit report.
 
 **Verification Checklist:**
 
-- [ ] `backend/requirements.txt` lists `requests>=2.33.0`
-- [ ] `backend/pyproject.toml` lists `requests>=2.33.0`
-- [ ] `pip install -r backend/requirements.txt` succeeds
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `backend/requirements.txt` lists `requests>=2.33.0`
+- [x] `backend/pyproject.toml` lists `requests>=2.33.0`
+- [x] `pip install -r backend/requirements.txt` succeeds
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
 
 **Testing Instructions:**
 
@@ -185,11 +185,11 @@ them. Both are flagged by the project ESLint config (`no-console: ['warn',
 
 **Verification Checklist:**
 
-- [ ] `grep -rn "console.log" frontend/` returns no hits in shipped paths
+- [x] `grep -rn "console.log" frontend/` returns no hits in shipped paths
       (test fixtures may still contain logs and are out of scope)
-- [ ] `npm run lint` reports no `no-console` warnings on these files
-- [ ] `npm test` passes
-- [ ] HLS playback test (`useHLSPlayer-test.ts` or equivalent) still passes
+- [x] `npm run lint` reports no `no-console` warnings on these files
+- [x] `npm test` passes
+- [x] HLS playback test (`useHLSPlayer-test.ts` or equivalent) still passes
 
 **Testing Instructions:**
 
@@ -249,10 +249,10 @@ error handling. Keep the public method, delete the private duplicate.
 
 **Verification Checklist:**
 
-- [ ] `grep -rn "_get_audio_duration_from_file" backend/` returns 0 hits
-- [ ] `cd backend && uvx ruff check .` passes
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
-- [ ] No new test failures
+- [x] `grep -rn "_get_audio_duration_from_file" backend/` returns 0 hits
+- [x] `cd backend && uvx ruff check .` passes
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] No new test failures
 
 **Testing Instructions:**
 
@@ -312,9 +312,9 @@ client to module scope.
 
 **Verification Checklist:**
 
-- [ ] `_invoke_async_meditation` no longer calls `boto3.client(...)` directly
-- [ ] All existing `lambda_handler` tests pass
-- [ ] No new boto3 imports added at function scope
+- [x] `_invoke_async_meditation` no longer calls `boto3.client(...)` directly
+- [x] All existing `lambda_handler` tests pass
+- [x] No new boto3 imports added at function scope
 
 **Testing Instructions:**
 
@@ -408,10 +408,10 @@ perf(backend): cache boto3 lambda client at module scope
 
 **Verification Checklist:**
 
-- [ ] `grep -n "logging.getLogger" backend/src/` returns 0 hits in product
+- [x] `grep -n "logging.getLogger" backend/src/` returns 0 hits in product
       code (test code is allowed to use stdlib logging)
-- [ ] `cd backend && uvx ruff check .` passes
-- [ ] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
+- [x] `cd backend && uvx ruff check .` passes
+- [x] `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short` passes
 
 **Testing Instructions:**
 
@@ -433,14 +433,14 @@ chore(backend): align logging convention and tidy exceptions
 
 After all six tasks land:
 
-- [ ] `npm run check` passes (frontend lint + tests, backend ruff + pytest)
-- [ ] `pip-audit` against `backend/requirements.txt` reports 0 vulnerabilities
-- [ ] `frontend/constants/Colors.ts` is under 200 lines
-- [ ] `grep -rn "console.log" frontend/components frontend/scripts` returns 0
+- [x] `npm run check` passes (frontend lint + tests, backend ruff + pytest)
+- [x] `pip-audit` against `backend/requirements.txt` reports 0 vulnerabilities
+- [x] `frontend/constants/Colors.ts` is under 200 lines
+- [x] `grep -rn "console.log" frontend/components frontend/scripts` returns 0
       hits
-- [ ] `grep -rn "_get_audio_duration_from_file" backend/` returns 0 hits
-- [ ] `grep -n "logging.getLogger" backend/src/` returns 0 hits
-- [ ] No behavior change observable in any existing test
+- [x] `grep -rn "_get_audio_duration_from_file" backend/` returns 0 hits
+- [x] `grep -n "logging.getLogger" backend/src/` returns 0 hits
+- [x] No behavior change observable in any existing test
 
 Known limitations after this phase:
 
