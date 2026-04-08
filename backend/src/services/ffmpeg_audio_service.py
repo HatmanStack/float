@@ -82,7 +82,10 @@ class FFmpegAudioService(AudioService):
             duration = h * 3600 + m * 60 + s
             return duration
         except Exception as e:
-            logger.warning(f"Error getting audio duration: {e}")
+            logger.warning(
+                "Error getting audio duration",
+                extra={"data": {"error": str(e)}},
+            )
             return 0.0
 
     def combine_voice_and_music(

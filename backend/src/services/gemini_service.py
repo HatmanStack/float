@@ -1,4 +1,3 @@
-import logging
 import pathlib
 from typing import Any, Dict
 
@@ -11,9 +10,10 @@ from zenquotespy import random as get_random_quote
 from ..config.settings import settings
 from ..exceptions import AIServiceError
 from ..utils.circuit_breaker import gemini_circuit, with_circuit_breaker
+from ..utils.logging_utils import get_logger
 from .ai_service import AIService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class GeminiAIService(AIService):
