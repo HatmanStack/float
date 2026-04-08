@@ -1,44 +1,52 @@
-import json
-import os
-import re
-from datetime import datetime
+"""Thin Lambda handler shim.
+
+Phase 4 Task 1 of the 2026-04-08-audit-float plan split the 750+ line god
+object that used to live here into domain-focused modules:
+
+- :mod:`.summary_handler` -- sentiment analysis pathway
+- :mod:`.meditation_handler` -- async meditation generation pathway
+- :mod:`.job_handler` -- job status and download pathways
+- :mod:`.router` -- dispatch table and top-level ``lambda_handler`` entry
+
+This module now does three things:
+
+1. Constructs the :class:`LambdaHandler` facade that wires services to the
+   sub-handlers and preserves the public method surface used by existing
+   tests and by :mod:`backend.lambda_function`.
+2. Re-imports provider and service symbols at module scope so that
+   ``unittest.mock.patch('src.handlers.lambda_handler.GeminiTTSProvider')``
+   and friends continue to intercept construction in tests.
+3. Re-exports the route helpers and the top-level ``lambda_handler`` entry
+   point so existing tests that patch
+   ``src.handlers.lambda_handler._handle_job_status_request`` etc. still
+   reach the dispatch path.
+"""
+
 from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore[import-untyped]
 
 from ..config.constants import (
-    CORS_HEADERS,
-    HTTP_BAD_REQUEST,
-    HTTP_FORBIDDEN,
-    HTTP_NOT_FOUND,
+    ENABLE_HLS_STREAMING,
+    GEMINI_LIVE_WS_ENDPOINT,
+    MAX_GENERATION_ATTEMPTS,
+    MUSIC_TRAILING_BUFFER_SECONDS,
+    TOKEN_MARKER_TTL_SECONDS,
+    TTS_WORDS_PER_MINUTE,
 )
 from ..config.settings import settings
-from ..exceptions import (
-    AudioProcessingError,
-    CircuitBreakerOpenError,
-    ErrorCode,
-    ExternalServiceError,
-    TTSError,
-)
 from ..models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body
-from ..models.responses import create_meditation_response, create_summary_response
 from ..providers.gemini_tts import GeminiTTSProvider
 from ..providers.openai_tts import OpenAITTSProvider
 from ..services.ai_service import AIService
 from ..services.download_service import DownloadService
 from ..services.ffmpeg_audio_service import FFmpegAudioService
 from ..services.hls_service import HLSService
-from ..services.job_service import JobService, JobStatus
+from ..services.job_service import JobService
 from ..services.s3_storage_service import S3StorageService
-from ..utils.audio_utils import (
-    cleanup_temp_file,
-    decode_audio_base64,
-    encode_audio_to_base64,
-)
-from ..utils.file_utils import generate_request_id, generate_timestamp
 from ..utils.logging_utils import get_logger
-from ..utils.security import derive_token_marker
-from ..utils.validation import is_valid_user_id
+from .job_handler import JobHandler
+from .meditation_handler import MeditationHandler
 from .middleware import (
     apply_middleware,
     cors_middleware,
@@ -50,12 +58,24 @@ from .middleware import (
     request_size_validation_middleware,
     request_validation_middleware,
 )
+from .router import (
+    _ROUTES,
+    _authorize_job_access,
+    _handle_download_request,
+    _handle_job_status_request,
+    _handle_token_request,
+    _match_route,
+    _validate_user_id_or_400,
+    _with_cors,
+    lambda_handler,
+)
+from .summary_handler import SummaryHandler
 
 logger = get_logger(__name__)
 
 # Cached boto3 Lambda client at module scope so it is reused across warm
-# invocations instead of being rebuilt per request. `boto3.client` is
-# thread-safe and the connection pool benefits from reuse.
+# invocations. ``boto3.client`` is thread-safe and the connection pool
+# benefits from reuse.
 _lambda_client: Any = None
 
 
@@ -67,37 +87,12 @@ def _get_lambda_client() -> Any:
     return _lambda_client
 
 
-# Short-lived TTL for the opaque token marker returned by POST /token.
-# The marker itself is stateless (HMAC over user_id + GEMINI_API_KEY) so this
-# value is purely advisory to the frontend, matching the historical shape.
-TOKEN_MARKER_TTL_SECONDS = 60
-
-# Gemini Live BidiGenerateContent WebSocket endpoint returned to the frontend
-# alongside the opaque token marker. Hoisted to module scope so the token
-# handler stays small and testable.
-GEMINI_LIVE_WS_ENDPOINT = (
-    "wss://generativelanguage.googleapis.com/ws/"
-    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
-)
-
-# Feature flag for HLS streaming
-ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
-
-# Maximum retry attempts for HLS generation
-MAX_GENERATION_ATTEMPTS = 3
-
-# Estimated TTS speaking rate for calm meditation voice with pauses.
-# Based on observation: meditation TTS averages ~80 words/minute
-# (slower than conversational ~150 wpm due to intentional pauses).
-TTS_WORDS_PER_MINUTE = 80
-
-# Extra seconds of background music after TTS speech ends,
-# allowing the meditation to fade out naturally.
-MUSIC_TRAILING_BUFFER_SECONDS = 90
-
-
 class LambdaHandler:
-    def __init__(self, ai_service: Optional[AIService] = None, validate_config: bool = True):
+    """Thin facade that constructs services and delegates to domain handlers."""
+
+    def __init__(
+        self, ai_service: Optional[AIService] = None, validate_config: bool = True
+    ) -> None:
         self.ai_service = ai_service or self._create_ai_service()
         self.storage_service = S3StorageService()
         self.hls_service = HLSService(self.storage_service)
@@ -109,388 +104,61 @@ class LambdaHandler:
         self.fallback_tts_provider = OpenAITTSProvider()
         self.job_service = JobService(self.storage_service)
 
+        self.summary = SummaryHandler(self)
+        self.meditation = MeditationHandler(self, lambda_client_provider=_get_lambda_client)
+        self.jobs = JobHandler(self)
+
     @staticmethod
     def _create_ai_service() -> AIService:
         from ..services.gemini_service import GeminiAIService
 
         return GeminiAIService()
 
-    def get_tts_provider(self):
-        return self.tts_provider
+    # ------------------------------------------------------------------
+    # Legacy public surface. Each method delegates to a domain handler so
+    # existing tests and call sites continue to work unchanged.
+    # ------------------------------------------------------------------
+    def get_tts_provider(self) -> Any:
+        return self.meditation.get_tts_provider()
 
     def handle_summary_request(self, request: SummaryRequestModel) -> Dict[str, Any]:
-        logger.info("Processing summary request", extra={"data": {"user_id": request.user_id}})
-        audio_file = None
-        if request.audio and request.audio != "NotAvailable":
-            audio_file = decode_audio_base64(request.audio)
-        try:
-            summary_result = self.ai_service.analyze_sentiment(
-                audio_file=audio_file, user_text=request.prompt
-            )
-            request_id = generate_request_id()
-            response = create_summary_response(request_id, request.user_id, summary_result)
-            self._store_summary_results(request, response, audio_file is not None)
-            return response.to_dict()
-        finally:
-            if audio_file:
-                cleanup_temp_file(audio_file)
+        return self.summary.handle(request)
 
+    def handle_meditation_request(self, request: MeditationRequestModel) -> Dict[str, Any]:
+        return self.meditation.handle(request)
+
+    def process_meditation_async(self, job_id: str, request_dict: Dict[str, Any]) -> None:
+        self.meditation.process_async(job_id, request_dict)
+
+    def handle_job_status(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
+        return self.jobs.handle_status(user_id, job_id)
+
+    def handle_download_request(
+        self,
+        user_id: str,
+        job_id: str,
+        job_data: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return self.jobs.handle_download(user_id, job_id, job_data)
+
+    # Internal helpers kept for back-compat with existing tests that exercise
+    # them directly. New code should call the domain handlers instead.
     def _ensure_input_data_is_dict(
         self, input_data: Union[Dict[str, Any], List[Dict[str, Any]]]
     ) -> Dict[str, Any]:
-        return input_data if isinstance(input_data, dict) else {"floats": input_data}
+        return self.meditation._ensure_input_data_is_dict(input_data)
 
     def _generate_meditation_audio(self, meditation_text: str, timestamp: str) -> tuple[str, str]:
-        voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
-        combined_path = f"{settings.TEMP_DIR}/combined_{timestamp}.mp3"
-        tts_provider = self.get_tts_provider()
-        success = tts_provider.synthesize_speech(meditation_text, voice_path)
-        if not success:
-            logger.warning("Primary TTS provider failed, trying fallback")
-            success = self.fallback_tts_provider.synthesize_speech(meditation_text, voice_path)
-            if not success:
-                raise TTSError("Failed to generate speech audio with both primary and fallback TTS")
-        logger.debug("Voice generation completed")
-        return voice_path, combined_path
+        return self.meditation._generate_meditation_audio(meditation_text, timestamp)
 
-    def handle_meditation_request(self, request: MeditationRequestModel) -> Dict[str, Any]:
-        """Create job and invoke async processing, return job_id immediately."""
-        logger.info(
-            "Processing meditation request",
-            extra={
-                "data": {"user_id": request.user_id, "duration_minutes": request.duration_minutes}
-            },
-        )
+    def _invoke_async_meditation(self, request: MeditationRequestModel, job_id: str) -> None:
+        self.meditation._invoke_async_meditation(request, job_id)
 
-        # Create job for tracking (with HLS streaming if enabled)
-        job_id = self.job_service.create_job(
-            request.user_id, "meditation", enable_streaming=ENABLE_HLS_STREAMING
-        )
-        logger.info(
-            "Created meditation job",
-            extra={"data": {"job_id": job_id, "hls_enabled": ENABLE_HLS_STREAMING}},
-        )
+    def _process_meditation_base64(self, job_id: str, request: MeditationRequestModel) -> None:
+        self.meditation._process_base64(job_id, request)
 
-        # Invoke Lambda asynchronously for the actual processing
-        self._invoke_async_meditation(request, job_id)
-
-        # Return job_id immediately
-        response = {
-            "job_id": job_id,
-            "status": "pending",
-            "message": "Meditation generation started. Poll /job/{job_id} for status.",
-        }
-
-        # Include streaming info if HLS is enabled
-        if ENABLE_HLS_STREAMING:
-            response["streaming"] = {
-                "enabled": True,
-                "playlist_url": None,  # Will be available once streaming starts
-            }
-
-        return response
-
-    def _invoke_async_meditation(self, request: MeditationRequestModel, job_id: str):
-        """Invoke this Lambda asynchronously to process meditation."""
-        lambda_client = _get_lambda_client()
-        function_name = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "")
-
-        async_payload = {
-            "_async_meditation": True,
-            "job_id": job_id,
-            "request": request.to_dict(),
-        }
-
-        logger.info("Invoking async meditation", extra={"data": {"job_id": job_id}})
-        lambda_client.invoke(
-            FunctionName=function_name,
-            InvocationType="Event",  # Async invocation
-            Payload=json.dumps(async_payload),
-        )
-
-    def process_meditation_async(self, job_id: str, request_dict: Dict[str, Any]):
-        """Process meditation in async Lambda invocation."""
-        request = MeditationRequestModel.model_validate(request_dict)
-        logger.info(
-            "Processing async meditation",
-            extra={"data": {"job_id": job_id, "user_id": request.user_id}},
-        )
-
-        # Check if HLS is enabled for this job
-        job_data = self.job_service.get_job(request.user_id, job_id)
-        use_hls = (
-            ENABLE_HLS_STREAMING
-            and job_data
-            and job_data.get("streaming", {}).get("enabled", False)
-        )
-
-        if use_hls:
-            self._process_meditation_hls(job_id, request)
-        else:
-            self._process_meditation_base64(job_id, request)
-
-    def _process_meditation_base64(self, job_id: str, request: MeditationRequestModel):
-        """Process meditation with base64 output (legacy mode)."""
-        voice_path = None
-        combined_path = None
-        try:
-            self.job_service.update_job_status(request.user_id, job_id, JobStatus.PROCESSING)
-
-            input_data = self._ensure_input_data_is_dict(request.input_data)
-            meditation_text = self.ai_service.generate_meditation(
-                input_data,
-                duration_minutes=request.duration_minutes,
-                qa_transcript=[item.model_dump() for item in request.qa_transcript]
-                if request.qa_transcript
-                else None,
-            )
-            logger.info(
-                "Meditation text generated",
-                extra={
-                    "data": {
-                        "length": len(meditation_text),
-                        "duration_minutes": request.duration_minutes,
-                    }
-                },
-            )
-            timestamp = generate_timestamp()
-
-            voice_path, combined_path = self._generate_meditation_audio(meditation_text, timestamp)
-            new_music_list = self.audio_service.combine_voice_and_music(
-                voice_path=voice_path,
-                music_list=request.music_list,
-                timestamp=timestamp,
-                output_path=combined_path,
-            )
-            logger.debug("Audio combination completed")
-            base64_audio = encode_audio_to_base64(combined_path)
-            if not base64_audio:
-                raise AudioProcessingError(
-                    "Failed to encode combined audio",
-                    details=f"job_id={job_id}",
-                )
-
-            request_id = generate_request_id()
-            response = create_meditation_response(
-                request_id=request_id,
-                user_id=request.user_id,
-                music_list=new_music_list,
-                base64_audio=base64_audio,
-            )
-            self._store_meditation_results(request, response)
-
-            # Update job with result
-            self.job_service.update_job_status(
-                request.user_id, job_id, JobStatus.COMPLETED, result=response.to_dict()
-            )
-            logger.info("Job completed successfully", extra={"data": {"job_id": job_id}})
-
-        except Exception as e:
-            logger.error(
-                "Error processing meditation job", extra={"data": {"job_id": job_id}}, exc_info=True
-            )
-            self.job_service.update_job_status(
-                request.user_id, job_id, JobStatus.FAILED, error=str(e)
-            )
-        finally:
-            if voice_path:
-                cleanup_temp_file(voice_path)
-            if combined_path:
-                cleanup_temp_file(combined_path)
-
-    def _process_meditation_hls(self, job_id: str, request: MeditationRequestModel):
-        """Process meditation with HLS streaming output."""
-        voice_path = None
-        try:
-            self.job_service.update_job_status(request.user_id, job_id, JobStatus.PROCESSING)
-
-            # Get job data for retry info
-            job_data = self.job_service.get_job(request.user_id, job_id)
-            generation_attempt = job_data.get("generation_attempt", 1) if job_data else 1
-
-            timestamp = generate_timestamp()
-            voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
-
-            # Generate playlist URL
-            playlist_url = self.hls_service.generate_playlist_url(request.user_id, job_id)
-
-            # Check if we have cached TTS audio (for retry scenarios)
-            if self.hls_service.tts_cache_exists(request.user_id, job_id):
-                logger.info(
-                    "Using cached TTS audio (batch mode)",
-                    extra={"data": {"job_id": job_id, "attempt": generation_attempt}},
-                )
-                if not self.hls_service.download_tts_cache(request.user_id, job_id, voice_path):
-                    raise ExternalServiceError(
-                        "Failed to download cached TTS audio",
-                        ErrorCode.STORAGE_FAILURE,
-                        details=f"job_id={job_id}",
-                    )
-
-                # Mark job as streaming
-                self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
-
-                # Progress callback
-                def progress_callback(segments_completed: int, segments_total: Optional[int]):
-                    self.job_service.update_streaming_progress(
-                        request.user_id,
-                        job_id,
-                        segments_completed=segments_completed,
-                        segments_total=segments_total,
-                        playlist_url=playlist_url,
-                    )
-
-                # Use batch mode for cached audio
-                _, total_segments, _ = self.audio_service.combine_voice_and_music_hls(
-                    voice_path=voice_path,
-                    music_list=request.music_list,
-                    timestamp=timestamp,
-                    user_id=request.user_id,
-                    job_id=job_id,
-                    progress_callback=progress_callback,
-                )
-            else:
-                # STREAMING MODE: Generate TTS and pipe directly to FFmpeg
-                input_data = self._ensure_input_data_is_dict(request.input_data)
-                meditation_text = self.ai_service.generate_meditation(
-                    input_data,
-                    duration_minutes=request.duration_minutes,
-                    qa_transcript=[item.model_dump() for item in request.qa_transcript]
-                    if request.qa_transcript
-                    else None,
-                )
-                logger.info(
-                    "Meditation text generated",
-                    extra={
-                        "data": {
-                            "length": len(meditation_text),
-                            "duration_minutes": request.duration_minutes,
-                            "preview": meditation_text[:200],
-                            "ending": meditation_text[-200:]
-                            if len(meditation_text) > 200
-                            else meditation_text,
-                        }
-                    },
-                )
-
-                # Estimate TTS duration from text length
-                # Using ~80 words/min for calm meditation voice with pauses (conservative)
-                word_count = len(meditation_text.split())
-                estimated_tts_duration = (word_count / TTS_WORDS_PER_MINUTE) * 60  # seconds
-                music_duration = estimated_tts_duration + MUSIC_TRAILING_BUFFER_SECONDS
-
-                # Select and download background music
-                music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
-                self.audio_service.select_background_music(
-                    request.music_list, music_duration, music_path
-                )
-                logger.debug(
-                    "Music selected based on estimated TTS duration",
-                    extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}},
-                )
-
-                # Get TTS stream generator with fallback
-                tts_provider = self.get_tts_provider()
-                try:
-                    voice_generator = tts_provider.stream_speech(meditation_text)
-                except (TTSError, CircuitBreakerOpenError):
-                    logger.warning("Primary TTS streaming failed, trying fallback provider")
-                    voice_generator = self.fallback_tts_provider.stream_speech(meditation_text)
-
-                # Track if we've marked streaming started
-                streaming_started = False
-
-                def progress_callback(segments_completed: int, segments_total: Optional[int]):
-                    nonlocal streaming_started
-                    # Mark streaming started on first segment
-                    if not streaming_started:
-                        self.job_service.mark_streaming_started(
-                            request.user_id, job_id, playlist_url
-                        )
-                        streaming_started = True
-                        logger.info(
-                            "First segment ready, marked as streaming",
-                            extra={"data": {"job_id": job_id, "playlist_url": playlist_url}},
-                        )
-                    self.job_service.update_streaming_progress(
-                        request.user_id,
-                        job_id,
-                        segments_completed=segments_completed,
-                        segments_total=segments_total,
-                        playlist_url=playlist_url,
-                    )
-
-                # Stream TTS directly to FFmpeg HLS output
-                total_segments, segment_durations = self.audio_service.process_stream_to_hls(
-                    voice_generator=voice_generator,
-                    music_path=music_path,
-                    user_id=request.user_id,
-                    job_id=job_id,
-                    progress_callback=progress_callback,
-                    estimated_voice_duration=estimated_tts_duration,
-                )
-
-                # Clean up music file
-                if os.path.exists(music_path):
-                    os.remove(music_path)
-
-            # Mark streaming complete
-            self.job_service.mark_streaming_complete(request.user_id, job_id, total_segments)
-
-            logger.info(
-                "HLS job completed successfully",
-                extra={"data": {"job_id": job_id, "segments": total_segments}},
-            )
-
-        except Exception as e:
-            logger.error(
-                "Error processing HLS meditation job",
-                extra={"data": {"job_id": job_id}},
-                exc_info=True,
-            )
-
-            # Check if we should retry
-            job_data = self.job_service.get_job(request.user_id, job_id)
-            current_attempt = job_data.get("generation_attempt", 1) if job_data else 1
-
-            if current_attempt >= MAX_GENERATION_ATTEMPTS:
-                self._mark_job_failed(request, job_id, e, MAX_GENERATION_ATTEMPTS)
-                return
-
-            # Increment the counter FIRST. If the counter write fails we must
-            # not fire a retry: an already-enqueued async invocation plus a
-            # counter-write retry will ping-pong on every handler pass.
-            try:
-                self.job_service.increment_generation_attempt(request.user_id, job_id)
-            except Exception as inc_error:
-                logger.error(
-                    "Failed to increment generation attempt; not retrying",
-                    extra={"data": {"job_id": job_id, "error": str(inc_error)}},
-                )
-                self._mark_job_failed(request, job_id, e, current_attempt)
-                return
-
-            logger.info(
-                "Retrying HLS generation",
-                extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}},
-            )
-            # Self-invoke to retry asynchronously. Must be the LAST statement
-            # in the retry branch so a failure cleanly falls through to the
-            # mark-failed path without risking a double invocation.
-            # NOTE: a previously-enqueued async invocation may still run even
-            # after we mark this job failed below; downstream consumers rely
-            # on the idempotent "job already exists" guard in the handler.
-            try:
-                self._invoke_async_meditation(request, job_id)
-            except Exception as invoke_error:
-                logger.error(
-                    "Failed to invoke retry; marking failed",
-                    extra={"data": {"job_id": job_id, "error": str(invoke_error)}},
-                )
-                self._mark_job_failed(request, job_id, e, current_attempt + 1)
-        finally:
-            if voice_path:
-                cleanup_temp_file(voice_path)
+    def _process_meditation_hls(self, job_id: str, request: MeditationRequestModel) -> None:
+        self.meditation._process_hls(job_id, request)
 
     def _mark_job_failed(
         self,
@@ -499,107 +167,15 @@ class LambdaHandler:
         error: BaseException,
         attempts: int,
     ) -> None:
-        """Mark an HLS meditation job as failed.
+        self.meditation._mark_job_failed(request, job_id, error, attempts)
 
-        Single helper so every failure path -- max-retries-exceeded,
-        counter-increment failure, self-invoke failure -- produces a
-        consistent status update.
-        """
-        self.job_service.update_job_status(
-            request.user_id,
-            job_id,
-            JobStatus.FAILED,
-            error=f"Failed after {attempts} attempts: {str(error)}",
-        )
+    def _store_summary_results(
+        self, request: SummaryRequestModel, response: Any, has_audio: bool
+    ) -> None:
+        self.summary._store_summary_results(request, response, has_audio)
 
-    def handle_job_status(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
-        """Get job status with fresh pre-signed URLs."""
-        job_data = self.job_service.get_job(user_id, job_id)
-        if not job_data:
-            return None
-
-        # Refresh pre-signed playlist URL ONLY if streaming has actually started
-        # (i.e., at least one segment is uploaded and playlist file exists)
-        streaming = job_data.get("streaming", {})
-        if streaming.get("enabled") and streaming.get("started_at"):
-            fresh_playlist_url = self.hls_service.generate_playlist_url(user_id, job_id)
-            if fresh_playlist_url:
-                job_data["streaming"]["playlist_url"] = fresh_playlist_url
-        elif streaming.get("enabled"):
-            # Streaming enabled but not started yet - clear any stale URL
-            job_data["streaming"]["playlist_url"] = None
-
-        return job_data
-
-    def handle_download_request(
-        self, user_id: str, job_id: str, job_data: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
-        """Handle download request - generate MP3 and return URL."""
-        if job_data is None:
-            job_data = self.job_service.get_job(user_id, job_id)
-            if not job_data:
-                return None
-
-        # Check job is completed
-        if job_data.get("status") != JobStatus.COMPLETED.value:
-            return {
-                "error": {
-                    "code": "JOB_NOT_COMPLETED",
-                    "message": "Job must be completed before download is available",
-                }
-            }
-
-        # Check download is available
-        if not job_data.get("download", {}).get("available", False):
-            return {
-                "error": {
-                    "code": "DOWNLOAD_NOT_AVAILABLE",
-                    "message": "Download is not available for this job",
-                }
-            }
-
-        # Generate MP3 and get download URL
-        download_url = self.download_service.generate_mp3_and_get_url(user_id, job_id)
-        if not download_url:
-            return {
-                "error": {
-                    "code": "GENERATION_FAILED",
-                    "message": "Failed to generate downloadable MP3",
-                }
-            }
-
-        # Update job with download URL
-        self.job_service.mark_download_ready(user_id, job_id, download_url)
-
-        return {
-            "job_id": job_id,
-            "download_url": download_url,
-            "expires_in": 3600,  # 1 hour
-        }
-
-    def _store_summary_results(self, request: SummaryRequestModel, response, has_audio: bool):
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        object_key = f"{request.user_id}/summary/{timestamp}.json"
-        self.storage_service.upload_json(
-            bucket=settings.AWS_S3_BUCKET, key=object_key, data=response.to_dict()
-        )
-        if has_audio and request.audio != "NotAvailable":
-            audio_data = {
-                "user_audio": request.audio,
-                "user_id": request.user_id,
-                "request_id": response.request_id,
-            }
-            audio_key = f"{request.user_id}/audio/{timestamp}.json"
-            self.storage_service.upload_json(
-                bucket=settings.AWS_S3_BUCKET, key=audio_key, data=audio_data
-            )
-
-    def _store_meditation_results(self, request: MeditationRequestModel, response):
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        object_key = f"{request.user_id}/meditation/{timestamp}.json"
-        self.storage_service.upload_json(
-            bucket=settings.AWS_S3_BUCKET, key=object_key, data=response.to_dict()
-        )
+    def _store_meditation_results(self, request: MeditationRequestModel, response: Any) -> None:
+        self.meditation._store_meditation_results(request, response)
 
     @apply_middleware(
         cors_middleware,
@@ -618,6 +194,8 @@ class LambdaHandler:
             elif isinstance(request, MeditationRequestModel):
                 result = self.handle_meditation_request(request)
             else:
+                from ..config.constants import HTTP_BAD_REQUEST
+
                 return create_error_response(
                     HTTP_BAD_REQUEST, f"Unsupported request type: {type(request)}"
                 )
@@ -637,247 +215,32 @@ def _get_handler() -> LambdaHandler:
     return _handler
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    logger.debug("Lambda handler invoked")
-    try:
-        handler = _get_handler()
-
-        # Check for async meditation processing (self-invoked)
-        if event.get("_async_meditation"):
-            logger.info(
-                "Processing async meditation job", extra={"data": {"job_id": event.get("job_id")}}
-            )
-            handler.process_meditation_async(event["job_id"], event["request"])
-            return {"status": "async_completed"}
-
-        # Match against the module-level _ROUTES dispatch table first. If no
-        # route matches we fall through to the main handler below, which
-        # carries the full middleware chain.
-        raw_path = event.get("rawPath", "")
-        http_method = event.get("requestContext", {}).get("http", {}).get("method", "")
-        matched = _match_route(http_method, raw_path)
-        if matched is not None:
-            route_handler, path_params = matched
-            # Expose captured path parameters (e.g. job_id) via the standard
-            # API Gateway key so downstream helpers do not need to re-parse
-            # rawPath.
-            if path_params:
-                existing_params = event.get("pathParameters") or {}
-                event["pathParameters"] = {**existing_params, **path_params}
-            return route_handler(handler, event)
-
-        result: Dict[str, Any] = handler.handle_request(event, context)
-        return result
-    except Exception:
-        logger.error("Lambda handler exception", exc_info=True)
-        raise
-
-
-def _validate_user_id_or_400(user_id: str) -> Optional[Dict[str, Any]]:
-    """Return a 400 error response if ``user_id`` is invalid, else ``None``.
-
-    Missing-parameter and malformed-parameter responses are collapsed into a
-    single shape here so every route helper that takes ``user_id`` from the
-    query string can share one check. The request-boundary validator in
-    ``src/utils/validation.py`` owns the allow-list; this helper is purely
-    the HTTP-shaped wrapper around it.
-    """
-    if not user_id:
-        return create_error_response(HTTP_BAD_REQUEST, "Missing user_id parameter")
-    if not is_valid_user_id(user_id):
-        return create_error_response(HTTP_BAD_REQUEST, "Invalid user_id parameter")
-    return None
-
-
-def _authorize_job_access(
-    job_data: Dict[str, Any], user_id: str, job_id: str
-) -> Optional[Dict[str, Any]]:
-    """Return a 403 error response if ``user_id`` does not own the job.
-
-    NOTE: ``user_id`` in this app is client-generated (guest mode) or a
-    Google sign-in subject id; this check is a UX safeguard against
-    accidental cross-account data leakage, not a traditional auth boundary.
-    """
-    job_owner = job_data.get("user_id", "")
-    if job_owner and job_owner != user_id:
-        logger.warning(
-            "Mismatched user_id on job access",
-            extra={
-                "data": {
-                    "job_id": job_id,
-                    "requested_by": user_id,
-                    "owner": job_owner,
-                }
-            },
-        )
-        return create_error_response(HTTP_FORBIDDEN, "Access denied: you do not own this job")
-    return None
-
-
-def _with_cors(
-    response: Dict[str, Any],
-) -> Dict[str, Any]:
-    """Ensure ``response`` carries the canonical CORS headers.
-
-    ``create_error_response`` and ``create_success_response`` already attach
-    ``CORS_HEADERS`` to the response dict, so this helper is effectively a
-    no-op today. It is kept as a single seam so that if the CORS contract
-    ever moves back into ``cors_middleware`` the route helpers have one
-    place to update instead of dozens of call sites.
-    """
-    if "headers" not in response:
-        response["headers"] = {}
-    response["headers"].update(CORS_HEADERS)
-    return response
-
-
-def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle GET /job/{job_id} requests with user authorization."""
-    path_params = event.get("pathParameters") or {}
-    job_id = path_params.get("job_id") or ""
-
-    # Get user_id from query params
-    query_params = event.get("queryStringParameters", {}) or {}
-    user_id = query_params.get("user_id", "")
-
-    if not job_id:
-        return _with_cors(create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter"))
-
-    bad_user = _validate_user_id_or_400(user_id)
-    if bad_user is not None:
-        return _with_cors(bad_user)
-
-    job_data = handler.handle_job_status(user_id, job_id)
-    if not job_data:
-        return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
-
-    forbidden = _authorize_job_access(job_data, user_id, job_id)
-    if forbidden is not None:
-        return _with_cors(forbidden)
-
-    return _with_cors(create_success_response(job_data))
-
-
-def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle POST /job/{job_id}/download requests."""
-    path_params = event.get("pathParameters") or {}
-    job_id = path_params.get("job_id") or ""
-
-    # Get user_id from query params
-    query_params = event.get("queryStringParameters", {}) or {}
-    user_id = query_params.get("user_id", "")
-
-    if not job_id:
-        return _with_cors(create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter"))
-
-    bad_user = _validate_user_id_or_400(user_id)
-    if bad_user is not None:
-        return _with_cors(bad_user)
-
-    job_data = handler.job_service.get_job(user_id, job_id)
-    if not job_data:
-        return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
-
-    forbidden = _authorize_job_access(job_data, user_id, job_id)
-    if forbidden is not None:
-        return _with_cors(forbidden)
-
-    # Handle download (pass job_data to avoid duplicate lookup)
-    result = handler.handle_download_request(user_id, job_id, job_data)
-    if result is None:
-        return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
-
-    if "error" in result:
-        return _with_cors(create_error_response(HTTP_BAD_REQUEST, result["error"]["message"]))
-
-    return _with_cors(create_success_response(result))
-
-
-def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle POST /token requests for Gemini Live API authentication.
-
-    Returns ``{token, endpoint, expires_in, user_id}`` with ``token`` set to
-    an HMAC-derived opaque marker (see ``derive_token_marker``) instead of
-    the raw Gemini API key. The historical in-memory rate limiter has been
-    removed because it was per-container and reset on cold start; see the
-    Phase 2 plan for the justification and the deferred DynamoDB-backed
-    limiter.
-    """
-    # Get user_id from query params
-    query_params = event.get("queryStringParameters", {}) or {}
-    user_id = query_params.get("user_id", "")
-
-    bad_user = _validate_user_id_or_400(user_id)
-    if bad_user is not None:
-        return _with_cors(bad_user)
-
-    logger.info(
-        "Token request received",
-        extra={"data": {"user_id": user_id}},
-    )
-
-    token_marker = derive_token_marker(user_id)
-    token_response = create_success_response(
-        {
-            "token": token_marker,
-            "expires_in": TOKEN_MARKER_TTL_SECONDS,
-            "user_id": user_id,
-            "endpoint": GEMINI_LIVE_WS_ENDPOINT,
-        }
-    )
-    return _with_cors(token_response)
-
-
-# -----------------------------------------------------------------------------
-# Dispatch table
-# -----------------------------------------------------------------------------
-#
-# The Lambda function URL / API Gateway stage prefix is not stripped before
-# ``rawPath`` reaches us, so every pattern below tolerates an optional leading
-# stage segment (e.g. ``/production/``). The regex uses a named ``job_id``
-# group so ``_match_route`` can surface it via ``event["pathParameters"]``.
-# The historical ``"in raw_path"`` string-containment routing is gone; the
-# download route sits BEFORE the job-status route so ``/job/abc/download``
-# cannot be double-matched by the bare ``/job/{job_id}`` pattern.
-#
-# Handlers are stored by NAME (not by reference) so ``unittest.mock.patch``
-# at the module attribute level correctly redirects dispatch during tests.
-_ROUTES: tuple = (
-    (
-        "POST",
-        re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/download/?$"),
-        "_handle_download_request",
-    ),
-    (
-        "POST",
-        re.compile(r"^/?(?:[^/]+/)*token/?$"),
-        "_handle_token_request",
-    ),
-    (
-        "GET",
-        re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/?$"),
-        "_handle_job_status_request",
-    ),
-)
-
-
-def _match_route(method: str, raw_path: str) -> Optional[tuple]:
-    """Return ``(handler, path_params)`` for the first matching route.
-
-    The dispatch order is fixed in ``_ROUTES`` and the match is first-hit:
-    the download route is declared before the job-status route so a request
-    to ``/job/abc/download`` matches the download handler instead of being
-    ambiguously consumed by the job-status pattern.
-
-    Handlers are resolved by name via ``globals()`` so patches applied via
-    ``unittest.mock.patch('...._handle_xxx_request')`` are observed.
-    """
-    for route_method, pattern, handler_name in _ROUTES:
-        if route_method != method:
-            continue
-        match = pattern.match(raw_path)
-        if match is None:
-            continue
-        route_handler = globals()[handler_name]
-        return route_handler, match.groupdict()
-    return None
+__all__ = [
+    "ENABLE_HLS_STREAMING",
+    "GEMINI_LIVE_WS_ENDPOINT",
+    "GeminiTTSProvider",
+    "JobHandler",
+    "LambdaHandler",
+    "MAX_GENERATION_ATTEMPTS",
+    "MUSIC_TRAILING_BUFFER_SECONDS",
+    "MeditationHandler",
+    "OpenAITTSProvider",
+    "S3StorageService",
+    "SummaryHandler",
+    "TOKEN_MARKER_TTL_SECONDS",
+    "TTS_WORDS_PER_MINUTE",
+    "_ROUTES",
+    "_authorize_job_access",
+    "_get_handler",
+    "_get_lambda_client",
+    "_handle_download_request",
+    "_handle_job_status_request",
+    "_handle_token_request",
+    "_handler",
+    "_lambda_client",
+    "_match_route",
+    "_validate_user_id_or_400",
+    "_with_cors",
+    "boto3",
+    "lambda_handler",
+]

@@ -1,4 +1,38 @@
+import os
 from enum import Enum
+
+# =============================================================================
+# Meditation generation constants (Phase 4 Task 4)
+# =============================================================================
+# Hoisted out of ``src/handlers/lambda_handler.py`` so the handler shim can
+# stay small and so that every module that needs a retry budget or TTS rate
+# estimate shares a single source of truth.
+
+# Feature flag for HLS streaming (environment-driven; opt-out by default-on)
+ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
+
+# Maximum retry attempts for HLS generation
+MAX_GENERATION_ATTEMPTS = 3
+
+# Estimated TTS speaking rate for calm meditation voice with pauses.
+# Observation: meditation TTS averages ~80 words/minute (slower than
+# conversational ~150 wpm due to intentional pauses).
+TTS_WORDS_PER_MINUTE = 80
+
+# Extra seconds of background music after TTS speech ends, allowing the
+# meditation to fade out naturally.
+MUSIC_TRAILING_BUFFER_SECONDS = 90
+
+# Short-lived TTL for the opaque token marker returned by POST /token.
+# The marker itself is stateless (HMAC over user_id + GEMINI_API_KEY) so this
+# value is purely advisory to the frontend.
+TOKEN_MARKER_TTL_SECONDS = 60
+
+# Gemini Live BidiGenerateContent WebSocket endpoint.
+GEMINI_LIVE_WS_ENDPOINT = (
+    "wss://generativelanguage.googleapis.com/ws/"
+    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+)
 
 
 class InferenceType(Enum):

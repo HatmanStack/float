@@ -4,6 +4,7 @@ These tests verify the end-to-end HLS streaming functionality when
 ENABLE_HLS_STREAMING is enabled. They require AWS credentials and
 network access to run.
 """
+
 import os
 from unittest.mock import MagicMock, patch
 
@@ -14,11 +15,14 @@ from botocore.exceptions import ClientError
 @pytest.fixture
 def mock_aws_services():
     """Mock AWS services for integration tests."""
-    with patch.dict(os.environ, {
-        "ENABLE_HLS_STREAMING": "true",
-        "AWS_S3_BUCKET": "test-bucket",
-        "AWS_AUDIO_BUCKET": "test-audio-bucket",
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "ENABLE_HLS_STREAMING": "true",
+            "AWS_S3_BUCKET": "test-bucket",
+            "AWS_AUDIO_BUCKET": "test-audio-bucket",
+        },
+    ):
         yield
 
 
@@ -38,6 +42,7 @@ def mock_s3_client():
 def mock_storage_service(mock_s3_client):
     """Mock storage service with S3 client."""
     from unittest.mock import MagicMock
+
     service = MagicMock()
     service.s3_client = mock_s3_client
     service.list_objects.return_value = []
@@ -90,10 +95,11 @@ class TestHLSIntegration:
 
         service = HLSService(mock_storage_service)
         content = service.generate_live_playlist(
-            "user123", "job456",
+            "user123",
+            "job456",
             segment_count=3,
             segment_durations=[5.0, 5.0, 4.5],
-            is_complete=True
+            is_complete=True,
         )
 
         # Verify HLS format
@@ -122,7 +128,7 @@ class TestHLSIntegration:
                 "available": False,
                 "url": None,
                 "downloaded": False,
-            }
+            },
         }
         mock_storage_service.download_json.return_value = job_data.copy()
 
@@ -143,7 +149,9 @@ class TestHLSIntegration:
 
         # Verify final state
         final_call_args = mock_storage_service.upload_json.call_args_list[-1]
-        final_data = final_call_args[1]["data"] if "data" in final_call_args[1] else final_call_args[0][2]
+        final_data = (
+            final_call_args[1]["data"] if "data" in final_call_args[1] else final_call_args[0][2]
+        )
 
         assert final_data["status"] == "completed"
         assert final_data["download"]["available"] is True
@@ -219,10 +227,14 @@ class TestFeatureFlag:
             # Re-import to pick up new env var
             import importlib
 
+            from src.config import constants
             from src.handlers import lambda_handler
+
+            importlib.reload(constants)
             importlib.reload(lambda_handler)
 
             from src.handlers.lambda_handler import ENABLE_HLS_STREAMING
+
             assert ENABLE_HLS_STREAMING is True
 
     def test_feature_flag_parsing_false(self):
@@ -230,10 +242,14 @@ class TestFeatureFlag:
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "false"}):
             import importlib
 
+            from src.config import constants
             from src.handlers import lambda_handler
+
+            importlib.reload(constants)
             importlib.reload(lambda_handler)
 
             from src.handlers.lambda_handler import ENABLE_HLS_STREAMING
+
             assert ENABLE_HLS_STREAMING is False
 
     def test_feature_flag_defaults_to_true(self):
@@ -242,10 +258,14 @@ class TestFeatureFlag:
         with patch.dict(os.environ, env_without_flag, clear=True):
             import importlib
 
+            from src.config import constants
             from src.handlers import lambda_handler
+
+            importlib.reload(constants)
             importlib.reload(lambda_handler)
 
             from src.handlers.lambda_handler import ENABLE_HLS_STREAMING
+
             assert ENABLE_HLS_STREAMING is True
 
 
@@ -260,7 +280,9 @@ class TestEndToEndFlow:
         from src.handlers.lambda_handler import LambdaHandler
 
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "true"}):
-            with patch("src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service):
+            with patch(
+                "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+            ):
                 with patch("src.handlers.lambda_handler.boto3.client") as mock_boto:
                     mock_lambda = MagicMock()
                     mock_boto.return_value = mock_lambda
@@ -268,6 +290,7 @@ class TestEndToEndFlow:
                     handler = LambdaHandler(validate_config=False)
 
                     from src.models.requests import MeditationRequestModel
+
                     request = MeditationRequestModel(
                         user_id="test-user",
                         inference_type="meditation",
@@ -298,19 +321,23 @@ class TestEndToEndFlow:
                 "playlist_url": "https://old-url/playlist.m3u8",
                 "segments_completed": 5,
                 "segments_total": None,
-            }
+            },
         }
 
         mock_storage_service.s3_client.generate_presigned_url.return_value = (
             "https://fresh-url/playlist.m3u8?new-sig=xyz"
         )
 
-        with patch("src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service):
+        with patch(
+            "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+        ):
             handler = LambdaHandler(validate_config=False)
             result = handler.handle_job_status("user123", "test-job")
 
             # Should have fresh URL
-            assert result["streaming"]["playlist_url"] == "https://fresh-url/playlist.m3u8?new-sig=xyz"
+            assert (
+                result["streaming"]["playlist_url"] == "https://fresh-url/playlist.m3u8?new-sig=xyz"
+            )
 
     def test_download_request_validates_job_state(self, mock_storage_service):
         """Test download request validates job is completed."""
@@ -323,10 +350,12 @@ class TestEndToEndFlow:
             "job_id": "test-job",
             "user_id": "user123",
             "status": "streaming",  # Not completed
-            "download": {"available": False}
+            "download": {"available": False},
         }
 
-        with patch("src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service):
+        with patch(
+            "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+        ):
             handler = LambdaHandler(validate_config=False)
             result = handler.handle_download_request("user123", "test-job")
 
@@ -344,10 +373,12 @@ class TestEndToEndFlow:
             "job_id": "test-job",
             "user_id": "user123",
             "status": "completed",
-            "download": {"available": False}  # Not available
+            "download": {"available": False},  # Not available
         }
 
-        with patch("src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service):
+        with patch(
+            "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+        ):
             handler = LambdaHandler(validate_config=False)
             result = handler.handle_download_request("user123", "test-job")
 
