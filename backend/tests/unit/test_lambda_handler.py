@@ -596,7 +596,7 @@ class TestTokenEndpoint:
 
     @patch("src.handlers.lambda_handler._get_handler")
     def test_token_request_returns_token(self, mock_get_handler, mock_ai_service):
-        """Test POST /token returns token payload."""
+        """Test POST /token returns token payload with opaque marker."""
         with (
             patch("src.handlers.lambda_handler.GeminiTTSProvider"),
             patch("src.handlers.lambda_handler.OpenAITTSProvider"),
@@ -616,7 +616,55 @@ class TestTokenEndpoint:
             assert "token" in body
             assert "endpoint" in body
             assert "expires_in" in body
-            assert body["token"] == mock_settings.GEMINI_API_KEY
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_endpoint_does_not_leak_api_key(self, mock_get_handler, mock_ai_service):
+        """The /token response MUST NOT contain settings.GEMINI_API_KEY verbatim."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "super-secret-gemini-api-key-xyz"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="test-user")
+            response = lambda_handler(event, None)
+
+            # Regardless of status code, the plaintext key must not appear
+            assert "super-secret-gemini-api-key-xyz" not in response["body"]
+            body = json.loads(response["body"])
+            assert body.get("token") != "super-secret-gemini-api-key-xyz"
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_endpoint_returns_opaque_marker(self, mock_get_handler, mock_ai_service):
+        """The token field should be an HMAC-derived hex string."""
+        import re as _re
+
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "test-gemini-key"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="test-user")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 200
+            body = json.loads(response["body"])
+            token = body["token"]
+            # HMAC-SHA256 hexdigest (truncated) - must be hex characters only
+            assert isinstance(token, str)
+            assert _re.fullmatch(r"[0-9a-f]+", token) is not None
+            assert token != mock_settings.GEMINI_API_KEY
 
     @patch("src.handlers.lambda_handler._get_handler")
     def test_token_request_missing_user_id(self, mock_get_handler, mock_ai_service):

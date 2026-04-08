@@ -1,6 +1,5 @@
 import json
 import os
-import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
@@ -30,6 +29,7 @@ from ..utils.audio_utils import (
 )
 from ..utils.file_utils import generate_request_id, generate_timestamp
 from ..utils.logging_utils import get_logger
+from ..utils.security import derive_token_marker
 from .middleware import (
     apply_middleware,
     cors_middleware,
@@ -58,10 +58,18 @@ def _get_lambda_client() -> Any:
     return _lambda_client
 
 
-# Module-level rate limiter (per Lambda instance, resets on cold start)
-_token_rate_limit: Dict[str, list] = {}
-TOKEN_RATE_LIMIT_MAX = 5  # max tokens per window
-TOKEN_RATE_LIMIT_WINDOW = 3600  # 1 hour in seconds
+# Short-lived TTL for the opaque token marker returned by POST /token.
+# The marker itself is stateless (HMAC over user_id + GEMINI_API_KEY) so this
+# value is purely advisory to the frontend, matching the historical shape.
+TOKEN_MARKER_TTL_SECONDS = 60
+
+# Gemini Live BidiGenerateContent WebSocket endpoint returned to the frontend
+# alongside the opaque token marker. Hoisted to module scope so the token
+# handler stays small and testable.
+GEMINI_LIVE_WS_ENDPOINT = (
+    "wss://generativelanguage.googleapis.com/ws/"
+    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+)
 
 # Feature flag for HLS streaming
 ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
@@ -716,7 +724,15 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
 
 
 def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle POST /token requests for Gemini Live API authentication."""
+    """Handle POST /token requests for Gemini Live API authentication.
+
+    Returns ``{token, endpoint, expires_in, user_id}`` with ``token`` set to
+    an HMAC-derived opaque marker (see ``derive_token_marker``) instead of
+    the raw Gemini API key. The historical in-memory rate limiter has been
+    removed because it was per-container and reset on cold start; see the
+    Phase 2 plan for the justification and the deferred DynamoDB-backed
+    limiter.
+    """
     from .middleware import cors_middleware
 
     # Get user_id from query params
@@ -728,43 +744,17 @@ def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict
         return cors_middleware(lambda e, _: response)(event, None)
 
     logger.info(
-        "Token request received (rate limit check)",
+        "Token request received",
         extra={"data": {"user_id": user_id}},
     )
 
-    # Rate limiting
-    now = time.time()
-    if user_id not in _token_rate_limit:
-        _token_rate_limit[user_id] = []
-    # Clean expired entries
-    _token_rate_limit[user_id] = [
-        t for t in _token_rate_limit[user_id] if now - t < TOKEN_RATE_LIMIT_WINDOW
-    ]
-    if len(_token_rate_limit[user_id]) >= TOKEN_RATE_LIMIT_MAX:
-        logger.warning(
-            "Token rate limit exceeded",
-            extra={"data": {"user_id": user_id, "count": len(_token_rate_limit[user_id])}},
-        )
-        response = create_error_response(429, "Rate limit exceeded. Try again later.")
-        return cors_middleware(lambda e, _: response)(event, None)
-    _token_rate_limit[user_id].append(now)
-    logger.info(
-        "Token issued",
-        extra={"data": {"user_id": user_id, "timestamp": now}},
-    )
-
-    # WARNING: MVP security concern — this returns the raw Gemini API key because Google
-    # does not yet support minting short-lived ephemeral tokens. This MUST be replaced
-    # with ephemeral tokens once that capability is available. See ADR-2 in Phase-0.md.
+    token_marker = derive_token_marker(user_id)
     token_response = create_success_response(
         {
-            "token": settings.GEMINI_API_KEY,
-            "expires_in": 60,
+            "token": token_marker,
+            "expires_in": TOKEN_MARKER_TTL_SECONDS,
             "user_id": user_id,
-            "endpoint": (
-                "wss://generativelanguage.googleapis.com/ws/"
-                "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
-            ),
+            "endpoint": GEMINI_LIVE_WS_ENDPOINT,
         }
     )
     return cors_middleware(lambda e, _: token_response)(event, None)

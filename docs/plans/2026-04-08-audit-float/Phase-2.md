@@ -106,15 +106,15 @@ issuing real ephemeral tokens.
 
 **Verification Checklist:**
 
-- [ ] `grep -rn "settings.GEMINI_API_KEY" backend/src/handlers/` returns 0
+- [x] `grep -rn "settings.GEMINI_API_KEY" backend/src/handlers/` returns 0
       hits (the secret is no longer surfaced from a handler)
-- [ ] `_token_rate_limit` and `TOKEN_RATE_LIMIT_*` constants are deleted
-- [ ] New unit test asserts the new endpoint contract (no plaintext key in
+- [x] `_token_rate_limit` and `TOKEN_RATE_LIMIT_*` constants are deleted
+- [x] New unit test asserts the new endpoint contract (no plaintext key in
       the response body)
-- [ ] No existing test that previously asserted on the plaintext key is left
+- [x] No existing test that previously asserted on the plaintext key is left
       passing -- all such tests are updated
-- [ ] `frontend/hooks/useGeminiLiveAPI.ts` is unchanged
-- [ ] `npm run check` passes
+- [x] `frontend/hooks/useGeminiLiveAPI.ts` is unchanged
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
