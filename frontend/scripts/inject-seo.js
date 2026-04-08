@@ -47,10 +47,7 @@ try {
   let html = fs.readFileSync(distPath, 'utf8');
 
   // Replace the default title and inject SEO tags after viewport meta
-  html = html.replace(
-    /<title>Float<\/title>/,
-    ''
-  );
+  html = html.replace(/<title>Float<\/title>/, '');
 
   html = html.replace(
     /<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" \/>/,
@@ -58,7 +55,7 @@ try {
   );
 
   fs.writeFileSync(distPath, html);
-  console.log('SEO tags injected successfully into dist/index.html');
+  console.warn('SEO tags injected successfully into dist/index.html');
 } catch (error) {
   console.error('Error injecting SEO tags:', error.message);
   process.exit(1);
