@@ -219,8 +219,15 @@ error handling. Keep the public method, delete the private duplicate.
 - `backend/src/services/ffmpeg_audio_service.py` -- delete
   `_get_audio_duration_from_file` (lines 446-465); update the one caller in
   `_append_fade_segments` (line 486) to use `self.get_audio_duration(...)`.
-- `backend/tests/unit/test_services.py` (or whichever test covers the helper) --
-  update if it references the private method.
+- `backend/tests/unit/test_services.py` -- existing test file (this is where
+  the FFmpeg service tests live; there is NO `test_ffmpeg_audio_service.py`
+  in this repo). Update the FIVE `patch.object(service,
+  "_get_audio_duration_from_file", ...)` sites at lines 1162, 1204, 1229,
+  1252, and 1277. Each call must be retargeted to
+  `patch.object(service, "get_audio_duration", ...)` (the public method).
+  Verify with: `grep -n "_get_audio_duration_from_file"
+  backend/tests/unit/test_services.py` -- this MUST return 0 hits after the
+  edit.
 
 **Prerequisites:** None.
 
@@ -335,9 +342,15 @@ perf(backend): cache boto3 lambda client at module scope
 1. `backend/src/services/gemini_service.py:16` uses
    `logging.getLogger(__name__)` directly instead of the project
    `get_logger(__name__)` helper.
-2. `backend/src/services/ffmpeg_audio_service.py:76` mixes an f-string log
-   message with `extra={"data": ...}` -- the project convention is one or the
-   other, not both.
+2. `backend/src/services/ffmpeg_audio_service.py:83` uses an f-string log
+   message with NO structured `extra={"data": ...}` payload. The project
+   convention is `logger.warning("Error getting audio duration",
+   extra={"data": {"error": str(e)}})`. The audit originally cited line 76,
+   but on re-inspection line 76 (`logger.warning("No Duration line in ffmpeg
+   output", extra={"data": {"file": file_path}})`) is already correct. The
+   actual violator is line 83 (`logger.warning(f"Error getting audio
+   duration: {e}")`), which must be rewritten to lift the `e` into a
+   structured `extra={"data": ...}` payload.
 3. `backend/src/exceptions.py:143` has a bare `pass` inside the `JobError`
    class (it should be a docstring).
 
@@ -360,16 +373,25 @@ perf(backend): cache boto3 lambda client at module scope
   from ..utils.logging_utils import get_logger
   logger = get_logger(__name__)
   ```
-- In `ffmpeg_audio_service.py:76`, the existing call is:
+- In `ffmpeg_audio_service.py:83`, the existing call is:
   ```python
-  logger.warning("No Duration line in ffmpeg output", extra={"data": {"file": file_path}})
+  except Exception as e:
+      logger.warning(f"Error getting audio duration: {e}")
+      return 0.0
   ```
-  Wait -- this one is actually correct on inspection (no f-string). Re-read
-  the audit report and identify the actual violator. The audit cites line 76
-  -- read the surrounding 5 lines and find the f-string-with-extra mix; if
-  the pattern is f-string + `extra=`, convert to a plain message + `extra=`.
-  If no such pattern is present after re-reading, document the discrepancy in
-  the commit message and skip.
+  Rewrite to lift `e` into a structured payload (no f-string, use `extra=`):
+  ```python
+  except Exception as e:
+      logger.warning(
+          "Error getting audio duration",
+          extra={"data": {"error": str(e)}},
+      )
+      return 0.0
+  ```
+  Note: line 76 of the same file (`logger.warning("No Duration line in
+  ffmpeg output", extra={"data": {"file": file_path}})`) is already correct
+  and MUST NOT be touched. The audit's original "line 76" citation is a
+  drift artifact corrected here.
 - In `exceptions.py:143`, replace:
   ```python
   class JobError(FloatException):

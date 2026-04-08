@@ -19,9 +19,11 @@ middleware can categorize them.
   `BrokenPipeError` and timeout paths
 - The retry self-invoke does not fire when
   `increment_generation_attempt` raises
-- All `raise Exception(...)` calls in `lambda_handler.py:237` and
-  `ffmpeg_audio_service.py:200, 220, 290, 751, 761, 773` are replaced with
-  `AudioProcessingError`, `TTSError`, or `ExternalServiceError`
+- All `raise Exception(...)` calls in product code (`lambda_handler.py:237,
+  290` and `ffmpeg_audio_service.py:199, 220, 557, 751, 761, 773`) are
+  replaced with `AudioProcessingError`, `TTSError`, or `ExternalServiceError`.
+  The `grep -rn "raise Exception(" backend/src/` verification gate is
+  authoritative; the line list is a planning aid that may drift slightly.
 - New unit tests cover the thread-safety, retry, and exception-type changes
 - `npm run check` passes
 - Estimated tokens: ~24000
@@ -46,9 +48,14 @@ no locking. `state["segments_uploaded"]`, `state["segment_durations"]`, and
 
 - `backend/src/services/ffmpeg_audio_service.py` -- replace the bare `state`
   dict with a class-scoped helper that wraps a `threading.Lock`
-- `backend/tests/unit/test_ffmpeg_audio_service.py` -- add a thread-safety
-  test that drives `process_stream_to_hls` with a synthetic generator and a
-  fake `hls_service`
+- `backend/tests/unit/test_services.py` -- add a thread-safety test that
+  drives `process_stream_to_hls` with a synthetic generator and a fake
+  `hls_service`. NOTE: there is no `test_ffmpeg_audio_service.py` file in
+  this repo; the FFmpeg service tests live in `test_services.py` (the same
+  1473-line file that the health audit calls out as a structural outlier).
+  Add the new test class/function inline in `test_services.py`; do NOT
+  create a new test file in this phase (that split is part of Phase 4
+  Task 2).
 
 **Prerequisites:** None inside this phase.
 
@@ -106,7 +113,7 @@ no locking. `state["segments_uploaded"]`, `state["segment_durations"]`, and
 
 **Testing Instructions:**
 
-- Run `pytest backend/tests/unit/test_ffmpeg_audio_service.py -v -k stream`.
+- Run `pytest backend/tests/unit/test_services.py -v -k stream`.
 
 **Commit Message Template:**
 
@@ -201,8 +208,9 @@ provider connection open and leaking the iterator (lines 752-754, 770-773).
   - Replace raw `raise Exception(...)` with `AudioProcessingError` or
     `TTSError` (Task 5 covers the broader cleanup; this task does the
     streaming-specific ones)
-- `backend/tests/unit/test_ffmpeg_audio_service.py` -- add a test that the
-  generator is closed on simulated `BrokenPipeError`
+- `backend/tests/unit/test_services.py` -- add a test that the generator is
+  closed on simulated `BrokenPipeError`. (No `test_ffmpeg_audio_service.py`
+  exists; tests live in `test_services.py`.)
 
 **Prerequisites:** Tasks 1 and 2 (state container and watcher fix).
 
@@ -247,7 +255,7 @@ provider connection open and leaking the iterator (lines 752-754, 770-773).
 
 **Testing Instructions:**
 
-- `pytest backend/tests/unit/test_ffmpeg_audio_service.py -v -k broken_pipe`.
+- `pytest backend/tests/unit/test_services.py -v -k broken_pipe`.
 
 **Commit Message Template:**
 
@@ -364,25 +372,45 @@ middleware exception handler routes them correctly.
 
 **Files to Modify:**
 
+The full list of `raise Exception(...)` sites across `backend/src/` (verified
+2026-04-08 via `grep -rn "raise Exception(" backend/src/`) is enumerated
+below. The grep MUST return zero hits in product code after this task; treat
+the grep as the source of truth and the explicit list as the planning aid.
+
 - `backend/src/handlers/lambda_handler.py:237` -- replace
   `raise Exception("Failed to encode combined audio")` with
   `raise AudioProcessingError("Failed to encode combined audio", details=...)`
-- `backend/src/services/ffmpeg_audio_service.py:200, 220, 290, 751, 761, 773`
-  -- replace each `raise Exception(...)` with the appropriate domain type:
-  - `200`: `raise AudioProcessingError("FFmpeg HLS generation timed out ...")
-    from e`
-  - `220`: `raise AudioProcessingError(f"Failed to upload segment {i}", ...)` --
-    or `ExternalServiceError(..., ErrorCode.STORAGE_FAILURE, ...)`; the audit
-    notes that this is a storage failure
-  - `290`: `raise AudioProcessingError("Failed to download cached TTS audio")`
-  - `751`: `raise AudioProcessingError(f"FFmpeg exited unexpectedly: ...")`
-  - `761`: `raise AudioProcessingError(f"FFmpeg failed: {stderr}")`
-  - `773`: covered by Task 3 (`BrokenPipeError` handler)
-- `backend/src/services/hls_service.py` -- if any raw exceptions remain, fix
-  them too
+- `backend/src/handlers/lambda_handler.py:290` -- replace
+  `raise Exception("Failed to download cached TTS audio")` with
+  `raise ExternalServiceError("Failed to download cached TTS audio",
+  ErrorCode.STORAGE_FAILURE, ...)`
+- `backend/src/services/ffmpeg_audio_service.py:199` -- replace the wrapped
+  multi-line `raise Exception(...)` (the FFmpeg HLS timeout site) with
+  `raise AudioProcessingError("FFmpeg HLS generation timed out ...") from e`
+- `backend/src/services/ffmpeg_audio_service.py:220` -- replace
+  `raise Exception(f"Failed to upload segment {i}")` with
+  `raise ExternalServiceError(f"Failed to upload segment {i}",
+  ErrorCode.STORAGE_FAILURE, ...)`
+- `backend/src/services/ffmpeg_audio_service.py:557` -- replace
+  `raise Exception(f"Failed to upload fade segment {segment_index}")` with
+  `raise ExternalServiceError(f"Failed to upload fade segment
+  {segment_index}", ErrorCode.STORAGE_FAILURE, ...)`. (This site lives in
+  `_append_fade_segments` and was missed in earlier drafts of this task.)
+- `backend/src/services/ffmpeg_audio_service.py:751` -- replace
+  `raise Exception(f"FFmpeg exited unexpectedly: {stderr}")` with
+  `raise AudioProcessingError(f"FFmpeg exited unexpectedly: {stderr}")`
+- `backend/src/services/ffmpeg_audio_service.py:761` -- replace
+  `raise Exception(f"FFmpeg failed: {stderr}")` with
+  `raise AudioProcessingError(f"FFmpeg failed: {stderr}")`
+- `backend/src/services/ffmpeg_audio_service.py:773` -- covered by Task 3
+  (`BrokenPipeError` handler) which already raises `AudioProcessingError`.
+  Verify this site is no longer a `raise Exception` after Task 3 lands.
+- `backend/src/services/hls_service.py` -- if any raw exceptions remain after
+  the grep verification, fix them too
 - `backend/tests/unit/test_lambda_handler.py` and
-  `backend/tests/unit/test_ffmpeg_audio_service.py` -- update tests that catch
-  bare `Exception` to assert the domain type
+  `backend/tests/unit/test_services.py` (the FFmpeg service tests live here;
+  there is NO `test_ffmpeg_audio_service.py` in this repo) -- update tests
+  that catch bare `Exception` to assert the domain type
 
 **Prerequisites:** Tasks 1-4 (so the touched files are in their final shape
 for this phase).

@@ -347,7 +347,7 @@ already (this phase enforces them).
       timeout-minutes: 5
       steps:
         - uses: actions/checkout@v6
-        - uses: DavidAnson/markdownlint-cli2-action@v17
+        - uses: DavidAnson/markdownlint-cli2-action@v23
           with:
             globs: |
               **/*.md
@@ -355,6 +355,14 @@ already (this phase enforces them).
               !backend/.aws-sam/**
               !**/CHANGELOG.md
   ```
+
+  Version note: `DavidAnson/markdownlint-cli2-action@v23` is the latest
+  major tag as of 2026-04-08 (v23.0.0 released 2026-03-26). Pin to `v23`
+  (the floating major tag) so point releases pick up automatically.
+  Earlier drafts of this task pinned `v17`, which is a stale major; do not
+  revert. If a reviewer prefers SHA pinning, the v23.0.0 tag is at
+  `DavidAnson/markdownlint-cli2-action@<sha>` -- look up the SHA at tag
+  push time and pin that instead.
 - Run markdownlint locally over the docs and plan files; fix any issues by
   editing the docs (NOT by adding ignores). The goal is that every plan
   file already passes.
@@ -415,6 +423,10 @@ purely preventive.
               '!./backend/.aws-sam/**'
             fail: true
   ```
+
+  Version note: `lycheeverse/lychee-action@v2` is the current major tag
+  (pointing at v2.8.0 as of 2026-02-17). Verified to exist at tag-pin time.
+  Pin the floating `v2` so point releases pick up automatically.
 - The `your-lambda-url` exclusion handles the placeholder in `docs/API.md`
   and `frontend/.env.example`.
 - Add `link-check` to the `status-check` job's `needs:` list.

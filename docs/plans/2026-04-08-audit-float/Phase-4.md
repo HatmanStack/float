@@ -80,6 +80,23 @@ moves it into a dedicated module).
 
 **Implementation Steps:**
 
+- **First, verify the deploy entry point.** The SAM template
+  `backend/template.yaml` line 97 has `Handler: lambda_function.lambda_handler`.
+  This points at `backend/lambda_function.py`, which today imports
+  `lambda_handler` from `src.handlers.lambda_handler`. The re-export shim
+  approach is therefore safe IF the post-split `lambda_handler.py` continues
+  to export a top-level `lambda_handler` symbol (re-exported from
+  `router.py`). MUST verify this BEFORE cutting:
+  ```bash
+  grep -n "Handler:" backend/template.yaml
+  cat backend/lambda_function.py
+  ```
+  Expected: template handler is `lambda_function.lambda_handler`,
+  `backend/lambda_function.py` does
+  `from src.handlers.lambda_handler import lambda_handler`. If either
+  expectation is wrong, STOP and update either the SAM template or the
+  shim before continuing -- do NOT proceed with the split until the
+  deploy entry point is provably intact.
 - Read `lambda_handler.py` end-to-end and identify the boundary lines for
   each extracted handler. Build a one-page mapping table of method ->
   destination file BEFORE making any cuts.
@@ -171,9 +188,16 @@ selection, and duration probing. Split into:
   under 150 lines that constructs the four collaborators and delegates the
   public methods (so the rest of the app keeps importing
   `FFmpegAudioService`)
-- `backend/tests/unit/test_ffmpeg_audio_service.py` -- split into
-  `test_music_selector.py`, `test_audio_mixer.py`, `test_hls_batch_encoder.py`,
-  `test_hls_stream_encoder.py`. Existing tests move where their target moved.
+- `backend/tests/unit/test_services.py` -- the FFmpeg service tests live
+  inside this 1473-line file (there is no `test_ffmpeg_audio_service.py` in
+  this repo). As part of this task, EXTRACT the FFmpeg-related test classes
+  from `test_services.py` into four new files alongside the new modules:
+  `test_music_selector.py`, `test_audio_mixer.py`,
+  `test_hls_batch_encoder.py`, `test_hls_stream_encoder.py`. Tests move
+  where their target moved. Non-FFmpeg tests in `test_services.py` (e.g.
+  job-service, hls-service tests if any) stay put. Verify post-split that
+  `wc -l backend/tests/unit/test_services.py` is materially smaller; if it
+  is still over 800 lines, the split is incomplete.
 
 **Prerequisites:** Phase 3 Tasks 1-3 (the streaming code is in its
 post-thread-safety shape).
@@ -313,8 +337,13 @@ This task collapses (1) into a single Pydantic-only check and adds
   - missing `inference_type` -> 400 with code `MISSING_FIELD`
   - invalid `inference_type` value -> 400 with code `INVALID_INFERENCE_TYPE`
 - Remove `request_validation_middleware` from the middleware decorator stack.
-  Keep the function exported (deprecate via docstring) for one release in case
-  any test or external caller imports it. A subsequent plan can delete it.
+  Then DELETE the function entirely (do not keep it exported "for one
+  release"). This plan has no release cycle -- the phase sequence is one
+  merge per phase, and once Phase 4 ships there is no "next release" for a
+  deprecated symbol to live in. Verify with `grep -rn
+  "request_validation_middleware" backend/` that the only hits remaining
+  are inside `test_middleware.py` (which Task 3 also updates). If any
+  product-code import remains, fix the import in this same task.
 - Update `job_service.py` return annotations: `def get_job(...) -> Optional[JobData]:`.
 - Update the meditation handler to read `job_data["streaming"]["started_at"]`
   via `Optional` checks once instead of chained `.get({}).get()`.
@@ -332,7 +361,9 @@ This task collapses (1) into a single Pydantic-only check and adds
 **Testing Instructions:**
 
 - `pytest backend/tests/unit/test_middleware.py -v`
-- `pytest backend/tests/unit/test_job_service.py -v`
+- `pytest backend/tests/unit/test_services.py -v -k job` (the JobService
+  tests live in `test_services.py`; there is NO `test_job_service.py` in
+  this repo)
 
 **Commit Message Template:**
 

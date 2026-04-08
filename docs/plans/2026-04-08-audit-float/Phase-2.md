@@ -39,70 +39,81 @@ Both behavior changes are documented in Phase 0 ADR-2.
 on every cold start and is not shared across warm containers. This is a CRITICAL
 operational security finding.
 
-The implementer must choose between two approaches and execute the chosen one
-in a single commit:
+**Required path: Option B.** As of 2026-04-08 the `/token` endpoint is
+called from `frontend/hooks/useGeminiLiveAPI.ts:97` (verified via
+`grep -rn "/token" frontend/`). The hook reads `token` and `endpoint`
+fields from the response and uses them to open a Gemini Live WebSocket
+connection. Removing the endpoint outright (Option A) would break the
+Gemini Live audio feature in production.
 
-- **Option A (preferred):** Remove the `/token` endpoint entirely. Return 410
-  Gone with a message pointing at the future ephemeral-token mechanism. The
-  Gemini Live frontend caller (`frontend/components/AuthScreen.tsx` or wherever
-  it lives) currently breaks; mark the corresponding feature behind a feature
-  flag and leave a tracking note in the commit body.
-- **Option B:** Keep the endpoint but eliminate the plaintext leak. The
-  endpoint must NOT return `settings.GEMINI_API_KEY`. Instead, return a
-  short-lived opaque marker plus a 401-on-mismatch instruction for the client
-  to upgrade its flow. The marker has no functional value; the goal is to
-  eliminate the secret leak while leaving a deprecation path.
+Both options were considered:
 
-The implementer SHOULD pick Option A unless removing the endpoint
-breaks a frontend feature already in production. Consult `git log --oneline -- frontend/components/AuthScreen.tsx`
-and `frontend/components/AudioRecording.tsx` to determine the call site
-status.
+- **Option A (REJECTED):** Remove the `/token` endpoint entirely and return
+  410 Gone. Rejected because `useGeminiLiveAPI.ts` is shipped frontend code
+  on the live build; killing the endpoint breaks the Gemini Live audio
+  feature with no fallback. A future plan can remove the endpoint after the
+  frontend migrates to a different auth flow.
+- **Option B (REQUIRED):** Keep the endpoint contract (POST `/token`,
+  returns JSON with `token` and `endpoint` fields) but eliminate the
+  plaintext-key leak. The new response MUST NOT contain
+  `settings.GEMINI_API_KEY` verbatim. Instead, return an HMAC-derived
+  short-lived opaque marker as `token`, and the WebSocket `endpoint` URL
+  unchanged. The frontend hook continues to function; the leaked secret is
+  gone.
+
+The HMAC signing key MUST be derived from `settings.GEMINI_API_KEY` so no
+new long-lived secret is added (per the existing config posture). The
+marker is short-lived (60s TTL) and is rejected by the WebSocket handshake
+on mismatch; downstream this is a stop-gap until Google ships native
+ephemeral Gemini Live tokens, at which point a future plan can switch to
+issuing real ephemeral tokens.
 
 **Files to Modify:**
 
-- `backend/src/handlers/lambda_handler.py` -- modify or delete
-  `_handle_token_request` (lines 704-756); update routing to surface 410 Gone
-  if Option A is taken
+- `backend/src/handlers/lambda_handler.py` -- rewrite `_handle_token_request`
+  (lines 704-756) so the response body NEVER contains
+  `settings.GEMINI_API_KEY`. The new body returns an HMAC-derived opaque
+  marker as `token` plus the existing `endpoint` (WebSocket URL).
 - `backend/src/handlers/lambda_handler.py:47-50` -- delete the
   `_token_rate_limit` module-level dict and the `TOKEN_RATE_LIMIT_*`
-  constants if and only if the endpoint is removed
-- `backend/tests/unit/test_lambda_handler.py` (or wherever the token endpoint
-  is tested) -- replace existing token tests with the new contract
-- `frontend/components/AuthScreen.tsx` (Option A only) -- remove the
-  call to `/token` if a frontend caller exists; otherwise no frontend change
+  constants. Replace with no rate limiter at all (the endpoint is now
+  cheap and stateless under Option B; the in-memory limiter never worked
+  because it reset on cold start). A DynamoDB-backed limiter is out of
+  scope (see Phase 0 "Out of Scope").
+- `backend/tests/unit/test_lambda_handler.py` -- replace existing token
+  tests with the new contract (no plaintext key in response)
+- `frontend/hooks/useGeminiLiveAPI.ts` -- NO CHANGE. The hook already reads
+  `token` and `endpoint` from the response shape, which Option B preserves.
 - `docs/API.md` -- intentionally NOT updated here. Phase 6 owns documentation.
 
 **Prerequisites:** None inside this phase.
 
 **Implementation Steps:**
 
-- Locate every caller of `/token`:
-  ```bash
-  grep -rn "/token" frontend/ backend/
-  grep -rn "token_request" backend/
-  ```
-- If Option A: delete `_handle_token_request`, remove the module-level rate
-  limit, remove the routing branch at `lambda_handler.py:597-598`, and add a
-  410 Gone fallback in the new router (see Task 2). Update the test file to
-  assert 410 Gone.
-- If Option B: change the response body to return an opaque value
-  (e.g. an HMAC-signed nonce) instead of `settings.GEMINI_API_KEY`. The
-  implementer must NOT introduce a new long-lived secret; if Option B requires
-  a signing key, derive it from `settings.GEMINI_API_KEY` via HMAC so no new
-  config is added. Document the choice in the commit body.
-- Either way, eliminate the unbounded `_token_rate_limit` dict.
+- Confirm the call site one more time:
+  `grep -rn "/token" frontend/ backend/`. Expected hit:
+  `frontend/hooks/useGeminiLiveAPI.ts:97`.
+- Rewrite `_handle_token_request` so the JSON response body has the same
+  shape `{token, endpoint, expires_in}` but `token` is an HMAC-derived
+  opaque marker instead of `settings.GEMINI_API_KEY`. Use
+  `hmac.new(settings.GEMINI_API_KEY.encode(), msg=user_id.encode(),
+  digestmod="sha256").hexdigest()` truncated, with a TTL field.
+- Delete the `_token_rate_limit` module-level dict and the
+  `TOKEN_RATE_LIMIT_*` constants.
+- The `endpoint` field stays as the existing Gemini Live WebSocket URL --
+  the frontend hook already uses it.
 - Run `cd backend && PYTHONPATH=. pytest tests/unit -v --tb=short`.
 
 **Verification Checklist:**
 
 - [ ] `grep -rn "settings.GEMINI_API_KEY" backend/src/handlers/` returns 0
       hits (the secret is no longer surfaced from a handler)
-- [ ] `_token_rate_limit` is deleted OR the rate-limit logic is enforced via a
-      mechanism that survives cold start (Option B)
-- [ ] New unit test asserts the new endpoint contract (410 Gone OR no plaintext
-      key)
+- [ ] `_token_rate_limit` and `TOKEN_RATE_LIMIT_*` constants are deleted
+- [ ] New unit test asserts the new endpoint contract (no plaintext key in
+      the response body)
 - [ ] No existing test that previously asserted on the plaintext key is left
       passing -- all such tests are updated
+- [ ] `frontend/hooks/useGeminiLiveAPI.ts` is unchanged
 - [ ] `npm run check` passes
 
 **Testing Instructions:**
@@ -110,11 +121,12 @@ status.
 - Add a unit test `test_token_endpoint_does_not_leak_api_key` that asserts
   `settings.GEMINI_API_KEY` is not present in the response body, regardless of
   status code.
-- Add a unit test `test_token_endpoint_410_gone` (Option A) OR
-  `test_token_endpoint_returns_opaque_marker` (Option B).
-- If Option A removed a frontend caller, add a unit test in
-  `frontend/tests/unit/` that asserts the corresponding component does not
-  attempt to fetch `/token`.
+- Add a unit test `test_token_endpoint_returns_opaque_marker` that asserts
+  the `token` field is an HMAC-derived string (e.g. matches a hex regex)
+  and is NOT equal to `settings.GEMINI_API_KEY`.
+- The frontend test in `frontend/tests/unit/useGeminiLiveAPI-test.ts` already
+  asserts that the hook fetches `/token`; verify it still passes (no
+  contract change from the frontend's perspective).
 
 **Commit Message Template:**
 
@@ -123,11 +135,10 @@ fix(backend): stop leaking GEMINI_API_KEY from /token endpoint
 
 - /token previously returned settings.GEMINI_API_KEY in the response body
 - In-memory rate limiter was per-container and reset on cold start
-- (Option A) Remove the endpoint; return 410 Gone with deprecation notice
-- (Option B) Return an HMAC-derived opaque marker; rate limit unchanged
-
-The endpoint exists because Google does not yet ship ephemeral Gemini Live
-tokens. When that capability arrives, restore an ephemeral-token issuer.
+- Replace plaintext key with an HMAC-derived short-lived opaque marker
+- Delete the unbounded _token_rate_limit dict and TOKEN_RATE_LIMIT_* consts
+- frontend/hooks/useGeminiLiveAPI.ts is unchanged: same response shape
+- Stop-gap until Google ships native ephemeral Gemini Live tokens
 ```
 
 ---
@@ -145,9 +156,9 @@ empty values.
 - `backend/src/models/requests.py` -- add a class-level field validator on
   `SummaryRequestModel` and `MeditationRequestModel` for `user_id`
 - `backend/src/handlers/lambda_handler.py` -- in `_handle_job_status_request`,
-  `_handle_download_request`, and `_handle_token_request` (if it survives
-  Task 1), add a single shared `_validate_user_id(user_id)` helper that raises
-  a 400 error on bad input
+  `_handle_download_request`, and `_handle_token_request` (which survives
+  Task 1 under Option B), add a single shared `_validate_user_id(user_id)`
+  helper that raises a 400 error on bad input
 - `backend/src/utils/file_utils.py` (or a new `backend/src/utils/validation.py`
   if file_utils is full) -- house the validator helper so it can be imported
   by both the Pydantic models and the route helpers
@@ -232,9 +243,9 @@ no longer import `cors_middleware` inline.
   lines 572-604 with a dispatch table
 - `backend/src/handlers/lambda_handler.py` -- remove the inline
   `from .middleware import cors_middleware` calls inside
-  `_handle_job_status_request`, `_handle_download_request`,
-  `_handle_token_request` (if surviving Task 1) by passing each helper through
-  a shared CORS-applying wrapper
+  `_handle_job_status_request`, `_handle_download_request`, and
+  `_handle_token_request` (which survives Task 1 under Option B) by passing
+  each helper through a shared CORS-applying wrapper
 - `backend/tests/unit/test_lambda_handler.py` -- add routing tests
 
 **Prerequisites:** Task 2 (validator helper exists and is tested).
@@ -247,7 +258,7 @@ no longer import `cors_middleware` inline.
       # (method, path-regex, handler)
       ("GET",  re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/?$"), _handle_job_status_request),
       ("POST", re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/download/?$"), _handle_download_request),
-      ("POST", re.compile(r"^/?(?:[^/]+/)*token/?$"), _handle_token_request),  # only if surviving
+      ("POST", re.compile(r"^/?(?:[^/]+/)*token/?$"), _handle_token_request),
   )
   ```
 - The `lambda_handler` function dispatches by iterating the table once and
@@ -277,7 +288,8 @@ no longer import `cors_middleware` inline.
   - `GET /job/abc` matches the job-status route
   - `GET /production/job/abc` matches the job-status route (stage prefix)
   - `POST /job/abc/download` matches the download route ONLY (not job-status)
-  - `POST /token` matches the token route (or returns 410, depending on Task 1)
+  - `POST /token` matches the token route (returns the Option B opaque
+    marker per Task 1)
   - `POST /` falls through to the main handler
 - [ ] All existing tests pass
 - [ ] `npm run check` passes
@@ -335,9 +347,8 @@ references break).
   defensive against handler failure during the validation chain. Narrow to
   catch only `KeyError` from `parsed_body.get` (which cannot raise) and remove
   the catch-all. Let everything else propagate.
-- Verify `error_handling_middleware` is the *outermost* middleware in the
-  decorator stack so it catches anything that escapes the inner middlewares.
-  In `lambda_handler.py:536-543`, the order is:
+- Verify `error_handling_middleware` wrapping order. In
+  `lambda_handler.py:536-543`, the list is:
   ```python
   cors_middleware,
   json_middleware,
@@ -346,10 +357,21 @@ references break).
   request_size_validation_middleware,
   error_handling_middleware,
   ```
-  Note: middleware decorators apply bottom-to-top, so
-  `error_handling_middleware` is closest to the inner handler -- it catches
-  domain exceptions raised by the handler. CORS is the outermost. This is
-  correct; do NOT change the order.
+  The list-order intuition ("first listed = outermost") is WRONG for this
+  codebase. Read `backend/src/handlers/middleware.py:313` to see why:
+  `apply_middleware` iterates with `for middleware in reversed(middleware_functions):`
+  and re-wraps the handler each iteration, so the LAST entry in the list
+  ends up as the INNERMOST wrapper and the FIRST entry as the OUTERMOST.
+  Therefore:
+  - `cors_middleware` is the OUTERMOST wrapper (it sees the final response
+    on the way out and adds CORS headers).
+  - `error_handling_middleware` is the INNERMOST wrapper (it is closest
+    to the inner handler and catches domain exceptions raised by the
+    handler).
+  This is correct for this task: domain exceptions raised by the handler
+  flow up into `error_handling_middleware` first and are converted to
+  proper status codes before any outer middleware sees them. Do NOT
+  change the order.
 - The remaining issue is that exceptions raised *inside* `json_middleware` or
   `request_validation_middleware` themselves (not in the inner handler) bypass
   `error_handling_middleware` because the latter is *inside* the chain.

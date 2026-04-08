@@ -90,7 +90,7 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 | Test files using `any` | MEDIUM | 5 | 4 |
 | `lambda_handler.py` legacy `typing.Dict, List` | LOW | 5 | 3 |
 | `gemini_service.py` uses `logging.getLogger` directly | LOW | 1 | 6 |
-| Mixed logging conventions in `ffmpeg_audio_service.py:76` | LOW | 1 | 6 |
+| Mixed logging conventions in `ffmpeg_audio_service.py:83` | LOW | 1 | 6 |
 | `exceptions.py:143` bare `pass` | LOW | 1 | 6 |
 | `console.log` in `hlsPlayerHtml.ts` and `inject-seo.js` | LOW | 1 | 3 |
 | Module-level constants scattered in `lambda_handler.py` | LOW | 4 | 4 |
@@ -99,8 +99,8 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 
 | Pillar | Current | Target | Phases |
 |--------|---------|--------|--------|
-| Defensiveness | 6/10 | 9/10 | 2, 3 (rate limit, retry loop, raw user_id) |
-| Performance | 5/10 | 7/10 | 1, 3 (boto3 reuse, retry loop, generator drain) |
+| Defensiveness | 6/10 | 8/10 | 2, 3 (rate limit removal, retry loop, raw user_id validator) |
+| Performance | 5/10 | 7/10 | 1, 3 (boto3 reuse, retry loop, generator drain). NOTE: ETag conditional writes are explicitly out of scope -- the read-modify-write race in `update_streaming_progress` is a Known Limitation. The 7/10 target reflects only the in-process and per-invocation wins. |
 | Architecture | 7/10 | 9/10 | 4 (router decomposition, ffmpeg split) |
 | Pragmatism | 7/10 | 9/10 | 4 (dual validation collapse, prelude extract) |
 | Type Rigor | 7/10 | 9/10 | 4, 5 (TypedDict for events/jobs, lint) |

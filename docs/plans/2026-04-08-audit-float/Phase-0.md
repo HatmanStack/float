@@ -38,7 +38,8 @@ deviate.
   the one current violator and is fixed in Phase 1.
 - Use `logger.warning("text", extra={"data": {...}})` for structured logs.
   Do NOT use f-strings *and* `extra={"data": ...}` in the same call -- pick
-  one. The single `ffmpeg_audio_service.py:76` violator is fixed in Phase 1.
+  one. The single `ffmpeg_audio_service.py:83` f-string-only violator is
+  fixed in Phase 1 Task 6 (line 76 of the same file is already correct).
 
 ### Exceptions
 
@@ -50,9 +51,20 @@ deviate.
     `ExternalServiceError`
   - `AudioProcessingError` -- FFmpeg/encoding failure (5xx, not retriable)
   - `JobError`, `JobNotFoundError`, `JobNotCompletedError`, `JobAccessDeniedError`
-- Raw `raise Exception(...)` is forbidden. Phase 3 fixes all current
-  violators in `lambda_handler.py:237` and `ffmpeg_audio_service.py:200, 220,
-  290, 751, 761, 773`.
+- Raw `raise Exception(...)` is forbidden. Phase 3 Task 5 fixes all current
+  violators across `backend/src/`. As of 2026-04-08 the violators (verified
+  via `grep -rn "raise Exception(" backend/src/`) are:
+  - `lambda_handler.py:237` ("Failed to encode combined audio")
+  - `lambda_handler.py:290` ("Failed to download cached TTS audio")
+  - `ffmpeg_audio_service.py:199` (wrapped multi-line raise)
+  - `ffmpeg_audio_service.py:220` (`f"Failed to upload segment {i}"`)
+  - `ffmpeg_audio_service.py:557` (`f"Failed to upload fade segment ..."`)
+  - `ffmpeg_audio_service.py:751` (`f"FFmpeg exited unexpectedly: ..."`)
+  - `ffmpeg_audio_service.py:761` (`f"FFmpeg failed: ..."`)
+  - `ffmpeg_audio_service.py:773` (`f"FFmpeg pipe closed: ..."`)
+
+  Phase 3 Task 5 verifies completion via `grep -rn "raise Exception("
+  backend/src/` returning zero hits.
 
 ### Conventional Commits
 
@@ -118,23 +130,39 @@ explicitly documented:
 All other behavior MUST remain identical. Existing test suites
 (`npm run check`) MUST pass after each phase.
 
-### ADR-3: No DynamoDB Migration In This Plan
+### ADR-3: No DynamoDB Migration And No ETag Conditional Writes In This Plan
 
 The Stress evaluation recommends migrating job state and rate limiting from S3
 to DynamoDB. This plan EXPLICITLY DEFERS that migration. Reasons:
 
 1. It is not a tech-debt fix; it is a new architectural choice with deployment,
    IAM, and cost implications outside the audit scope.
-2. The two acute symptoms (job state race, in-memory rate limiter) can be
-   mitigated in place via S3 conditional writes (ETag-aware
-   `update_streaming_progress`) and by removing the `/token` endpoint or making
-   it stateless.
-3. A DynamoDB migration is a one-day project that deserves its own plan and
+2. A DynamoDB migration is a one-day project that deserves its own plan and
    review pipeline.
 
-The implementer for Phase 3 SHOULD use the existing `S3StorageService` and
-extend it with conditional-write helpers; they SHOULD NOT introduce DynamoDB
-dependencies.
+This plan ALSO EXPLICITLY DEFERS the proposed in-place mitigation of adding
+ETag-aware conditional writes to `S3StorageService.update_streaming_progress`.
+An earlier draft of this ADR claimed Phase 3 would extend `S3StorageService`
+with conditional-write helpers; that work is dropped because:
+
+1. ETag-aware writes require either an optimistic-concurrency retry loop or a
+   versioned-payload merge strategy. Both are non-trivial designs that touch
+   `JobService`, `S3StorageService`, and the streaming watcher loop, and
+   neither has a regression-safe surface against the existing test suite.
+2. The race window is narrow in practice (concurrent retries against the same
+   `job_id` are rare given `MAX_GENERATION_ATTEMPTS = 3` and idempotent
+   downstream consumers).
+3. A correct fix is part of the same migration as the DynamoDB switch; doing
+   the S3 fix first risks two refactors landing back-to-back.
+
+The Phase 3 thread-safety work mitigates the *in-process* race in
+`process_stream_to_hls`. The cross-invocation race in
+`update_streaming_progress` is documented as a Known Limitation in Phase 3
+and remains. The README Performance pillar target reflects that the ETag fix
+is out of scope (see the README "Out of Scope" section).
+
+Phase 3 implementers MUST NOT introduce DynamoDB dependencies and MUST NOT add
+ETag/conditional-write helpers to `S3StorageService` -- both are out of scope.
 
 ### ADR-4: Subtractive Phase 1 Constraints
 
@@ -168,6 +196,48 @@ ST3 in doc-audit). Phase 6 establishes the canonical hierarchy:
    conventions only -- it links to `docs/ARCHITECTURE.md` for everything else.
 
 Doc-engineer MUST NOT introduce new duplication.
+
+---
+
+## Out of Scope
+
+The following findings are recognized but explicitly NOT addressed by any
+phase in this plan. The README "Out of Scope" section mirrors this list as a
+quick index; the canonical justifications live here.
+
+1. **DynamoDB migration for job state and rate limiting.** See ADR-3.
+1. **ETag-aware conditional writes on `S3StorageService`.** See ADR-3.
+   Earlier drafts of ADR-3 promised Phase 3 would extend `S3StorageService`
+   with conditional-write helpers; that work is dropped. The cross-invocation
+   read-modify-write race in `update_streaming_progress` remains as a Known
+   Limitation in Phase 3.
+1. **Server-issued opaque `user_id` identifier.** Phase 2 Task 2 adds a
+   validating regex on `user_id` to block path-traversal patterns. The
+   broader identity overhaul (server-minted UUIDs, JWTs, etc.) belongs to a
+   separate auth plan.
+1. **Broad narrowing of the ~57 `except Exception` clauses across
+   `backend/src/`.** Phase 2 Task 4 narrows the THREE middleware-level
+   catch-all clauses in `json_middleware`, `request_validation_middleware`,
+   and the request-size validator so domain exception taxonomy reaches HTTP
+   responses (this is the user-visible symptom called out by the eval). The
+   remaining ~54 service-level catches are mostly defensive logging
+   boundaries (`hls_service.py` 11, `job_service.py` 8,
+   `ffmpeg_audio_service.py` 7, etc.) that do not surface in HTTP responses.
+   A coherent narrowing pass requires per-service review and a per-service
+   exception taxonomy decision; that is a multi-day refactor that exceeds
+   the audit-remediation scope. A future plan should target this work
+   service-by-service.
+1. **`BackendMeditationCall.tsx` full redesign.** Phase 4 Task 4 splits the
+   component into a hook plus a view; a complete state-management redesign
+   is out of scope.
+1. **Modernization of legacy `typing.List`/`typing.Dict`/`typing.Union`
+   imports across `backend/src/handlers/lambda_handler.py` and friends.**
+   Phase 5 Task 3 verifies that any UP* rule with zero violators is moved
+   from the ignore list, but Phases 1-4 do NOT add a modernization sweep
+   (Phase 1 is subtractive only, and Phase 4's TypedDict additions use
+   modern syntax in new files only). UP006/UP007/UP035 will therefore
+   remain ignored after Phase 5; that is expected behaviour. A future plan
+   can do the import sweep across legacy files in one pass.
 
 ---
 

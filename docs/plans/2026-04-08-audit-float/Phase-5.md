@@ -15,7 +15,8 @@ plan iterates.
 - A `pip-audit` CI job exists and runs against `backend/requirements.txt` on
   every PR
 - A maximum-file-size lint rule (or CI assertion) prevents any backend
-  Python file from exceeding 400 lines
+  Python file from exceeding **450 lines** (50 lines of slack over the
+  Phase 4 targets to avoid spurious CI failures on incidental growth)
 - Pre-commit hooks run `ruff check --fix` and a backend test smoke
 - The CI workflow has an explicit job for the new pip-audit check
 - Backend `mypy` config tightens for the modules touched in Phase 4
@@ -109,12 +110,23 @@ ci: add pip-audit job for backend dependency vulnerabilities
 ### Task 2: Enforce maximum file size on backend Python sources
 
 **Goal:** Phase 4 Task 1 and Task 2 reduced every backend `src/` file to under
-400 lines. Add a guardrail that prevents new files from exceeding that bound.
+400 lines. Add a guardrail that prevents new files from drifting past that
+bound.
+
+**Slack policy:** The guardrail is set to **450 lines**, not 400. Phase 4
+targets 350-400 lines per extracted file (`meditation_handler.py < 400`,
+`audio/*.py < 350`); a 50-line slack window prevents the guardrail from
+firing on incidental growth from unrelated PRs (a docstring expansion, a
+new method, a TypedDict definition). Files that approach 450 lines should
+be split in a future plan, but the guardrail's job is to catch drift, not
+to keep every file at the absolute floor. If the guardrail fires, the
+correct response is "split this file in a follow-up plan", not "force the
+unrelated PR to inline its work somewhere else".
 
 The fortifier should choose between two equivalent approaches:
 
 - **Option A:** A custom CI step using `find` + `wc -l` that fails if any
-  `src/**.py` file exceeds 400 lines. Cheap, no dependency.
+  `src/**.py` file exceeds **450 lines**. Cheap, no dependency.
 - **Option B:** Add `flake8-max-file-length` or `pylint --max-module-lines`
   via a small additional dev dep. Heavier, more configurable.
 
@@ -128,13 +140,15 @@ explanatory comment naming this plan ID.
         - name: File-size guardrail
           working-directory: ./backend
           run: |
-            # Plan 2026-04-08-audit-float: no backend src file >400 lines
-            # See docs/plans/2026-04-08-audit-float/Phase-4.md
+            # Plan 2026-04-08-audit-float: no backend src file >450 lines
+            # Phase 4 targets <400 lines; the 50-line slack prevents incidental
+            # growth from firing the guardrail. See Phase 5 Task 2 for the
+            # rationale and Phase 4 Task 1/2 for the underlying targets.
             offenders=$(find src -name '*.py' -print0 \
               | xargs -0 wc -l \
-              | awk '$1 > 400 && $2 != "total" { print $2, $1 }')
+              | awk '$1 > 450 && $2 != "total" { print $2, $1 }')
             if [ -n "$offenders" ]; then
-              echo "Files exceeding 400 lines:"
+              echo "Files exceeding 450 lines:"
               echo "$offenders"
               exit 1
             fi
@@ -146,25 +160,25 @@ limit).
 **Implementation Steps:**
 
 - Verify locally first: `find backend/src -name '*.py' -print0 | xargs -0 wc
-  -l | awk '$1 > 400 && $2 != "total"'`. The output must be empty.
+  -l | awk '$1 > 450 && $2 != "total"'`. The output must be empty.
 - Add the step to the backend job in CI.
 - Run the workflow on a feature branch to confirm it passes.
 
 **Verification Checklist:**
 
-- [ ] Local `find ... | xargs wc -l | awk '$1 > 400'` is empty
+- [ ] Local `find ... | xargs wc -l | awk '$1 > 450'` is empty
 - [ ] CI step is in place and passes
 - [ ] A deliberate test (add a temporary 500-line file, push, see it fail,
-      then revert) confirms the guardrail bites. The implementer MAY skip the
-      deliberate test if Phase 4 already produced a tight margin.
+      then revert) confirms the guardrail bites.
 
 **Commit Message Template:**
 
 ```text
-ci: enforce max 400-line backend Python files
+ci: enforce max 450-line backend Python files
 
-- Phase 4 of plan 2026-04-08-audit-float decomposed two god objects
-- Guardrail prevents regression by failing CI if any src/**/*.py grows
+- Phase 4 of plan 2026-04-08-audit-float decomposed two god objects to <400
+- Guardrail set at 450 lines (50-line slack over Phase 4 targets)
+- Prevents regression by failing CI if any src/**/*.py drifts past 450
 ```
 
 ---
@@ -173,22 +187,45 @@ ci: enforce max 400-line backend Python files
 
 **Goal:** The current `pyproject.toml` ruff config has a long `ignore` list of
 `UP*` rules that suppress modern-Python migrations. Phase 1 Task 6 cleaned the
-logging convention; this task enables the rules whose violators have all been
-fixed (so the rules are guardrails, not new work). Also ensure the existing
-husky `pre-commit` hook runs `ruff check --fix` on staged files; today it
-runs via `lint-staged` which is correct, but verify the configuration covers
-the new files added in Phase 4.
+logging convention; this task **measures** which `UP*` rules have zero
+violators after Phases 1-4 and re-enables only those.
+
+**Expected outcome (do not be surprised):** The most-cited rules
+(`UP006`, `UP007`, `UP035`) WILL still have violators after Phase 4,
+because the legacy `from typing import List, Dict, Optional, Union` imports
+in `backend/src/handlers/lambda_handler.py:5` and several other files are
+NOT modernized by any phase in this plan (see Phase 0 "Out of Scope" item
+6 -- modernization is a separate plan). The Phase 4 TypedDict additions
+use modern syntax in NEW files only; they do not touch the legacy generics
+in existing files.
+
+The realistic deliverable for this task is therefore one of:
+
+1. Annotate every remaining `UP*` ignore in `pyproject.toml` with a
+   one-line comment naming the rule and the violator count, e.g.
+   `"UP006",  # 47 violators in lambda_handler.py and friends; defer to
+   modernization plan`. This is the EXPECTED diff.
+1. If by some chance a previously-ignored rule has zero violators
+   (perhaps a small/obscure UP rule), remove it from the ignore list. Do
+   not force this.
+
+The reviewer should NOT expect a meaningful re-enable diff; the value of
+this task is the documentation of the deferred work and the verification
+that the husky pre-commit hook still runs ruff on the new Phase 4 files.
 
 **Files to Modify:**
 
-- `backend/pyproject.toml` -- remove from the `ignore` list any rule whose
-  violators are now zero. Specifically check:
-  - `UP006` (use builtin `list`/`dict` over `List`/`Dict`) -- Phase 4 Task 1
-    added new modules with modern typing. Re-enable IF and only if the
-    existing modules also pass. If they do not, leave `UP006` ignored and
-    note the remaining violators in the commit body.
-  - `UP007` (use `X | Y` over `Union[X, Y]`) -- same approach
-  - `UP035` (deprecated typing imports) -- same approach
+- `backend/pyproject.toml` -- annotate every remaining `UP*` ignore with a
+  one-line comment naming the rule and the current violator count. Re-enable
+  any rule whose count is zero (do not force the count down via refactor in
+  this phase -- that violates ADR-1 fortifier scope).
+  - `UP006` (use builtin `list`/`dict` over `List`/`Dict`) -- expected: still
+    has dozens of violators in `lambda_handler.py` and other legacy files.
+    Leave ignored, annotate with the count.
+  - `UP007` (use `X | Y` over `Union[X, Y]`) -- expected: still has
+    violators. Leave ignored, annotate.
+  - `UP035` (deprecated typing imports) -- expected: still has violators.
+    Leave ignored, annotate.
 - `.husky/pre-commit` -- already runs `lint-staged`. Verify
   `package.json:lint-staged` covers `backend/**/*.py` and includes
   `ruff check --fix` (it does today). No change unless coverage is missing.
@@ -224,10 +261,12 @@ the new files added in Phase 4.
 **Commit Message Template:**
 
 ```text
-chore(backend): tighten ruff rules with zero remaining violators
+chore(backend): annotate ruff UP* ignore list with violator counts
 
-- Re-enable UP006/UP007/UP035 if the audit modules now satisfy them
-- Annotate remaining UP* ignores with violator counts for future cleanup
+- Measure each UP* ignore: UP006/UP007/UP035 still have violators in
+  lambda_handler.py and other legacy files; modernization is deferred
+  to a separate plan (see Phase 0 "Out of Scope")
+- Re-enable any UP* rule whose count is now zero (expected: none)
 - Verify lint-staged still runs ruff on backend/**/*.py
 ```
 
@@ -298,7 +337,8 @@ After all four tasks land:
 
 - [ ] CI passes (frontend, backend, dockerfile-lint, pip-audit, status-check)
 - [ ] `find backend/src -name '*.py' -exec wc -l {} + | sort -n | tail` --
-      no file over 400 lines
+      no file over 450 lines (Phase 4 targets are <400; the 50-line slack
+      is intentional)
 - [ ] `cd backend && pip-audit -r requirements.txt` -- 0 vulnerabilities
 - [ ] `cd backend && uvx ruff check .` -- 0 errors
 - [ ] `npm run check` passes
