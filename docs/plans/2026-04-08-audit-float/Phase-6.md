@@ -77,13 +77,13 @@ var gaps. These are all small, mechanical edits.
 
 **Verification Checklist:**
 
-- [ ] No occurrence of "Expo 52" in any doc file outside `CHANGELOG.md`
-- [ ] No occurrence of "tests/frontend" in any doc file
-- [ ] No occurrence of "Node.js v24 LTS" in any doc file
-- [ ] `docs/README.md` lists `EXPO_PUBLIC_ANDROID_CLIENT_ID` in the env vars
+- [x] No occurrence of "Expo 52" in any doc file outside `CHANGELOG.md`
+- [x] No occurrence of "tests/frontend" in any doc file
+- [x] No occurrence of "Node.js v24 LTS" in any doc file
+- [x] `docs/README.md` lists `EXPO_PUBLIC_ANDROID_CLIENT_ID` in the env vars
       table
-- [ ] `docs/README.md` mentions the `G_KEY` legacy alias
-- [ ] `markdownlint` (Task 5) passes after these edits
+- [x] `docs/README.md` mentions the `G_KEY` legacy alias
+- [x] `markdownlint` (Task 5) passes after these edits
 
 **Commit Message Template:**
 
@@ -152,15 +152,15 @@ final) and Task 1 above (other docs are consistent).
 
 **Verification Checklist:**
 
-- [ ] Section 3 "Download Meditation" documents the JSON response shape
-- [ ] Section 2 meditation request fields table includes `qa_transcript`
-- [ ] Job-status response example includes `streaming`, `download`,
+- [x] Section 3 "Download Meditation" documents the JSON response shape
+- [x] Section 2 meditation request fields table includes `qa_transcript`
+- [x] Job-status response example includes `streaming`, `download`,
       `generation_attempt`
-- [ ] The "Example 3" JS snippet polls instead of treating the meditation
+- [x] The "Example 3" JS snippet polls instead of treating the meditation
       response as sync
-- [ ] The "Client Usage" example reads `job.streaming?.playlist_url`
-- [ ] `markdownlint` passes
-- [ ] `lychee` (Task 5) reports no broken links
+- [x] The "Client Usage" example reads `job.streaming?.playlist_url`
+- [x] `markdownlint` passes
+- [x] `lychee` (Task 5) reports no broken links
 
 **Commit Message Template:**
 
@@ -210,12 +210,12 @@ diagram for the async self-invoking Lambda meditation flow.
 
 **Verification Checklist:**
 
-- [ ] `docs/ARCHITECTURE.md` has a "Meditation Generation Flow" section
-- [ ] Diagrams use a language tag in every fenced code block
-- [ ] `MAX_GENERATION_ATTEMPTS`, `HLS_SEGMENT_DURATION`,
+- [x] `docs/ARCHITECTURE.md` has a "Meditation Generation Flow" section
+- [x] Diagrams use a language tag in every fenced code block
+- [x] `MAX_GENERATION_ATTEMPTS`, `HLS_SEGMENT_DURATION`,
       `TTS_WORDS_PER_MINUTE` are mentioned with their current values
-- [ ] The token endpoint section documents Phase 2 Task 1's choice
-- [ ] `markdownlint` passes
+- [x] The token endpoint section documents Phase 2 Task 1's choice
+- [x] `markdownlint` passes
 
 **Commit Message Template:**
 
@@ -288,11 +288,11 @@ Phase 0 ADR-5 and remove duplication.
 
 **Verification Checklist:**
 
-- [ ] Only one canonical deploy parameter table exists (in `docs/README.md`)
-- [ ] `CLAUDE.md` no longer duplicates `docs/ARCHITECTURE.md`'s content
-- [ ] `docs/README.md` indexes `docs/plans/`
-- [ ] `markdownlint` passes
-- [ ] `lychee` reports no broken links
+- [x] Only one canonical deploy parameter table exists (in `docs/README.md`)
+- [x] `CLAUDE.md` no longer duplicates `docs/ARCHITECTURE.md`'s content
+- [x] `docs/README.md` indexes `docs/plans/`
+- [x] `markdownlint` passes
+- [x] `lychee` reports no broken links
 
 **Commit Message Template:**
 
@@ -370,11 +370,11 @@ already (this phase enforces them).
 
 **Verification Checklist:**
 
-- [ ] `.markdownlint.json` exists at repo root with the rules above
-- [ ] `markdownlint` job is in CI and required
-- [ ] Every `.md` file under `docs/`, repo root, and `docs/plans/` passes the
+- [x] `.markdownlint.json` exists at repo root with the rules above
+- [x] `markdownlint` job is in CI and required
+- [x] Every `.md` file under `docs/`, repo root, and `docs/plans/` passes the
       rules (CHANGELOG.md is excluded; it has its own format)
-- [ ] `npm run check` unchanged
+- [x] `npm run check` unchanged
 
 **Commit Message Template:**
 
@@ -435,10 +435,10 @@ purely preventive.
 
 **Verification Checklist:**
 
-- [ ] `.github/workflows/ci.yml` defines a `link-check` job
-- [ ] `link-check` is in `status-check` `needs`
-- [ ] Lychee passes locally over all `.md` files
-- [ ] `npm run check` unchanged
+- [x] `.github/workflows/ci.yml` defines a `link-check` job
+- [x] `link-check` is in `status-check` `needs`
+- [x] Lychee passes locally over all `.md` files
+- [x] `npm run check` unchanged
 
 **Commit Message Template:**
 
@@ -456,16 +456,16 @@ ci: add lychee link checker for documentation
 
 After all six tasks land:
 
-- [ ] Every D, G, S, CE, CF, ST item in `doc-audit.md` is resolved or moved
+- [x] Every D, G, S, CE, CF, ST item in `doc-audit.md` is resolved or moved
       to "Resolved" with a justification
-- [ ] `markdownlint` and `lychee` jobs are in CI and required
-- [ ] No `.md` file references "Expo 52", "React Native 0.74", or
+- [x] `markdownlint` and `lychee` jobs are in CI and required
+- [x] No `.md` file references "Expo 52", "React Native 0.74", or
       "tests/frontend"
-- [ ] `docs/API.md` Section 3 documents the JSON download response
-- [ ] `docs/ARCHITECTURE.md` has a "Meditation Generation Flow" section
-- [ ] `CLAUDE.md` no longer duplicates `docs/ARCHITECTURE.md`
-- [ ] `docs/README.md` is the canonical deploy parameter source
-- [ ] `npm run check` passes (no product-code touched)
+- [x] `docs/API.md` Section 3 documents the JSON download response
+- [x] `docs/ARCHITECTURE.md` has a "Meditation Generation Flow" section
+- [x] `CLAUDE.md` no longer duplicates `docs/ARCHITECTURE.md`
+- [x] `docs/README.md` is the canonical deploy parameter source
+- [x] `npm run check` passes (no product-code touched)
 
 Known limitations after this phase:
 
