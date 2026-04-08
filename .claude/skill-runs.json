@@ -3,7 +3,11 @@
     "skill": "audit",
     "date": "2026-03-15",
     "plan": "2026-03-15-audit-float",
-    "audits": ["health", "eval", "docs"]
+    "audits": [
+      "health",
+      "eval",
+      "docs"
+    ]
   },
   {
     "skill": "brainstorm",
@@ -20,5 +24,15 @@
     "date": "2026-04-04",
     "plan": "2026-04-04-gemini-voice-qa-tts",
     "verdict": "GO"
+  },
+  {
+    "skill": "audit",
+    "date": "2026-04-08",
+    "plan": "2026-04-08-audit-float",
+    "audits": [
+      "health",
+      "eval",
+      "docs"
+    ]
   }
 ]
