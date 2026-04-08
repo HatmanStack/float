@@ -83,12 +83,12 @@ PR.
 
 **Verification Checklist:**
 
-- [ ] `.github/workflows/ci.yml` defines a `pip-audit` job
-- [ ] The `status-check` job lists `pip-audit` in `needs`
-- [ ] `requirements-dev.txt` pins `pip-audit`
-- [ ] Push the branch and verify the new job runs in CI; it should pass
+- [x] `.github/workflows/ci.yml` defines a `pip-audit` job
+- [x] The `status-check` job lists `pip-audit` in `needs`
+- [x] `requirements-dev.txt` pins `pip-audit`
+- [x] Push the branch and verify the new job runs in CI; it should pass
       because Phase 1 Task 2 already bumped `requests`
-- [ ] `npm run check` passes locally (no functional change to existing checks)
+- [x] `npm run check` passes locally (no functional change to existing checks)
 
 **Testing Instructions:**
 
@@ -166,9 +166,9 @@ limit).
 
 **Verification Checklist:**
 
-- [ ] Local `find ... | xargs wc -l | awk '$1 > 450'` is empty
-- [ ] CI step is in place and passes
-- [ ] A deliberate test (add a temporary 500-line file, push, see it fail,
+- [x] Local `find ... | xargs wc -l | awk '$1 > 450'` is empty
+- [x] CI step is in place and passes
+- [x] A deliberate test (add a temporary 500-line file, push, see it fail,
       then revert) confirms the guardrail bites.
 
 **Commit Message Template:**
@@ -252,11 +252,11 @@ that the husky pre-commit hook still runs ruff on the new Phase 4 files.
 
 **Verification Checklist:**
 
-- [ ] `cd backend && uvx ruff check .` passes
-- [ ] `pyproject.toml` ignore list has comments explaining every remaining
+- [x] `cd backend && uvx ruff check .` passes
+- [x] `pyproject.toml` ignore list has comments explaining every remaining
       `UP*` ignore
-- [ ] Husky pre-commit fires `ruff check --fix` on a staged `.py` file
-- [ ] `npm run check` passes
+- [x] Husky pre-commit fires `ruff check --fix` on a staged `.py` file
+- [x] `npm run check` passes
 
 **Commit Message Template:**
 
@@ -313,11 +313,11 @@ test rewrite.
 
 **Verification Checklist:**
 
-- [ ] At least half of the previously-counted `as any` occurrences in
+- [x] At least half of the previously-counted `as any` occurrences in
       `frontend/tests/unit/` are typed
-- [ ] `npm test` still passes
-- [ ] `npm run lint` still passes
-- [ ] No new `// TODO type` comments without a tracking note
+- [x] `npm test` still passes
+- [x] `npm run lint` still passes
+- [x] No new `// TODO type` comments without a tracking note
 
 **Commit Message Template:**
 
@@ -335,14 +335,14 @@ test(frontend): type `any` casts in unit test mocks
 
 After all four tasks land:
 
-- [ ] CI passes (frontend, backend, dockerfile-lint, pip-audit, status-check)
-- [ ] `find backend/src -name '*.py' -exec wc -l {} + | sort -n | tail` --
+- [x] CI passes (frontend, backend, dockerfile-lint, pip-audit, status-check)
+- [x] `find backend/src -name '*.py' -exec wc -l {} + | sort -n | tail` --
       no file over 450 lines (Phase 4 targets are <400; the 50-line slack
       is intentional)
-- [ ] `cd backend && pip-audit -r requirements.txt` -- 0 vulnerabilities
-- [ ] `cd backend && uvx ruff check .` -- 0 errors
-- [ ] `npm run check` passes
-- [ ] No product-code refactors landed in this phase
+- [x] `cd backend && pip-audit -r requirements.txt` -- 0 vulnerabilities
+- [x] `cd backend && uvx ruff check .` -- 0 errors
+- [x] `npm run check` passes
+- [x] No product-code refactors landed in this phase
 
 Known limitations after this phase:
 
