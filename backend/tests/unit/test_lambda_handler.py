@@ -787,3 +787,184 @@ class TestUserIdValidationInHandlers:
             response = lambda_handler(event, None)
 
             assert response["statusCode"] == 400
+
+
+@pytest.mark.unit
+class TestRoutingDispatchTable:
+    """Test the dispatch-table routing in lambda_handler."""
+
+    def _event(self, method, raw_path, user_id="user-abc"):
+        return {
+            "rawPath": raw_path,
+            "requestContext": {"http": {"method": method}},
+            "queryStringParameters": {"user_id": user_id},
+        }
+
+    @patch("src.handlers.lambda_handler._handle_job_status_request")
+    @patch("src.handlers.lambda_handler._handle_download_request")
+    @patch("src.handlers.lambda_handler._handle_token_request")
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_get_job_matches_job_status_route(
+        self,
+        mock_get_handler,
+        mock_token,
+        mock_download,
+        mock_job_status,
+        mock_ai_service,
+    ):
+        """GET /job/abc routes to the job-status handler only."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+            mock_job_status.return_value = {"statusCode": 200, "body": "{}"}
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            lambda_handler(self._event("GET", "/job/abc"), None)
+
+            assert mock_job_status.called
+            assert not mock_download.called
+            assert not mock_token.called
+
+    @patch("src.handlers.lambda_handler._handle_job_status_request")
+    @patch("src.handlers.lambda_handler._handle_download_request")
+    @patch("src.handlers.lambda_handler._handle_token_request")
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_get_production_prefix_job_matches_job_status_route(
+        self,
+        mock_get_handler,
+        mock_token,
+        mock_download,
+        mock_job_status,
+        mock_ai_service,
+    ):
+        """GET /production/job/abc (stage prefix) still matches."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+            mock_job_status.return_value = {"statusCode": 200, "body": "{}"}
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            lambda_handler(self._event("GET", "/production/job/abc"), None)
+
+            assert mock_job_status.called
+            assert not mock_download.called
+            assert not mock_token.called
+
+    @patch("src.handlers.lambda_handler._handle_job_status_request")
+    @patch("src.handlers.lambda_handler._handle_download_request")
+    @patch("src.handlers.lambda_handler._handle_token_request")
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_post_job_download_matches_download_only(
+        self,
+        mock_get_handler,
+        mock_token,
+        mock_download,
+        mock_job_status,
+        mock_ai_service,
+    ):
+        """POST /job/abc/download matches the download route, NOT job-status."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+            mock_download.return_value = {"statusCode": 200, "body": "{}"}
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            lambda_handler(self._event("POST", "/job/abc/download"), None)
+
+            assert mock_download.called
+            assert not mock_job_status.called
+            assert not mock_token.called
+
+    @patch("src.handlers.lambda_handler._handle_job_status_request")
+    @patch("src.handlers.lambda_handler._handle_download_request")
+    @patch("src.handlers.lambda_handler._handle_token_request")
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_post_token_matches_token_route(
+        self,
+        mock_get_handler,
+        mock_token,
+        mock_download,
+        mock_job_status,
+        mock_ai_service,
+    ):
+        """POST /token matches the token route only."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+            mock_token.return_value = {"statusCode": 200, "body": "{}"}
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            lambda_handler(self._event("POST", "/token"), None)
+
+            assert mock_token.called
+            assert not mock_download.called
+            assert not mock_job_status.called
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_post_root_falls_through_to_main_handler(self, mock_get_handler, mock_ai_service):
+        """POST / falls through to handler.handle_request (main inference path)."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            # Mock the main handler path
+            with patch.object(handler, "handle_request") as mock_handle_request:
+                mock_handle_request.return_value = {"statusCode": 200, "body": "{}"}
+
+                from src.handlers.lambda_handler import lambda_handler
+
+                event = {
+                    "rawPath": "/",
+                    "requestContext": {"http": {"method": "POST"}},
+                    "body": "{}",
+                }
+                lambda_handler(event, None)
+
+                assert mock_handle_request.called
+
+    @patch("src.handlers.lambda_handler._handle_job_status_request")
+    @patch("src.handlers.lambda_handler._handle_download_request")
+    @patch("src.handlers.lambda_handler._handle_token_request")
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_download_job_x_does_not_double_match_job_status(
+        self,
+        mock_get_handler,
+        mock_token,
+        mock_download,
+        mock_job_status,
+        mock_ai_service,
+    ):
+        """The historical ambiguous path /job/abc/download must NOT match job-status."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+            mock_download.return_value = {"statusCode": 200, "body": "{}"}
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            lambda_handler(self._event("POST", "/production/job/abc/download"), None)
+
+            assert mock_download.called
+            assert not mock_job_status.called

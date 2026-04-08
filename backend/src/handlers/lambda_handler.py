@@ -1,11 +1,13 @@
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore[import-untyped]
 
 from ..config.constants import (
+    CORS_HEADERS,
     HTTP_BAD_REQUEST,
     HTTP_FORBIDDEN,
     HTTP_NOT_FOUND,
@@ -605,20 +607,21 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             handler.process_meditation_async(event["job_id"], event["request"])
             return {"status": "async_completed"}
 
-        # Check for job status request (GET /job/{job_id})
+        # Match against the module-level _ROUTES dispatch table first. If no
+        # route matches we fall through to the main handler below, which
+        # carries the full middleware chain.
         raw_path = event.get("rawPath", "")
         http_method = event.get("requestContext", {}).get("http", {}).get("method", "")
-
-        if http_method == "GET" and "/job/" in raw_path:
-            return _handle_job_status_request(handler, event)
-
-        # Check for download request (POST /job/{job_id}/download)
-        if http_method == "POST" and "/download" in raw_path:
-            return _handle_download_request(handler, event)
-
-        # Check for token request (POST /token)
-        if http_method == "POST" and "/token" in raw_path:
-            return _handle_token_request(handler, event)
+        matched = _match_route(http_method, raw_path)
+        if matched is not None:
+            route_handler, path_params = matched
+            # Expose captured path parameters (e.g. job_id) via the standard
+            # API Gateway key so downstream helpers do not need to re-parse
+            # rawPath.
+            if path_params:
+                existing_params = event.get("pathParameters") or {}
+                event["pathParameters"] = {**existing_params, **path_params}
+            return route_handler(handler, event)
 
         result: Dict[str, Any] = handler.handle_request(event, context)
         return result
@@ -668,88 +671,83 @@ def _authorize_job_access(
     return None
 
 
+def _with_cors(
+    response: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Ensure ``response`` carries the canonical CORS headers.
+
+    ``create_error_response`` and ``create_success_response`` already attach
+    ``CORS_HEADERS`` to the response dict, so this helper is effectively a
+    no-op today. It is kept as a single seam so that if the CORS contract
+    ever moves back into ``cors_middleware`` the route helpers have one
+    place to update instead of dozens of call sites.
+    """
+    if "headers" not in response:
+        response["headers"] = {}
+    response["headers"].update(CORS_HEADERS)
+    return response
+
+
 def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
     """Handle GET /job/{job_id} requests with user authorization."""
-    from .middleware import cors_middleware
-
-    raw_path = event.get("rawPath", "")
-    # Extract job_id from path like /production/job/{job_id}
-    path_parts = raw_path.strip("/").split("/")
-    job_id = path_parts[-1] if len(path_parts) >= 2 else None
+    path_params = event.get("pathParameters") or {}
+    job_id = path_params.get("job_id") or ""
 
     # Get user_id from query params
     query_params = event.get("queryStringParameters", {}) or {}
     user_id = query_params.get("user_id", "")
 
     if not job_id:
-        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter")
-        return cors_middleware(lambda e, _: response)(event, None)
+        return _with_cors(create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter"))
 
     bad_user = _validate_user_id_or_400(user_id)
     if bad_user is not None:
-        return cors_middleware(lambda e, _: bad_user)(event, None)
+        return _with_cors(bad_user)
 
     job_data = handler.handle_job_status(user_id, job_id)
     if not job_data:
-        response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
-        return cors_middleware(lambda e, _: response)(event, None)
+        return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
 
     forbidden = _authorize_job_access(job_data, user_id, job_id)
     if forbidden is not None:
-        return cors_middleware(lambda e, _: forbidden)(event, None)
+        return _with_cors(forbidden)
 
-    response = create_success_response(job_data)
-    return cors_middleware(lambda e, _: response)(event, None)
+    return _with_cors(create_success_response(job_data))
 
 
 def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
     """Handle POST /job/{job_id}/download requests."""
-    from .middleware import cors_middleware
-
-    raw_path = event.get("rawPath", "")
-    # Extract job_id from path like /production/job/{job_id}/download
-    path_parts = raw_path.strip("/").split("/")
-
-    # Find job_id (the part before "download")
-    job_id = None
-    for i, part in enumerate(path_parts):
-        if part == "download" and i > 0:
-            job_id = path_parts[i - 1]
-            break
+    path_params = event.get("pathParameters") or {}
+    job_id = path_params.get("job_id") or ""
 
     # Get user_id from query params
     query_params = event.get("queryStringParameters", {}) or {}
     user_id = query_params.get("user_id", "")
 
     if not job_id:
-        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter")
-        return cors_middleware(lambda e, _: response)(event, None)
+        return _with_cors(create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter"))
 
     bad_user = _validate_user_id_or_400(user_id)
     if bad_user is not None:
-        return cors_middleware(lambda e, _: bad_user)(event, None)
+        return _with_cors(bad_user)
 
     job_data = handler.job_service.get_job(user_id, job_id)
     if not job_data:
-        response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
-        return cors_middleware(lambda e, _: response)(event, None)
+        return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
 
     forbidden = _authorize_job_access(job_data, user_id, job_id)
     if forbidden is not None:
-        return cors_middleware(lambda e, _: forbidden)(event, None)
+        return _with_cors(forbidden)
 
     # Handle download (pass job_data to avoid duplicate lookup)
     result = handler.handle_download_request(user_id, job_id, job_data)
     if result is None:
-        response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
-        return cors_middleware(lambda e, _: response)(event, None)
+        return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
 
     if "error" in result:
-        response = create_error_response(HTTP_BAD_REQUEST, result["error"]["message"])
-        return cors_middleware(lambda e, _: response)(event, None)
+        return _with_cors(create_error_response(HTTP_BAD_REQUEST, result["error"]["message"]))
 
-    response = create_success_response(result)
-    return cors_middleware(lambda e, _: response)(event, None)
+    return _with_cors(create_success_response(result))
 
 
 def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
@@ -762,15 +760,13 @@ def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict
     Phase 2 plan for the justification and the deferred DynamoDB-backed
     limiter.
     """
-    from .middleware import cors_middleware
-
     # Get user_id from query params
     query_params = event.get("queryStringParameters", {}) or {}
     user_id = query_params.get("user_id", "")
 
     bad_user = _validate_user_id_or_400(user_id)
     if bad_user is not None:
-        return cors_middleware(lambda e, _: bad_user)(event, None)
+        return _with_cors(bad_user)
 
     logger.info(
         "Token request received",
@@ -786,4 +782,59 @@ def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict
             "endpoint": GEMINI_LIVE_WS_ENDPOINT,
         }
     )
-    return cors_middleware(lambda e, _: token_response)(event, None)
+    return _with_cors(token_response)
+
+
+# -----------------------------------------------------------------------------
+# Dispatch table
+# -----------------------------------------------------------------------------
+#
+# The Lambda function URL / API Gateway stage prefix is not stripped before
+# ``rawPath`` reaches us, so every pattern below tolerates an optional leading
+# stage segment (e.g. ``/production/``). The regex uses a named ``job_id``
+# group so ``_match_route`` can surface it via ``event["pathParameters"]``.
+# The historical ``"in raw_path"`` string-containment routing is gone; the
+# download route sits BEFORE the job-status route so ``/job/abc/download``
+# cannot be double-matched by the bare ``/job/{job_id}`` pattern.
+#
+# Handlers are stored by NAME (not by reference) so ``unittest.mock.patch``
+# at the module attribute level correctly redirects dispatch during tests.
+_ROUTES: tuple = (
+    (
+        "POST",
+        re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/download/?$"),
+        "_handle_download_request",
+    ),
+    (
+        "POST",
+        re.compile(r"^/?(?:[^/]+/)*token/?$"),
+        "_handle_token_request",
+    ),
+    (
+        "GET",
+        re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/?$"),
+        "_handle_job_status_request",
+    ),
+)
+
+
+def _match_route(method: str, raw_path: str) -> Optional[tuple]:
+    """Return ``(handler, path_params)`` for the first matching route.
+
+    The dispatch order is fixed in ``_ROUTES`` and the match is first-hit:
+    the download route is declared before the job-status route so a request
+    to ``/job/abc/download`` matches the download handler instead of being
+    ambiguously consumed by the job-status pattern.
+
+    Handlers are resolved by name via ``globals()`` so patches applied via
+    ``unittest.mock.patch('...._handle_xxx_request')`` are observed.
+    """
+    for route_method, pattern, handler_name in _ROUTES:
+        if route_method != method:
+            continue
+        match = pattern.match(raw_path)
+        if match is None:
+            continue
+        route_handler = globals()[handler_name]
+        return route_handler, match.groupdict()
+    return None

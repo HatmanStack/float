@@ -280,19 +280,19 @@ no longer import `cors_middleware` inline.
 
 **Verification Checklist:**
 
-- [ ] `grep -rn "in raw_path" backend/src/handlers/lambda_handler.py` returns
+- [x] `grep -rn "in raw_path" backend/src/handlers/lambda_handler.py` returns
       0 hits
-- [ ] `grep -rn "from .middleware import cors_middleware" backend/src/handlers/lambda_handler.py`
+- [x] `grep -rn "from .middleware import cors_middleware" backend/src/handlers/lambda_handler.py`
       shows ONE import at the top of the file, not three inline imports
-- [ ] New routing tests cover:
+- [x] New routing tests cover:
   - `GET /job/abc` matches the job-status route
   - `GET /production/job/abc` matches the job-status route (stage prefix)
   - `POST /job/abc/download` matches the download route ONLY (not job-status)
   - `POST /token` matches the token route (returns the Option B opaque
     marker per Task 1)
   - `POST /` falls through to the main handler
-- [ ] All existing tests pass
-- [ ] `npm run check` passes
+- [x] All existing tests pass
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
