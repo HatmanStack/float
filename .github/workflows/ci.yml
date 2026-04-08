@@ -95,6 +95,22 @@ jobs:
         working-directory: ./backend
         run: ruff check .
 
+      - name: File-size guardrail
+        working-directory: ./backend
+        run: |
+          # Plan 2026-04-08-audit-float: no backend src file >450 lines.
+          # Phase 4 targets <400 lines; the 50-line slack prevents incidental
+          # growth from firing the guardrail. See Phase 5 Task 2 for the
+          # rationale and Phase 4 Task 1/2 for the underlying targets.
+          offenders=$(find src -name '*.py' -print0 \
+            | xargs -0 wc -l \
+            | awk '$1 > 450 && $2 != "total" { print $2, $1 }')
+          if [ -n "$offenders" ]; then
+            echo "Files exceeding 450 lines:"
+            echo "$offenders"
+            exit 1
+          fi
+
       - name: Tests
         run: pytest backend/tests -v --tb=short
 
