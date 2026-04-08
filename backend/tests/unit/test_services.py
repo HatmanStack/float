@@ -1501,7 +1501,11 @@ class TestProcessStreamToHls:
         fade_dir.mkdir()
         dirs = iter([str(stream_dir), str(fade_dir)])
         monkeypatch.setattr(
-            "src.services.ffmpeg_audio_service.tempfile.mkdtemp",
+            "src.services.audio.hls_stream_encoder.tempfile.mkdtemp",
+            lambda prefix="": next(dirs),
+        )
+        monkeypatch.setattr(
+            "src.services.audio.audio_mixer.tempfile.mkdtemp",
             lambda prefix="": next(dirs),
         )
 
@@ -1516,7 +1520,7 @@ class TestProcessStreamToHls:
         fake_proc.stderr.read.return_value = b""
         fake_proc.wait.return_value = 0
         monkeypatch.setattr(
-            "src.services.ffmpeg_audio_service.subprocess.Popen",
+            "src.services.audio.hls_stream_encoder.subprocess.Popen",
             lambda *a, **kw: fake_proc,
         )
 
@@ -1560,7 +1564,7 @@ class TestProcessStreamToHls:
         stream_dir = tmp_path / "stream"
         stream_dir.mkdir()
         monkeypatch.setattr(
-            "src.services.ffmpeg_audio_service.tempfile.mkdtemp",
+            "src.services.audio.hls_stream_encoder.tempfile.mkdtemp",
             lambda prefix="": str(stream_dir),
         )
 
@@ -1569,7 +1573,7 @@ class TestProcessStreamToHls:
         fake_proc.stdin.write.side_effect = BrokenPipeError("pipe closed")
         fake_proc.stderr.read.return_value = b"ffmpeg died"
         monkeypatch.setattr(
-            "src.services.ffmpeg_audio_service.subprocess.Popen",
+            "src.services.audio.hls_stream_encoder.subprocess.Popen",
             lambda *a, **kw: fake_proc,
         )
         monkeypatch.setattr(service, "get_audio_duration", lambda p: 5.0)
