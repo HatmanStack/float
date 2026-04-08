@@ -30,6 +30,7 @@ from ..utils.audio_utils import (
 from ..utils.file_utils import generate_request_id, generate_timestamp
 from ..utils.logging_utils import get_logger
 from ..utils.security import derive_token_marker
+from ..utils.validation import is_valid_user_id
 from .middleware import (
     apply_middleware,
     cors_middleware,
@@ -626,6 +627,47 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         raise
 
 
+def _validate_user_id_or_400(user_id: str) -> Optional[Dict[str, Any]]:
+    """Return a 400 error response if ``user_id`` is invalid, else ``None``.
+
+    Missing-parameter and malformed-parameter responses are collapsed into a
+    single shape here so every route helper that takes ``user_id`` from the
+    query string can share one check. The request-boundary validator in
+    ``src/utils/validation.py`` owns the allow-list; this helper is purely
+    the HTTP-shaped wrapper around it.
+    """
+    if not user_id:
+        return create_error_response(HTTP_BAD_REQUEST, "Missing user_id parameter")
+    if not is_valid_user_id(user_id):
+        return create_error_response(HTTP_BAD_REQUEST, "Invalid user_id parameter")
+    return None
+
+
+def _authorize_job_access(
+    job_data: Dict[str, Any], user_id: str, job_id: str
+) -> Optional[Dict[str, Any]]:
+    """Return a 403 error response if ``user_id`` does not own the job.
+
+    NOTE: ``user_id`` in this app is client-generated (guest mode) or a
+    Google sign-in subject id; this check is a UX safeguard against
+    accidental cross-account data leakage, not a traditional auth boundary.
+    """
+    job_owner = job_data.get("user_id", "")
+    if job_owner and job_owner != user_id:
+        logger.warning(
+            "Mismatched user_id on job access",
+            extra={
+                "data": {
+                    "job_id": job_id,
+                    "requested_by": user_id,
+                    "owner": job_owner,
+                }
+            },
+        )
+        return create_error_response(HTTP_FORBIDDEN, "Access denied: you do not own this job")
+    return None
+
+
 def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict[str, Any]:
     """Handle GET /job/{job_id} requests with user authorization."""
     from .middleware import cors_middleware
@@ -639,37 +681,22 @@ def _handle_job_status_request(handler: LambdaHandler, event: Dict[str, Any]) ->
     query_params = event.get("queryStringParameters", {}) or {}
     user_id = query_params.get("user_id", "")
 
-    if not job_id or not user_id:
-        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id or user_id parameter")
+    if not job_id:
+        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter")
         return cors_middleware(lambda e, _: response)(event, None)
+
+    bad_user = _validate_user_id_or_400(user_id)
+    if bad_user is not None:
+        return cors_middleware(lambda e, _: bad_user)(event, None)
 
     job_data = handler.handle_job_status(user_id, job_id)
     if not job_data:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
         return cors_middleware(lambda e, _: response)(event, None)
 
-    # =========================================================================
-    # Authorization Check
-    # =========================================================================
-    # NOTE FOR REVIEWERS: This check ensures users can only access their own jobs.
-    # However, this is NOT traditional auth - user_id is client-generated.
-    #
-    # This app uses a PRIVACY-FIRST model:
-    # - Guest mode: data stays on device, no server auth needed
-    # - Optional Google sign-in: for cross-device sync only
-    # - user_id is like a device/session identifier, not a secured account
-    #
-    # This check prevents accidental data leakage if someone guesses a job_id,
-    # but it's not a security boundary - it's a UX safeguard.
-    # =========================================================================
-    job_owner = job_data.get("user_id", "")
-    if job_owner and job_owner != user_id:
-        logger.warning(
-            "Mismatched user_id on job access",
-            extra={"data": {"job_id": job_id, "requested_by": user_id, "owner": job_owner}},
-        )
-        response = create_error_response(HTTP_FORBIDDEN, "Access denied: you do not own this job")
-        return cors_middleware(lambda e, _: response)(event, None)
+    forbidden = _authorize_job_access(job_data, user_id, job_id)
+    if forbidden is not None:
+        return cors_middleware(lambda e, _: forbidden)(event, None)
 
     response = create_success_response(job_data)
     return cors_middleware(lambda e, _: response)(event, None)
@@ -694,20 +721,22 @@ def _handle_download_request(handler: LambdaHandler, event: Dict[str, Any]) -> D
     query_params = event.get("queryStringParameters", {}) or {}
     user_id = query_params.get("user_id", "")
 
-    if not job_id or not user_id:
-        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id or user_id parameter")
+    if not job_id:
+        response = create_error_response(HTTP_BAD_REQUEST, "Missing job_id parameter")
         return cors_middleware(lambda e, _: response)(event, None)
 
-    # Authorization check
+    bad_user = _validate_user_id_or_400(user_id)
+    if bad_user is not None:
+        return cors_middleware(lambda e, _: bad_user)(event, None)
+
     job_data = handler.job_service.get_job(user_id, job_id)
     if not job_data:
         response = create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found")
         return cors_middleware(lambda e, _: response)(event, None)
 
-    job_owner = job_data.get("user_id", "")
-    if job_owner and job_owner != user_id:
-        response = create_error_response(HTTP_FORBIDDEN, "Access denied: you do not own this job")
-        return cors_middleware(lambda e, _: response)(event, None)
+    forbidden = _authorize_job_access(job_data, user_id, job_id)
+    if forbidden is not None:
+        return cors_middleware(lambda e, _: forbidden)(event, None)
 
     # Handle download (pass job_data to avoid duplicate lookup)
     result = handler.handle_download_request(user_id, job_id, job_data)
@@ -739,9 +768,9 @@ def _handle_token_request(handler: LambdaHandler, event: Dict[str, Any]) -> Dict
     query_params = event.get("queryStringParameters", {}) or {}
     user_id = query_params.get("user_id", "")
 
-    if not user_id:
-        response = create_error_response(HTTP_BAD_REQUEST, "Missing user_id parameter")
-        return cors_middleware(lambda e, _: response)(event, None)
+    bad_user = _validate_user_id_or_400(user_id)
+    if bad_user is not None:
+        return cors_middleware(lambda e, _: bad_user)(event, None)
 
     logger.info(
         "Token request received",

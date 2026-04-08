@@ -10,6 +10,7 @@ from typing import Annotated, Any, Dict, List, Literal, Union
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..config.constants import InferenceType
+from ..utils.validation import is_valid_user_id
 
 
 class SummaryRequestModel(BaseModel):
@@ -22,6 +23,14 @@ class SummaryRequestModel(BaseModel):
     user_id: str = Field(min_length=1, max_length=256)
     audio: str | None = None  # Base64 encoded audio or "NotAvailable"
     prompt: str | None = None  # Text prompt or "NotAvailable"
+
+    @field_validator("user_id")
+    @classmethod
+    def validate_user_id_shape(cls, v: str) -> str:
+        """Reject path-traversal patterns and disallowed characters."""
+        if not is_valid_user_id(v):
+            raise ValueError("user_id must match [a-zA-Z0-9._@-]{1,256} and contain no '..'")
+        return v
 
     @model_validator(mode="after")
     def validate_input_present(self) -> "SummaryRequestModel":
@@ -53,6 +62,14 @@ class MeditationRequestModel(BaseModel):
     music_list: List[str] = Field(default_factory=list)
     duration_minutes: Literal[3, 5, 10, 15, 20] = 5
     qa_transcript: List[QATranscriptItem] | None = None
+
+    @field_validator("user_id")
+    @classmethod
+    def validate_user_id_shape(cls, v: str) -> str:
+        """Reject path-traversal patterns and disallowed characters."""
+        if not is_valid_user_id(v):
+            raise ValueError("user_id must match [a-zA-Z0-9._@-]{1,256} and contain no '..'")
+        return v
 
     @field_validator("input_data", mode="before")
     @classmethod

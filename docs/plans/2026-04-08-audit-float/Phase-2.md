@@ -200,15 +200,15 @@ own test plan).
 
 **Verification Checklist:**
 
-- [ ] `is_valid_user_id` exists in exactly one place
-- [ ] `SummaryRequestModel` and `MeditationRequestModel` reject bad `user_id`
+- [x] `is_valid_user_id` exists in exactly one place
+- [x] `SummaryRequestModel` and `MeditationRequestModel` reject bad `user_id`
       via Pydantic validation
-- [ ] `_handle_job_status_request` and `_handle_download_request` reject bad
+- [x] `_handle_job_status_request` and `_handle_download_request` reject bad
       `user_id` with 400
-- [ ] Authorization check is extracted to a single helper used by both routes
-- [ ] All new tests pass
-- [ ] All existing tests continue to pass
-- [ ] `npm run check` passes
+- [x] Authorization check is extracted to a single helper used by both routes
+- [x] All new tests pass
+- [x] All existing tests continue to pass
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 

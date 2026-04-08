@@ -9,6 +9,90 @@ from src.models.responses import (
     create_meditation_response,
     create_summary_response,
 )
+from src.utils.validation import is_valid_user_id
+
+
+@pytest.mark.unit
+class TestUserIdValidator:
+    """Test the user_id validator helper."""
+
+    def test_user_id_validator_accepts_simple_alphanumeric(self):
+        assert is_valid_user_id("user123") is True
+
+    def test_user_id_validator_accepts_email_format(self):
+        assert is_valid_user_id("user@example.com") is True
+
+    def test_user_id_validator_accepts_uuid_format(self):
+        assert is_valid_user_id("550e8400-e29b-41d4-a716-446655440000") is True
+
+    def test_user_id_validator_accepts_google_subject_id(self):
+        assert is_valid_user_id("102536842094718340569") is True
+
+    def test_user_id_validator_rejects_path_traversal(self):
+        assert is_valid_user_id("..") is False
+        assert is_valid_user_id("../etc/passwd") is False
+
+    def test_user_id_validator_rejects_slashes(self):
+        assert is_valid_user_id("user/id") is False
+        assert is_valid_user_id("/abs/path") is False
+        assert is_valid_user_id("foo\\bar") is False
+
+    def test_user_id_validator_rejects_empty(self):
+        assert is_valid_user_id("") is False
+
+    def test_user_id_validator_rejects_whitespace(self):
+        assert is_valid_user_id("user id") is False
+        assert is_valid_user_id("user\tid") is False
+        assert is_valid_user_id("user\nid") is False
+
+    def test_user_id_validator_rejects_control_characters(self):
+        assert is_valid_user_id("user\x00id") is False
+        assert is_valid_user_id("user\x1fid") is False
+
+    def test_user_id_validator_rejects_over_256_chars(self):
+        assert is_valid_user_id("a" * 257) is False
+        assert is_valid_user_id("a" * 256) is True
+
+
+@pytest.mark.unit
+class TestRequestModelUserIdValidation:
+    """Test that Pydantic request models reject bad user_id values."""
+
+    def test_summary_model_rejects_path_traversal_user_id(self):
+        with pytest.raises(PydanticValidationError):
+            SummaryRequestModel(
+                user_id="../etc/passwd",
+                inference_type="summary",
+                prompt="hello",
+                audio="NotAvailable",
+            )
+
+    def test_summary_model_rejects_slash_user_id(self):
+        with pytest.raises(PydanticValidationError):
+            SummaryRequestModel(
+                user_id="a/b",
+                inference_type="summary",
+                prompt="hello",
+                audio="NotAvailable",
+            )
+
+    def test_meditation_model_rejects_path_traversal_user_id(self):
+        with pytest.raises(PydanticValidationError):
+            MeditationRequestModel(
+                user_id="..",
+                inference_type="meditation",
+                input_data={"sentiment": "Sad"},
+                music_list=[],
+            )
+
+    def test_meditation_model_accepts_email_user_id(self):
+        req = MeditationRequestModel(
+            user_id="user@example.com",
+            inference_type="meditation",
+            input_data={"sentiment": "Sad"},
+            music_list=[],
+        )
+        assert req.user_id == "user@example.com"
 
 
 @pytest.mark.unit

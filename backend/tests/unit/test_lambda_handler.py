@@ -701,3 +701,89 @@ class TestTokenEndpoint:
             response = lambda_handler(event, None)
 
             assert "Access-Control-Allow-Origin" in response.get("headers", {})
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_token_request_rejects_invalid_user_id(self, mock_get_handler, mock_ai_service):
+        """POST /token with a path-traversal user_id must return 400."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.handlers.lambda_handler.settings") as mock_settings,
+        ):
+            mock_settings.GEMINI_API_KEY = "test-gemini-key"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_token_event(user_id="../etc/passwd")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 400
+
+
+@pytest.mark.unit
+class TestUserIdValidationInHandlers:
+    """Test that route helpers reject invalid user_id values with 400."""
+
+    def _make_job_status_event(self, user_id, job_id="abc"):
+        return {
+            "rawPath": f"/production/job/{job_id}",
+            "requestContext": {"http": {"method": "GET"}},
+            "queryStringParameters": {"user_id": user_id},
+        }
+
+    def _make_download_event(self, user_id, job_id="abc"):
+        return {
+            "rawPath": f"/production/job/{job_id}/download",
+            "requestContext": {"http": {"method": "POST"}},
+            "queryStringParameters": {"user_id": user_id},
+        }
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_handle_job_status_rejects_invalid_user_id(self, mock_get_handler, mock_ai_service):
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_job_status_event(user_id="../etc/passwd")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 400
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_handle_download_rejects_invalid_user_id(self, mock_get_handler, mock_ai_service):
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_download_event(user_id="a/b")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 400
+
+    @patch("src.handlers.lambda_handler._get_handler")
+    def test_handle_job_status_rejects_slash_user_id(self, mock_get_handler, mock_ai_service):
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            mock_get_handler.return_value = handler
+
+            from src.handlers.lambda_handler import lambda_handler
+
+            event = self._make_job_status_event(user_id="user/evil")
+            response = lambda_handler(event, None)
+
+            assert response["statusCode"] == 400
