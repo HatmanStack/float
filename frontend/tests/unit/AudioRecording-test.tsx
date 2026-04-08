@@ -146,7 +146,7 @@ describe('AudioRecording', () => {
       const base64Data = 'mockBase64Data==';
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(base64Data);
 
-      const result = await StopRecording(mockRecording as any);
+      const result = await StopRecording(mockRecording as unknown as Audio.Recording);
 
       expect(mockRecording.stopAndUnloadAsync).toHaveBeenCalled();
       expect(mockRecording.getURI).toHaveBeenCalled();
@@ -160,7 +160,7 @@ describe('AudioRecording', () => {
       const base64Data = 'mockBase64Data==';
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(base64Data);
 
-      await StopRecording(mockRecording as any);
+      await StopRecording(mockRecording as unknown as Audio.Recording);
 
       expect(FileSystem.deleteAsync).toHaveBeenCalledWith('file://test-recording.m4a');
     });
@@ -168,13 +168,13 @@ describe('AudioRecording', () => {
     it('should handle missing recording URI', async () => {
       mockRecording.getURI.mockReturnValue(null);
 
-      const result = await StopRecording(mockRecording as any);
+      const result = await StopRecording(mockRecording as unknown as Audio.Recording);
 
       expect(result).toBeNull();
     });
 
     it('should handle null recording object', async () => {
-      const result = await StopRecording(null as any);
+      const result = await StopRecording(null as unknown as Audio.Recording);
 
       expect(result).toBeNull();
     });
@@ -182,7 +182,7 @@ describe('AudioRecording', () => {
     it('should handle file read errors', async () => {
       (FileSystem.readAsStringAsync as jest.Mock).mockRejectedValue(new Error('File read failed'));
 
-      const result = await StopRecording(mockRecording as any);
+      const result = await StopRecording(mockRecording as unknown as Audio.Recording);
 
       expect(result).toBeNull();
     });
@@ -190,7 +190,7 @@ describe('AudioRecording', () => {
     it('should handle stop and unload errors', async () => {
       mockRecording.stopAndUnloadAsync.mockRejectedValue(new Error('Stop failed'));
 
-      const result = await StopRecording(mockRecording as any);
+      const result = await StopRecording(mockRecording as unknown as Audio.Recording);
 
       expect(result).toBeNull();
     });
