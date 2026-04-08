@@ -387,13 +387,13 @@ references break).
 
 **Verification Checklist:**
 
-- [ ] `json_middleware` no longer has a catch-all `except Exception` around
+- [x] `json_middleware` no longer has a catch-all `except Exception` around
       the inner handler call
-- [ ] `request_validation_middleware` no longer has a catch-all `except
+- [x] `request_validation_middleware` no longer has a catch-all `except
       Exception` around the inner handler call
-- [ ] New tests assert domain exceptions surface their `code` and status
-- [ ] All existing tests pass
-- [ ] `npm run check` passes
+- [x] New tests assert domain exceptions surface their `code` and status
+- [x] All existing tests pass
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
@@ -416,16 +416,16 @@ fix(backend): let domain exceptions propagate through middleware chain
 
 After all four tasks land:
 
-- [ ] `grep -rn "settings.GEMINI_API_KEY" backend/src/handlers/` returns 0
+- [x] `grep -rn "settings.GEMINI_API_KEY" backend/src/handlers/` returns 0
       hits
-- [ ] `grep -rn '"in raw_path"' backend/src/handlers/lambda_handler.py`
+- [x] `grep -rn '"in raw_path"' backend/src/handlers/lambda_handler.py`
       returns 0 hits (use the actual literal `in raw_path` if grep escaping
       complicates this)
-- [ ] `grep -c "from .middleware import cors_middleware"
+- [x] `grep -c "from .middleware import cors_middleware"
       backend/src/handlers/lambda_handler.py` shows 1 (the top-of-file import)
-- [ ] All new tests pass
-- [ ] `npm run check` passes
-- [ ] No regression in existing test suites
+- [x] All new tests pass
+- [x] `npm run check` passes
+- [x] No regression in existing test suites
 
 Known limitations after this phase:
 

@@ -44,45 +44,50 @@ def cors_middleware(
 def json_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
+    """Parse JSON request bodies before the handler sees them.
+
+    The historical ``except Exception`` around the entire wrapper was
+    removed in Phase 2 Task 4 of the audit-remediation plan. It used to
+    swallow domain exceptions raised by the inner handler (TTSError,
+    CircuitBreakerOpenError, ValidationError, etc.) as generic 500s,
+    hiding their taxonomy from HTTP clients. The narrow
+    ``except json.JSONDecodeError`` around ``json.loads`` remains so
+    malformed bodies still produce a 400 response; every other exception
+    propagates inward to ``error_handling_middleware`` which owns the
+    taxonomy-to-HTTP-status conversion. Middleware-internal failures
+    (which would only happen if ``json_middleware`` itself is buggy) are
+    now uncaught by design.
+    """
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-        try:
-            method = event.get("requestContext", {}).get("http", {}).get("method", "")
-            if method == "OPTIONS":
-                event["parsed_body"] = {}
-                return handler(event, context)
-
-            if "body" in event and event["body"]:
-                try:
-                    event["parsed_body"] = json.loads(event["body"])
-                    logger.debug("Parsed JSON body successfully")
-                except json.JSONDecodeError as e:
-                    logger.warning("JSON decode error", extra={"data": {"error": str(e)}})
-                    return create_error_response(
-                        HTTP_BAD_REQUEST, f"Invalid JSON: {str(e)}"
-                    )
-            elif any(key in event for key in ["user_id", "inference_type"]):
-                event["parsed_body"] = {
-                    k: v
-                    for k, v in event.items()
-                    if k
-                    not in [
-                        "requestContext",
-                        "headers",
-                        "pathParameters",
-                        "queryStringParameters",
-                    ]
-                }
-                logger.debug("Direct Lambda invocation detected")
-            else:
-                event["parsed_body"] = {}
+        method = event.get("requestContext", {}).get("http", {}).get("method", "")
+        if method == "OPTIONS":
+            event["parsed_body"] = {}
             return handler(event, context)
-        except Exception:
-            logger.error("Unexpected error in json_middleware", exc_info=True)
-            return create_error_response(
-                HTTP_INTERNAL_SERVER_ERROR,
-                "Internal server error",
-            )
+
+        if "body" in event and event["body"]:
+            try:
+                event["parsed_body"] = json.loads(event["body"])
+                logger.debug("Parsed JSON body successfully")
+            except json.JSONDecodeError as e:
+                logger.warning("JSON decode error", extra={"data": {"error": str(e)}})
+                return create_error_response(HTTP_BAD_REQUEST, f"Invalid JSON: {str(e)}")
+        elif any(key in event for key in ["user_id", "inference_type"]):
+            event["parsed_body"] = {
+                k: v
+                for k, v in event.items()
+                if k
+                not in [
+                    "requestContext",
+                    "headers",
+                    "pathParameters",
+                    "queryStringParameters",
+                ]
+            }
+            logger.debug("Direct Lambda invocation detected")
+        else:
+            event["parsed_body"] = {}
+        return handler(event, context)
 
     return wrapper
 
@@ -102,7 +107,7 @@ def method_validation_middleware(
             if method not in allowed_methods and method != "OPTIONS":
                 logger.info(
                     "Method not allowed",
-                    extra={"data": {"method": method, "allowed": allowed_methods}}
+                    extra={"data": {"method": method, "allowed": allowed_methods}},
                 )
                 return create_error_response(
                     HTTP_METHOD_NOT_ALLOWED,
@@ -118,31 +123,33 @@ def method_validation_middleware(
 def request_validation_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
+    """Check that required top-level fields are present.
+
+    The historical ``except Exception`` around the entire wrapper was
+    removed in Phase 2 Task 4 of the audit-remediation plan. It used to
+    swallow domain exceptions raised by the inner handler (TTSError,
+    CircuitBreakerOpenError, ValidationError, etc.) as generic 500s,
+    hiding their taxonomy from HTTP clients. The only exception this
+    middleware can legitimately produce is a ``KeyError`` /
+    ``AttributeError`` from calling ``parsed_body.get`` on an unexpected
+    shape; in practice ``parsed_body`` is always a dict (``json.loads``
+    or ``{}``), so the catch-all was dead code that only served to
+    hide real errors.
+    """
 
     def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-        try:
-            method = event.get("requestContext", {}).get("http", {}).get("method", "")
-            if method == "OPTIONS":
-                return handler(event, context)
-            parsed_body = event.get("parsed_body", {})
-
-            if not parsed_body.get("user_id"):
-                logger.info("Request validation failed: missing user_id")
-                return create_error_response(
-                    HTTP_BAD_REQUEST, "Missing required field: user_id"
-                )
-            if not parsed_body.get("inference_type"):
-                logger.info("Request validation failed: missing inference_type")
-                return create_error_response(
-                    HTTP_BAD_REQUEST, "Missing required field: inference_type"
-                )
+        method = event.get("requestContext", {}).get("http", {}).get("method", "")
+        if method == "OPTIONS":
             return handler(event, context)
-        except Exception:
-            logger.error("Request validation error", exc_info=True)
-            return create_error_response(
-                HTTP_INTERNAL_SERVER_ERROR,
-                "Request validation error",
-            )
+        parsed_body = event.get("parsed_body", {})
+
+        if not parsed_body.get("user_id"):
+            logger.info("Request validation failed: missing user_id")
+            return create_error_response(HTTP_BAD_REQUEST, "Missing required field: user_id")
+        if not parsed_body.get("inference_type"):
+            logger.info("Request validation failed: missing inference_type")
+            return create_error_response(HTTP_BAD_REQUEST, "Missing required field: inference_type")
+        return handler(event, context)
 
     return wrapper
 
@@ -245,26 +252,23 @@ def error_handling_middleware(
             return handler(event, context)
         except ValidationError as e:
             logger.warning(
-                "Validation error",
-                extra={"data": {"error": str(e), "code": e.code.value}}
+                "Validation error", extra={"data": {"error": str(e), "code": e.code.value}}
             )
             return create_error_response(HTTP_BAD_REQUEST, e.message)
         except ExternalServiceError as e:
             logger.error(
                 "External service error",
                 extra={"data": {"error": str(e), "code": e.code.value, "retriable": e.retriable}},
-                exc_info=True
+                exc_info=True,
             )
             return create_error_response(
-                HTTP_INTERNAL_SERVER_ERROR,
-                e.message,
-                details=f"retriable={e.retriable}"
+                HTTP_INTERNAL_SERVER_ERROR, e.message, details=f"retriable={e.retriable}"
             )
         except FloatException as e:
             logger.error(
                 "Domain error",
                 extra={"data": {"error": str(e), "code": e.code.value}},
-                exc_info=True
+                exc_info=True,
             )
             status_code = HTTP_BAD_REQUEST if not e.retriable else HTTP_INTERNAL_SERVER_ERROR
             return create_error_response(status_code, e.message)
@@ -273,9 +277,7 @@ def error_handling_middleware(
             return create_error_response(HTTP_BAD_REQUEST, str(e))
         except Exception:
             logger.error("Unexpected error in handler", exc_info=True)
-            return create_error_response(
-                HTTP_INTERNAL_SERVER_ERROR, "An unexpected error occurred"
-            )
+            return create_error_response(HTTP_INTERNAL_SERVER_ERROR, "An unexpected error occurred")
 
     return wrapper
 
