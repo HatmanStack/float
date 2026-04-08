@@ -71,7 +71,7 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 | `/token` returns raw `GEMINI_API_KEY` | CRITICAL | 2 | 1 |
 | `requests==2.32.3` CVE-2024-47081, CVE-2026-25645 | CRITICAL | 1 | 2 |
 | `LambdaHandler` god object (756 lines, 7 services) | HIGH | 4 | 1 |
-| Routing via `rawPath` string matching | HIGH | 2 | 2 |
+| Routing via `rawPath` string matching | HIGH | 2 | 3 |
 | `process_stream_to_hls` thread safety | HIGH | 3 | 1 |
 | Watcher loop spin via `os.path.exists` | HIGH | 3 | 2 |
 | `process.stdin.write` no backpressure | HIGH | 3 | 3 |
@@ -81,12 +81,12 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 | `_prepare_mixed_audio` 5 sequential subprocesses | MEDIUM | 4 | 2 |
 | `_get_audio_duration_from_file` duplicate of `get_audio_duration` | MEDIUM | 1 | 4 |
 | Module-level `_token_rate_limit` unbounded | MEDIUM | 2 | 1 |
-| Middleware `except Exception` swallows taxonomy | MEDIUM | 4 | 3 |
+| Middleware `except Exception` swallows taxonomy | MEDIUM | 2 | 4 |
 | Inline `from .middleware import cors_middleware` (3x) | MEDIUM | 2 | 3 |
 | `combine_voice_and_music_hls` duplication | MEDIUM | 4 | 2 |
 | `_invoke_async_meditation` boto3 client per call | MEDIUM | 1 | 5 |
 | Three near-identical temp-file cleanup blocks | MEDIUM | 4 | 2 |
-| Backend ~57 `except Exception` clauses | MEDIUM | 4 | 3 |
+| Backend ~57 `except Exception` clauses | MEDIUM | -- | Out of Scope (see Phase 0) |
 | Test files using `any` | MEDIUM | 5 | 4 |
 | `lambda_handler.py` legacy `typing.Dict, List` | LOW | 5 | 3 |
 | `gemini_service.py` uses `logging.getLogger` directly | LOW | 1 | 6 |
@@ -100,7 +100,7 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 | Pillar | Current | Target | Phases |
 |--------|---------|--------|--------|
 | Defensiveness | 6/10 | 9/10 | 2, 3 (rate limit, retry loop, raw user_id) |
-| Performance | 5/10 | 9/10 | 2, 3 (boto3 reuse, sync handler, ETag/race) |
+| Performance | 5/10 | 7/10 | 1, 3 (boto3 reuse, retry loop, generator drain) |
 | Architecture | 7/10 | 9/10 | 4 (router decomposition, ffmpeg split) |
 | Pragmatism | 7/10 | 9/10 | 4 (dual validation collapse, prelude extract) |
 | Type Rigor | 7/10 | 9/10 | 4, 5 (TypedDict for events/jobs, lint) |
@@ -141,11 +141,13 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 
 ## Out of Scope
 
-The following items are recognized but deferred to a future plan:
+The following items are recognized but deferred to a future plan. Phase 0
+holds the canonical justifications; this section is a quick index.
 
 - Migrating job state from S3 to DynamoDB (called out by Stress eval as a
-  performance fix). Phase 3 instead applies in-place safety: ETag-aware writes
-  through the existing `S3StorageService`.
+  performance fix). This plan does NOT add ETag-aware conditional writes
+  either -- the read-modify-write race in `update_streaming_progress` is
+  documented as a Known Limitation in Phase 3 and remains for a future plan.
 - Replacing the in-memory rate limiter with a DynamoDB atomic counter. Phase 2
   removes the unsafe `/token` plaintext path; the rate limiter is replaced or
   removed in the same task. A DynamoDB-backed limiter is a separate plan.
@@ -154,3 +156,11 @@ The following items are recognized but deferred to a future plan:
   identity overhaul is deferred.
 - Decomposing `BackendMeditationCall.tsx` (427 lines) is in scope for Phase 4
   Task 4 only as a "split into hooks + view" refactor; a full redesign is not.
+- Narrowing the ~57 backend `except Exception` clauses in product code. Phase
+  2 Task 4 narrows the THREE middleware-level catch-alls so domain exception
+  taxonomy reaches HTTP responses (the user-visible symptom). The remaining
+  ~54 service-level clauses are mostly defensive logging boundaries that do
+  not affect HTTP responses; broad narrowing across `hls_service.py` (11),
+  `job_service.py` (8), `ffmpeg_audio_service.py` (7), and friends is a
+  multi-service review that exceeds the audit-remediation scope. See Phase 0
+  "Out of Scope" for the full justification.
