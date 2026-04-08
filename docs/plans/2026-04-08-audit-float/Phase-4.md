@@ -125,15 +125,15 @@ moves it into a dedicated module).
 
 **Verification Checklist:**
 
-- [ ] `wc -l backend/src/handlers/lambda_handler.py` shows under 100 lines
-- [ ] `wc -l backend/src/handlers/meditation_handler.py` shows under 400 lines
-- [ ] `wc -l backend/src/handlers/summary_handler.py` shows under 200 lines
-- [ ] `wc -l backend/src/handlers/job_handler.py` shows under 200 lines
-- [ ] `wc -l backend/src/handlers/router.py` shows under 200 lines
-- [ ] `pytest backend/tests/unit -v` passes
-- [ ] `pytest backend/tests/integration -v` passes (if applicable in this env)
-- [ ] `npm run check` passes
-- [ ] `backend/lambda_function.py` still imports from
+- [x]`wc -l backend/src/handlers/lambda_handler.py` shows under 100 lines
+- [x]`wc -l backend/src/handlers/meditation_handler.py` shows under 400 lines
+- [x]`wc -l backend/src/handlers/summary_handler.py` shows under 200 lines
+- [x]`wc -l backend/src/handlers/job_handler.py` shows under 200 lines
+- [x]`wc -l backend/src/handlers/router.py` shows under 200 lines
+- [x]`pytest backend/tests/unit -v` passes
+- [x]`pytest backend/tests/integration -v` passes (if applicable in this env)
+- [x]`npm run check` passes
+- [x]`backend/lambda_function.py` still imports from
       `src.handlers.lambda_handler` and the import resolves
 
 **Testing Instructions:**
@@ -226,12 +226,12 @@ post-thread-safety shape).
 
 **Verification Checklist:**
 
-- [ ] `wc -l backend/src/services/audio/*.py` shows every file under 350 lines
-- [ ] `wc -l backend/src/services/ffmpeg_audio_service.py` shows under 150
-- [ ] All existing tests pass
-- [ ] No new public API surface added; the facade keeps the same method names
-- [ ] Three duplicated `try/except OSError: pass` blocks collapse to one
-- [ ] `npm run check` passes
+- [x]`wc -l backend/src/services/audio/*.py` shows every file under 350 lines
+- [x]`wc -l backend/src/services/ffmpeg_audio_service.py` shows under 150
+- [x]All existing tests pass
+- [x]No new public API surface added; the facade keeps the same method names
+- [x]Three duplicated `try/except OSError: pass` blocks collapse to one
+- [x]`npm run check` passes
 
 **Testing Instructions:**
 
@@ -350,13 +350,13 @@ This task collapses (1) into a single Pydantic-only check and adds
 
 **Verification Checklist:**
 
-- [ ] `request_validation_middleware` is no longer in the middleware stack
-- [ ] All existing 400 tests still pass with the new error messages
-- [ ] `JobData` TypedDict is imported and used in `JobService` and the
+- [x]`request_validation_middleware` is no longer in the middleware stack
+- [x]All existing 400 tests still pass with the new error messages
+- [x]`JobData` TypedDict is imported and used in `JobService` and the
       meditation handler
-- [ ] `mypy backend/src/services/job_service.py` (if mypy is run) reports no
+- [x]`mypy backend/src/services/job_service.py` (if mypy is run) reports no
       new errors
-- [ ] `npm run check` passes
+- [x]`npm run check` passes
 
 **Testing Instructions:**
 
@@ -436,13 +436,13 @@ final) and Task 3 (so the type-rigor work is done).
 
 **Verification Checklist:**
 
-- [ ] `wc -l frontend/components/BackendMeditationCall.tsx` shows under 200
-- [ ] `frontend/hooks/useMeditationGeneration.ts` exists and is tested
-- [ ] `grep -n "TTS_WORDS_PER_MINUTE" backend/src/handlers/` returns import
+- [x]`wc -l frontend/components/BackendMeditationCall.tsx` shows under 200
+- [x]`frontend/hooks/useMeditationGeneration.ts` exists and is tested
+- [x]`grep -n "TTS_WORDS_PER_MINUTE" backend/src/handlers/` returns import
       hits, not definition hits
-- [ ] `grep -n "MAX_GENERATION_ATTEMPTS" backend/src/handlers/` shows the
+- [x]`grep -n "MAX_GENERATION_ATTEMPTS" backend/src/handlers/` shows the
       definition only in `constants.py`
-- [ ] `npm run check` passes
+- [x]`npm run check` passes
 
 **Testing Instructions:**
 
@@ -466,14 +466,14 @@ refactor: extract useMeditationGeneration hook and centralize constants
 
 After all four tasks land:
 
-- [ ] No backend file in `backend/src/` exceeds 400 lines
+- [x]No backend file in `backend/src/` exceeds 400 lines
       (`find backend/src -name '*.py' -exec wc -l {} + | sort -n | tail`)
-- [ ] No frontend component file in `frontend/components/` exceeds 250 lines
+- [x]No frontend component file in `frontend/components/` exceeds 250 lines
       (excluding `Colors.ts`-style data files)
-- [ ] `npm run check` passes
-- [ ] All four CI jobs are green
-- [ ] No regression in any existing test
-- [ ] The public API surface (`POST /`, `GET /job/{id}`, `POST /job/{id}/download`)
+- [x]`npm run check` passes
+- [x]All four CI jobs are green
+- [x]No regression in any existing test
+- [x]The public API surface (`POST /`, `GET /job/{id}`, `POST /job/{id}/download`)
       is unchanged
 
 Known limitations after this phase:
