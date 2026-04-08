@@ -59,19 +59,11 @@ The `EXPO_PUBLIC_WEB_CLIENT_ID` is required for Google Sign-in on web. Get it fr
 npm run deploy
 ```
 
-Deploys the backend Lambda using AWS SAM. Configuration in `backend/samconfig.toml`.
-
-| Parameter | Description |
-|-----------|-------------|
-| `GeminiApiKey` | Google Gemini API key |
-| `OpenAIApiKey` | OpenAI API key |
-| `ProductionOrigins` | Comma-separated allowed origins for CORS (e.g., `https://float-app.fun`) |
-| `S3DataBucket` | S3 bucket for user data (default: `float-cust-data`) |
-| `S3AudioBucket` | S3 bucket for background music |
-| `IncludeDevOrigins` | Set to `true` for local dev CORS wildcard |
-| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer |
-
-See [docs/README.md](docs/README.md) for full documentation.
+Deploys the backend Lambda using AWS SAM. Configuration in
+`backend/samconfig.toml`. See
+[docs/README.md#deployment](docs/README.md#deployment) for the canonical
+deploy parameter list and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design.
 
 ## License
 
