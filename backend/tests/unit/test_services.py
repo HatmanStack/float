@@ -1470,3 +1470,127 @@ class TestMeditationPromptTranscript:
             call_args = mock_model.generate_content.call_args
             prompt = call_args[0][0][0]
             assert "Check-in transcript" not in prompt
+
+
+@pytest.mark.unit
+class TestProcessStreamToHls:
+    """Phase 3 Tasks 1-3 -- thread-safe state, event-based watcher, and
+    generator cleanup on BrokenPipeError in ``process_stream_to_hls``."""
+
+    def _make_service(self, mock_storage_service, tmp_path):
+        mock_hls = MagicMock()
+        mock_hls.upload_segment_from_file.return_value = True
+        mock_hls.generate_live_playlist.return_value = "#EXTM3U\n"
+        mock_hls.upload_playlist.return_value = True
+        mock_hls.finalize_playlist.return_value = True
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls)
+        return service, mock_hls
+
+    def test_process_stream_to_hls_uses_locked_state(
+        self, mock_storage_service, tmp_path, monkeypatch
+    ):
+        """Drive process_stream_to_hls end-to-end with a fake Popen and a
+        fake generator. Assert the thread-safe container, watcher termination
+        on the done event, and successful segment upload counting."""
+        service, mock_hls = self._make_service(mock_storage_service, tmp_path)
+
+        # Patch tempfile.mkdtemp to return a known directory under tmp_path
+        stream_dir = tmp_path / "stream"
+        stream_dir.mkdir()
+        fade_dir = tmp_path / "fade"
+        fade_dir.mkdir()
+        dirs = iter([str(stream_dir), str(fade_dir)])
+        monkeypatch.setattr(
+            "src.services.ffmpeg_audio_service.tempfile.mkdtemp",
+            lambda prefix="": next(dirs),
+        )
+
+        # Pre-create two segment files so the watcher sees them immediately.
+        (stream_dir / "segment_000.ts").write_bytes(b"ts-data-0")
+        (stream_dir / "segment_001.ts").write_bytes(b"ts-data-1")
+
+        # Fake Popen that ignores stdin and reports success.
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None
+        fake_proc.returncode = 0
+        fake_proc.stderr.read.return_value = b""
+        fake_proc.wait.return_value = 0
+        monkeypatch.setattr(
+            "src.services.ffmpeg_audio_service.subprocess.Popen",
+            lambda *a, **kw: fake_proc,
+        )
+
+        # Fake duration probe (get_audio_duration) so we don't shell out.
+        monkeypatch.setattr(service, "get_audio_duration", lambda p: 5.0)
+
+        # Disable fade segment appending for this test.
+        monkeypatch.setattr(
+            service,
+            "_append_fade_segments",
+            lambda *a, **kw: a[4],  # return current_segments unchanged
+        )
+
+        def generator():
+            yield b"chunk-0"
+            yield b"chunk-1"
+
+        gen = generator()
+        total_segments, durations = service.process_stream_to_hls(
+            voice_generator=gen,
+            music_path=str(tmp_path / "music.mp3"),
+            user_id="user-1",
+            job_id="job-1",
+            estimated_voice_duration=60.0,
+        )
+
+        assert total_segments == 2
+        assert mock_hls.upload_segment_from_file.call_count == 2
+        assert mock_hls.finalize_playlist.called
+
+    def test_process_stream_to_hls_closes_generator_on_broken_pipe(
+        self, mock_storage_service, tmp_path, monkeypatch
+    ):
+        """On BrokenPipeError, voice_generator.close() MUST be called so the
+        TTS provider's HTTP connection is released, and the raised exception
+        MUST be an AudioProcessingError (not a bare Exception)."""
+        from src.exceptions import AudioProcessingError
+
+        service, _ = self._make_service(mock_storage_service, tmp_path)
+
+        stream_dir = tmp_path / "stream"
+        stream_dir.mkdir()
+        monkeypatch.setattr(
+            "src.services.ffmpeg_audio_service.tempfile.mkdtemp",
+            lambda prefix="": str(stream_dir),
+        )
+
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None
+        fake_proc.stdin.write.side_effect = BrokenPipeError("pipe closed")
+        fake_proc.stderr.read.return_value = b"ffmpeg died"
+        monkeypatch.setattr(
+            "src.services.ffmpeg_audio_service.subprocess.Popen",
+            lambda *a, **kw: fake_proc,
+        )
+        monkeypatch.setattr(service, "get_audio_duration", lambda p: 5.0)
+
+        close_called = {"n": 0}
+
+        def generator():
+            try:
+                yield b"chunk-0"
+                yield b"chunk-1"
+            finally:
+                close_called["n"] += 1
+
+        gen = generator()
+        with pytest.raises(AudioProcessingError):
+            service.process_stream_to_hls(
+                voice_generator=gen,
+                music_path=str(tmp_path / "music.mp3"),
+                user_id="user-1",
+                job_id="job-1",
+                estimated_voice_duration=60.0,
+            )
+
+        assert close_called["n"] == 1

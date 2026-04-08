@@ -7,8 +7,8 @@ import shutil
 import subprocess
 import tempfile
 import threading
-import time
-from typing import TYPE_CHECKING, Callable, Iterator, List, Optional
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Callable, Iterator, List, Optional, Set
 
 from ..config.constants import (
     DEFAULT_MUSIC_VOLUME_REDUCTION,
@@ -19,7 +19,7 @@ from ..config.constants import (
     HLS_TRAILING_PAD_PER_TIER,
 )
 from ..config.settings import settings
-from ..exceptions import AudioProcessingError
+from ..exceptions import AudioProcessingError, ErrorCode, ExternalServiceError
 from ..utils.cache import music_list_cache
 from ..utils.logging_utils import get_logger
 from .audio_service import AudioService
@@ -37,6 +37,30 @@ HLS_SEGMENT_DURATION = 5  # seconds
 FFMPEG_STEP_TIMEOUT = 120  # 2 minutes per individual step
 FFMPEG_HLS_TIMEOUT = 300  # 5 minutes for full HLS generation
 FFMPEG_STREAM_TIMEOUT = 600  # 10 minutes for full streaming pipeline
+
+
+@dataclass
+class _StreamState:
+    """Thread-safe state container for ``process_stream_to_hls``.
+
+    All mutable fields MUST be read or written while holding ``lock``.
+    Cross-thread termination happens via ``done`` (a ``threading.Event``)
+    rather than polling ``os.path.exists`` on the output directory.
+    """
+
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    uploading: bool = True
+    segments_uploaded: int = 0
+    segment_durations: List[float] = field(default_factory=list)
+    uploaded_segments: Set[str] = field(default_factory=set)
+    error: Optional[BaseException] = None
+    done: threading.Event = field(default_factory=threading.Event)
+
+    def stop(self) -> None:
+        """Signal the watcher that streaming is finished."""
+        with self.lock:
+            self.uploading = False
+        self.done.set()
 
 
 class FFmpegAudioService(AudioService):
@@ -201,7 +225,7 @@ class FFmpegAudioService(AudioService):
                     "FFmpeg HLS generation timed out",
                     extra={"data": {"timeout": FFMPEG_HLS_TIMEOUT, "cmd": " ".join(ffmpeg_cmd)}},
                 )
-                raise Exception(
+                raise AudioProcessingError(
                     f"FFmpeg HLS generation timed out after {FFMPEG_HLS_TIMEOUT}s"
                 ) from e
 
@@ -222,7 +246,11 @@ class FFmpegAudioService(AudioService):
                     user_id, job_id, i, segment_file
                 )
                 if not success:
-                    raise Exception(f"Failed to upload segment {i}")
+                    raise ExternalServiceError(
+                        f"Failed to upload segment {i}",
+                        ErrorCode.STORAGE_FAILURE,
+                        details=f"user_id={user_id}, job_id={job_id}",
+                    )
 
                 segments_uploaded += 1
 
@@ -538,7 +566,11 @@ class FFmpegAudioService(AudioService):
                     user_id, job_id, segment_index, fade_segment
                 )
                 if not success:
-                    raise Exception(f"Failed to upload fade segment {segment_index}")
+                    raise ExternalServiceError(
+                        f"Failed to upload fade segment {segment_index}",
+                        ErrorCode.STORAGE_FAILURE,
+                        details=f"user_id={user_id}, job_id={job_id}",
+                    )
                 segment_durations.append(seg_duration)
                 logger.info(f"Uploaded fade segment {segment_index}")
 
@@ -651,98 +683,132 @@ class FFmpegAudioService(AudioService):
             stderr=subprocess.PIPE,
         )
 
-        # State for watcher thread
-        state = {
-            "uploading": True,
-            "segments_uploaded": 0,
-            "segment_durations": [],
-            "error": None,
-        }
-        uploaded_segments = set()
+        # Thread-safe state container shared between the main thread (which
+        # feeds the FFmpeg stdin pipe) and the upload watcher thread.
+        state = _StreamState()
 
-        def upload_watcher():
-            """Watch for new segments and upload them progressively."""
-            while state["uploading"] or os.path.exists(hls_output_dir):
+        def _drain_segments() -> None:
+            """Scan the output directory and upload any new segments.
+
+            All shared-state reads and writes happen under ``state.lock``.
+            Called from the watcher loop as well as for the final drain pass
+            after ``state.done`` fires.
+            """
+            segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
+            for segment_file in segment_files:
+                with state.lock:
+                    if segment_file in state.uploaded_segments:
+                        continue
+
+                if not os.path.exists(segment_file):
+                    continue
+                file_size = os.path.getsize(segment_file)
+                if file_size == 0:
+                    continue
+
+                segment_name = os.path.basename(segment_file)
+                segment_index = int(segment_name.replace("segment_", "").replace(".ts", ""))
+
+                seg_duration = self.get_audio_duration(segment_file)
+                if seg_duration == 0:
+                    seg_duration = float(HLS_SEGMENT_DURATION)
+
+                with state.lock:
+                    while len(state.segment_durations) <= segment_index:
+                        state.segment_durations.append(float(HLS_SEGMENT_DURATION))
+                    state.segment_durations[segment_index] = seg_duration
+
+                if self.hls_service.upload_segment_from_file(
+                    user_id, job_id, segment_index, segment_file
+                ):
+                    with state.lock:
+                        state.uploaded_segments.add(segment_file)
+                        state.segments_uploaded += 1
+                        segments_uploaded_snapshot = state.segments_uploaded
+                        durations_snapshot = list(
+                            state.segment_durations[:segments_uploaded_snapshot]
+                        )
+
+                    playlist_content = self.hls_service.generate_live_playlist(
+                        user_id,
+                        job_id,
+                        segments_uploaded_snapshot,
+                        durations_snapshot,
+                        is_complete=False,
+                    )
+                    self.hls_service.upload_playlist(user_id, job_id, playlist_content)
+
+                    if progress_callback:
+                        progress_callback(segments_uploaded_snapshot, None)
+
+                    logger.info(f"Uploaded segment {segment_index}")
+                else:
+                    logger.error(f"Failed to upload segment {segment_index}")
+
+        def upload_watcher() -> None:
+            """Watch for new segments and upload them progressively.
+
+            Uses ``state.done.wait`` for liveness instead of polling
+            ``os.path.exists`` on the output directory; the latter spun
+            indefinitely if the main thread blocked before ``rmtree``.
+            """
+            while True:
                 try:
-                    segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
-                    for segment_file in segment_files:
-                        if segment_file in uploaded_segments:
-                            continue
-
-                        # Wait for file to be fully written
-                        if not os.path.exists(segment_file):
-                            continue
-                        file_size = os.path.getsize(segment_file)
-                        if file_size == 0:
-                            continue
-
-                        # Extract segment index
-                        segment_name = os.path.basename(segment_file)
-                        segment_index = int(segment_name.replace("segment_", "").replace(".ts", ""))
-
-                        # Get duration
-                        seg_duration = self.get_audio_duration(segment_file)
-                        if seg_duration == 0:
-                            seg_duration = float(HLS_SEGMENT_DURATION)
-
-                        while len(state["segment_durations"]) <= segment_index:
-                            state["segment_durations"].append(float(HLS_SEGMENT_DURATION))
-                        state["segment_durations"][segment_index] = seg_duration
-
-                        # Upload segment
-                        if self.hls_service.upload_segment_from_file(
-                            user_id, job_id, segment_index, segment_file
-                        ):
-                            uploaded_segments.add(segment_file)
-                            state["segments_uploaded"] += 1
-
-                            # Update playlist
-                            playlist_content = self.hls_service.generate_live_playlist(
-                                user_id,
-                                job_id,
-                                state["segments_uploaded"],
-                                state["segment_durations"][: state["segments_uploaded"]],
-                                is_complete=False,
-                            )
-                            self.hls_service.upload_playlist(user_id, job_id, playlist_content)
-
-                            if progress_callback:
-                                progress_callback(state["segments_uploaded"], None)
-
-                            logger.info(f"Uploaded segment {segment_index}")
-                        else:
-                            logger.error(f"Failed to upload segment {segment_index}")
-
-                    if not state["uploading"]:
+                    _drain_segments()
+                    if state.done.wait(timeout=0.3):
+                        # Final drain for any segments that landed after stop()
+                        _drain_segments()
                         break
-                    time.sleep(0.3)
                 except Exception as e:
                     logger.error(f"Watcher error: {e}")
-                    state["error"] = e
+                    with state.lock:
+                        state.error = e
                     break
 
         watcher_thread = threading.Thread(target=upload_watcher)
         watcher_thread.start()
 
         try:
-            # Stream voice data to FFmpeg stdin AND save to temp file
-            with open(voice_temp_path, "wb") as voice_file:
-                for chunk in voice_generator:
-                    # Check if FFmpeg is still running before writing
-                    if process.poll() is not None:
-                        stderr = process.stderr.read().decode()
-                        logger.error(f"FFmpeg exited early: {stderr}")
-                        raise Exception(f"FFmpeg exited unexpectedly: {stderr}")
-                    process.stdin.write(chunk)
-                    process.stdin.flush()
-                    voice_file.write(chunk)  # Save for fade processing
+            # Stream voice data to FFmpeg stdin AND save to temp file. The
+            # outer try/finally below guarantees ``voice_generator.close()``
+            # is called on every exit path so the underlying HTTP iterator
+            # from the TTS provider is released (no partial-write leaks).
+            try:
+                with open(voice_temp_path, "wb") as voice_file:
+                    for chunk in voice_generator:
+                        # Check if FFmpeg is still running before writing
+                        if process.poll() is not None:
+                            stderr = process.stderr.read().decode()
+                            logger.error(f"FFmpeg exited early: {stderr}")
+                            raise AudioProcessingError(f"FFmpeg exited unexpectedly: {stderr}")
+                        try:
+                            process.stdin.write(chunk)
+                            process.stdin.flush()
+                        except BrokenPipeError as bpe:
+                            stderr = process.stderr.read().decode() if process.stderr else "unknown"
+                            logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
+                            raise AudioProcessingError(
+                                f"FFmpeg pipe closed mid-stream: {stderr}"
+                            ) from bpe
+                        voice_file.write(chunk)  # Save for fade processing
+            finally:
+                # Best-effort generator cleanup (idempotent). Generators
+                # expose .close() which triggers GeneratorExit inside the
+                # generator body, releasing any HTTP connections held by the
+                # TTS provider implementations.
+                close = getattr(voice_generator, "close", None)
+                if callable(close):
+                    try:
+                        close()
+                    except Exception:
+                        logger.debug("voice_generator.close() raised; ignoring")
 
             process.stdin.close()
             process.wait(timeout=FFMPEG_STREAM_TIMEOUT)
 
             if process.returncode != 0:
                 stderr = process.stderr.read().decode()
-                raise Exception(f"FFmpeg failed: {stderr}")
+                raise AudioProcessingError(f"FFmpeg failed: {stderr}")
 
         except subprocess.TimeoutExpired as err:
             logger.error(f"FFmpeg streaming process timed out after {FFMPEG_STREAM_TIMEOUT}s")
@@ -751,39 +817,42 @@ class FFmpegAudioService(AudioService):
             raise AudioProcessingError(
                 f"FFmpeg streaming timed out after {FFMPEG_STREAM_TIMEOUT}s"
             ) from err
-        except BrokenPipeError as e:
-            stderr = process.stderr.read().decode() if process.stderr else "unknown"
-            logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
-            raise Exception(f"FFmpeg pipe closed: {stderr}") from e
         except Exception as e:
             logger.error(f"Streaming error: {e}")
             if process.poll() is None:
                 process.kill()
             raise
         finally:
-            state["uploading"] = False
+            state.stop()
             watcher_thread.join(timeout=30)
 
-            if state["error"]:
-                raise state["error"]
+            with state.lock:
+                watcher_error = state.error
+            if watcher_error:
+                raise watcher_error
 
         # Append fade-out segments (music-only with fade) after the last streamed segment
-        total_streamed_duration = sum(state["segment_durations"])
-        state["segments_uploaded"] = self._append_fade_segments(
+        with state.lock:
+            total_streamed_duration = sum(state.segment_durations)
+            current_segments = state.segments_uploaded
+            durations_list = state.segment_durations
+        new_segments = self._append_fade_segments(
             music_path,
             total_streamed_duration,
             user_id,
             job_id,
-            state["segments_uploaded"],
-            state["segment_durations"],
+            current_segments,
+            durations_list,
         )
+        with state.lock:
+            state.segments_uploaded = new_segments
+            final_segments = state.segments_uploaded
+            final_durations = list(state.segment_durations)
 
         # Finalize playlist with updated segments (including any new fade segments)
-        self.hls_service.finalize_playlist(
-            user_id, job_id, state["segments_uploaded"], state["segment_durations"]
-        )
+        self.hls_service.finalize_playlist(user_id, job_id, final_segments, final_durations)
 
         # Cleanup
         shutil.rmtree(hls_output_dir, ignore_errors=True)
 
-        return (state["segments_uploaded"], state["segment_durations"])
+        return (final_segments, final_durations)
