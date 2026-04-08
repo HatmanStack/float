@@ -1,14 +1,10 @@
-import ast
 import glob
 import os
-import random
-import re
 import shutil
 import subprocess
 import tempfile
 import threading
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable, Iterator, List, Optional, Set
+from typing import TYPE_CHECKING, Callable, Iterator, List, Optional
 
 from ..config.constants import (
     DEFAULT_MUSIC_VOLUME_REDUCTION,
@@ -20,8 +16,11 @@ from ..config.constants import (
 )
 from ..config.settings import settings
 from ..exceptions import AudioProcessingError, ErrorCode, ExternalServiceError
-from ..utils.cache import music_list_cache
 from ..utils.logging_utils import get_logger
+from .audio.audio_mixer import cleanup_paths
+from .audio.duration_probe import probe_duration
+from .audio.hls_stream_encoder import StreamState
+from .audio.music_selector import MusicSelector
 from .audio_service import AudioService
 from .storage_service import StorageService
 
@@ -39,28 +38,10 @@ FFMPEG_HLS_TIMEOUT = 300  # 5 minutes for full HLS generation
 FFMPEG_STREAM_TIMEOUT = 600  # 10 minutes for full streaming pipeline
 
 
-@dataclass
-class _StreamState:
-    """Thread-safe state container for ``process_stream_to_hls``.
-
-    All mutable fields MUST be read or written while holding ``lock``.
-    Cross-thread termination happens via ``done`` (a ``threading.Event``)
-    rather than polling ``os.path.exists`` on the output directory.
-    """
-
-    lock: threading.Lock = field(default_factory=threading.Lock)
-    uploading: bool = True
-    segments_uploaded: int = 0
-    segment_durations: List[float] = field(default_factory=list)
-    uploaded_segments: Set[str] = field(default_factory=set)
-    error: Optional[BaseException] = None
-    done: threading.Event = field(default_factory=threading.Event)
-
-    def stop(self) -> None:
-        """Signal the watcher that streaming is finished."""
-        with self.lock:
-            self.uploading = False
-        self.done.set()
+# Backwards-compatible alias so any internal/test reference to
+# ``_StreamState`` continues to resolve. The dataclass body lives in
+# :mod:`.audio.hls_stream_encoder` after Phase 4 Task 2.
+_StreamState = StreamState
 
 
 class FFmpegAudioService(AudioService):
@@ -72,6 +53,7 @@ class FFmpegAudioService(AudioService):
         self.storage_service = storage_service
         self.hls_service = hls_service
         self.ffmpeg_executable = settings.FFMPEG_PATH
+        self._music_selector = MusicSelector(storage_service)
         self._verify_ffmpeg()
 
     def _verify_ffmpeg(self):
@@ -87,30 +69,12 @@ class FFmpegAudioService(AudioService):
             logger.error(f"Could not get size of {self.ffmpeg_executable}: {e}")
 
     def get_audio_duration(self, file_path: str) -> float:
-        try:
-            result = subprocess.run(
-                [self.ffmpeg_executable, "-i", file_path, "-f", "null", "-"],
-                stderr=subprocess.PIPE,
-                text=True,
-                check=True,
-                timeout=FFMPEG_STEP_TIMEOUT,
-            )
-            duration_lines = [line for line in result.stderr.split("\n") if "Duration" in line]
-            if not duration_lines:
-                logger.warning(
-                    "No Duration line in ffmpeg output", extra={"data": {"file": file_path}}
-                )
-                return 0.0
-            duration_str = duration_lines[0].split(",")[0].split("Duration:")[1].strip()
-            h, m, s = map(float, duration_str.split(":"))
-            duration = h * 3600 + m * 60 + s
-            return duration
-        except Exception as e:
-            logger.warning(
-                "Error getting audio duration",
-                extra={"data": {"error": str(e)}},
-            )
-            return 0.0
+        """Return the duration of ``file_path`` in seconds.
+
+        Delegates to :func:`.audio.duration_probe.probe_duration` so the
+        ffmpeg invocation lives in one place.
+        """
+        return probe_duration(self.ffmpeg_executable, file_path)
 
     def combine_voice_and_music(
         self, voice_path: str, music_list: List[str], timestamp: str, output_path: str
@@ -134,11 +98,7 @@ class FFmpegAudioService(AudioService):
             logger.error(f"Error in audio combination: {e}")
             raise
         finally:
-            if mixed_audio_path and os.path.exists(mixed_audio_path):
-                try:
-                    os.remove(mixed_audio_path)
-                except OSError:
-                    pass
+            cleanup_paths(mixed_audio_path)
 
     def combine_voice_and_music_hls(
         self,
@@ -286,11 +246,7 @@ class FFmpegAudioService(AudioService):
             if os.path.exists(hls_output_dir):
                 shutil.rmtree(hls_output_dir, ignore_errors=True)
             # Cleanup mixed audio file
-            if mixed_audio_path and os.path.exists(mixed_audio_path):
-                try:
-                    os.remove(mixed_audio_path)
-                except OSError:
-                    pass
+            cleanup_paths(mixed_audio_path)
 
     def _prepare_mixed_audio(
         self, voice_path: str, music_list: List[str], timestamp: str
@@ -412,69 +368,17 @@ class FFmpegAudioService(AudioService):
 
         finally:
             # Cleanup intermediate files (always, even on failure)
-            for path in intermediate_paths:
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except OSError:
-                    pass
+            cleanup_paths(*intermediate_paths)
 
     def select_background_music(
         self, used_music: List[str], duration: float, output_path: str
     ) -> List[str]:
-        if used_music is None:
-            used_music = []
-        else:
-            if isinstance(used_music, str):
-                try:
-                    used_music = ast.literal_eval(used_music)
-                    if not isinstance(used_music, list):
-                        used_music = [used_music]
-                except (ValueError, SyntaxError):
-                    used_music = [used_music]
-            elif not isinstance(used_music, list):
-                used_music = [used_music]
-        bucket_name = settings.AWS_AUDIO_BUCKET
-
-        # Use cached music list to avoid repeated S3 API calls
-        cache_key = f"music_list:{bucket_name}"
-        existing_keys = music_list_cache.get(cache_key)
-        if existing_keys is None:
-            existing_keys = self.storage_service.list_objects(bucket_name)
-            music_list_cache.set(cache_key, existing_keys)
-            logger.debug("Cached music list from S3", extra={"data": {"count": len(existing_keys)}})
-        filtered_keys = set()
-        for key in existing_keys:
-            track_duration = self._extract_last_numeric_value(key)
-            if track_duration is not None:
-                if duration <= track_duration <= duration + 30:
-                    filtered_keys.add(key)
-        if not filtered_keys:
-            for key in existing_keys:
-                track_duration = self._extract_last_numeric_value(key)
-                if track_duration == 300:
-                    filtered_keys.add(key)
-        available_keys = list(filtered_keys - set(used_music))
-        if not available_keys:
-            logger.debug("No new music tracks available, reusing from pool")
-            available_keys = (
-                list(filtered_keys) if filtered_keys else ["Hopeful-Elegant-LaidBack_120.wav"]
-            )
-        file_key = random.choice(available_keys)
-        if self.storage_service.download_file(bucket_name, file_key, output_path):
-            used_music.append(file_key)
-            return used_music
-        else:
-            raise AudioProcessingError(
-                f"Failed to download music file: {file_key}",
-                details=f"bucket={bucket_name}, key={file_key}",
-            )
+        """Delegate to :class:`MusicSelector` for background music selection."""
+        return self._music_selector.select(used_music, duration, output_path)
 
     def _extract_last_numeric_value(self, filename: str) -> Optional[int]:
-        matches = re.findall(r"(\d+)(?=\D*$)", filename)
-        if matches:
-            return int(matches[-1])
-        return None
+        """Back-compat shim: delegates to :meth:`MusicSelector._extract_last_numeric_value`."""
+        return MusicSelector._extract_last_numeric_value(filename)
 
     def _append_fade_segments(
         self,
