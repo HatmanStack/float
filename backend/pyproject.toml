@@ -114,15 +114,19 @@ ignore = [
     "S607",   # starting a process with a partial executable path
     "S108",   # /tmp usage — Lambda runs in /tmp by design, cannot use tempfile module
     "S311",   # pseudo-random generators — used for non-security purposes (jitter, IDs)
-    "UP006",  # use builtin type (e.g., `list` instead of `List`) — pre-existing, cosmetic only
-    "UP045",  # use `X | None` instead of `Optional[X]` — pre-existing, cosmetic only
-    "UP035",  # deprecated import (e.g., `typing.List`) — pre-existing, cosmetic only
-    "UP007",  # use `X | Y` instead of `Union[X, Y]` — pre-existing, cosmetic only
-    "UP017",  # use `datetime.UTC` instead of `datetime.timezone.utc` — pre-existing, cosmetic only
-    "UP024",  # replace aliased errors with `OSError` — pre-existing, cosmetic only
-    "UP028",  # replace `yield` in `for` loop with `yield from` — pre-existing, cosmetic only
-    "UP015",  # unnecessary open mode parameters — pre-existing, cosmetic only
-    "UP046",  # use `type` instead of `TypeAlias` — pre-existing, cosmetic only
+    # Plan 2026-04-08-audit-float Phase 5 Task 3: violator counts measured
+    # 2026-04-08 via `uvx ruff check --select <rule> .`. Modernization is
+    # deferred to a separate plan (see Phase 0 "Out of Scope" item 6); the
+    # counts below document the debt so the next plan can size the work.
+    "UP006",  # 152 violators: builtin type vs `List`/`Dict`; defer to modernization plan
+    "UP045",  # 83 violators: `X | None` vs `Optional[X]`; defer to modernization plan
+    "UP035",  # 49 violators: deprecated `typing` imports; defer to modernization plan
+    "UP007",  # 4 violators: `X | Y` vs `Union[X, Y]`; defer to modernization plan
+    "UP017",  # 3 violators: `datetime.UTC` vs `datetime.timezone.utc`; defer
+    "UP024",  # 2 violators: aliased errors vs `OSError`; defer
+    "UP028",  # 3 violators: `yield from` refactor; defer
+    "UP015",  # 1 violator: unnecessary open mode parameter; defer
+    "UP046",  # 1 violator: `type` vs `TypeAlias`; defer
     "B017",   # `assertRaises(Exception)` too broad — pre-existing in tests
 ]
 
