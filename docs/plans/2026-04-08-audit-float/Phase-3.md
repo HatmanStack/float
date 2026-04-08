@@ -104,12 +104,12 @@ no locking. `state["segments_uploaded"]`, `state["segment_durations"]`, and
 
 **Verification Checklist:**
 
-- [ ] No bare `state["..."]` accesses remain inside `process_stream_to_hls`
-- [ ] Every shared-state access is inside `with state.lock:`
-- [ ] The watcher loop terminates on `state.done.wait(timeout=...)` not on
+- [x] No bare `state["..."]` accesses remain inside `process_stream_to_hls`
+- [x] Every shared-state access is inside `with state.lock:`
+- [x] The watcher loop terminates on `state.done.wait(timeout=...)` not on
       `os.path.exists(hls_output_dir)`
-- [ ] New thread-safety test passes
-- [ ] `npm run check` passes
+- [x] New thread-safety test passes
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
@@ -167,11 +167,11 @@ exist).
 
 **Verification Checklist:**
 
-- [ ] `os.path.exists(hls_output_dir)` no longer appears in the watcher loop
+- [x] `os.path.exists(hls_output_dir)` no longer appears in the watcher loop
       condition
-- [ ] `time.sleep(0.3)` is replaced by `state.done.wait(timeout=0.3)`
-- [ ] The Task 1 thread-safety test still passes after this change
-- [ ] `npm run check` passes
+- [x] `time.sleep(0.3)` is replaced by `state.done.wait(timeout=0.3)`
+- [x] The Task 1 thread-safety test still passes after this change
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
@@ -248,10 +248,10 @@ provider connection open and leaking the iterator (lines 752-754, 770-773).
 
 **Verification Checklist:**
 
-- [ ] The streaming loop has a `finally:` block that closes the generator
-- [ ] `BrokenPipeError` produces an `AudioProcessingError` (not raw `Exception`)
-- [ ] New unit test confirms generator close on broken pipe
-- [ ] `npm run check` passes
+- [x] The streaming loop has a `finally:` block that closes the generator
+- [x] `BrokenPipeError` produces an `AudioProcessingError` (not raw `Exception`)
+- [x] New unit test confirms generator close on broken pipe
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
@@ -341,12 +341,12 @@ failed, but the previously-enqueued async invocation may still execute.
 
 **Verification Checklist:**
 
-- [ ] `_mark_job_failed` exists as a single helper used by all failure paths
-- [ ] No retry fires when `increment_generation_attempt` raises
-- [ ] Test `test_retry_does_not_fire_on_increment_failure` passes
-- [ ] Test `test_retry_marks_failed_on_invoke_failure` passes
-- [ ] Existing retry tests still pass
-- [ ] `npm run check` passes
+- [x] `_mark_job_failed` exists as a single helper used by all failure paths
+- [x] No retry fires when `increment_generation_attempt` raises
+- [x] Test `test_retry_does_not_fire_on_increment_failure` passes
+- [x] Test `test_retry_marks_failed_on_invoke_failure` passes
+- [x] Existing retry tests still pass
+- [x] `npm run check` passes
 
 **Testing Instructions:**
 
@@ -433,13 +433,13 @@ for this phase).
 
 **Verification Checklist:**
 
-- [ ] `grep -rn "raise Exception(" backend/src/` returns 0 hits in product
+- [x] `grep -rn "raise Exception(" backend/src/` returns 0 hits in product
       code (test files may still have `raise Exception` for fixtures and that
       is acceptable)
-- [ ] Every replaced exception is a subclass of `FloatException`
-- [ ] All existing tests pass after type updates
-- [ ] `npm run check` passes
-- [ ] `error_handling_middleware` (Phase 2 Task 4) routes the new exceptions
+- [x] Every replaced exception is a subclass of `FloatException`
+- [x] All existing tests pass after type updates
+- [x] `npm run check` passes
+- [x] `error_handling_middleware` (Phase 2 Task 4) routes the new exceptions
       to the correct status code
 
 **Testing Instructions:**
@@ -464,14 +464,14 @@ refactor(backend): replace raw Exception raises with domain types
 
 After all five tasks land:
 
-- [ ] `grep -rn "raise Exception(" backend/src/` returns 0 hits
-- [ ] `grep -rn 'state\["' backend/src/services/ffmpeg_audio_service.py`
+- [x] `grep -rn "raise Exception(" backend/src/` returns 0 hits
+- [x] `grep -rn 'state\["' backend/src/services/ffmpeg_audio_service.py`
       returns 0 hits inside `process_stream_to_hls`
-- [ ] `grep -n "os.path.exists(hls_output_dir)" backend/src/services/ffmpeg_audio_service.py`
+- [x] `grep -n "os.path.exists(hls_output_dir)" backend/src/services/ffmpeg_audio_service.py`
       returns no hits inside the watcher loop
-- [ ] `_mark_job_failed` exists in `lambda_handler.py`
-- [ ] All new tests pass
-- [ ] `npm run check` passes
+- [x] `_mark_job_failed` exists in `lambda_handler.py`
+- [x] All new tests pass
+- [x] `npm run check` passes
 
 Known limitations after this phase:
 
