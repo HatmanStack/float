@@ -43,7 +43,7 @@ pip install -r requirements.txt
 
 Create `frontend/.env` with:
 
-```
+```env
 EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<your-api-url>
 EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
 ```
@@ -57,10 +57,11 @@ EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
 See `frontend/.env.example` for the canonical template.
 
 To get `EXPO_PUBLIC_WEB_CLIENT_ID`:
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create OAuth 2.0 Client ID → Web application
-3. Add authorized JavaScript origins (e.g., `http://localhost:8081` for dev)
-4. Copy the Client ID
+1. Create OAuth 2.0 Client ID → Web application
+1. Add authorized JavaScript origins (e.g., `http://localhost:8081` for dev)
+1. Copy the Client ID
 
 ### Running
 

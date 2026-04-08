@@ -4,7 +4,7 @@ Float is a serverless meditation app with clear separation between frontend and 
 
 ## System Overview
 
-```
+```text
 ┌─────────────────────────┐
 │ Frontend (Expo)         │
 │ iOS/Android/Web         │

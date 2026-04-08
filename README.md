@@ -46,7 +46,7 @@ npm run check   # Run all lint and tests
 
 Create `frontend/.env` with:
 
-```
+```env
 EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<your-api-url>
 EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
 ```

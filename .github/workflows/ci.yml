@@ -4,14 +4,10 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '*.md'
       - '.claude/**'
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '*.md'
       - '.claude/**'
 
 concurrency:
@@ -140,11 +136,47 @@ jobs:
         working-directory: ./backend
         run: pip-audit -r requirements.txt
 
+  markdownlint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DavidAnson/markdownlint-cli2-action@v23
+        with:
+          globs: |
+            **/*.md
+            !node_modules/**
+            !.claude/**
+            !backend/.venv/**
+            !backend/.aws-sam/**
+            !**/CHANGELOG.md
+            !docs/plans/**
+            !frontend/tests/**/README.md
+
+  link-check:
+    name: Link Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --exclude-mail
+            --exclude '^https://your-lambda-url'
+            --exclude '^https://www.apache.org/licenses/LICENSE-2.0.html'
+            './**/*.md'
+            '!./node_modules/**'
+            '!./backend/.aws-sam/**'
+          fail: true
+
   status-check:
     name: All Checks Passed
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [frontend, backend, pip-audit]
+    needs: [frontend, backend, pip-audit, markdownlint, link-check]
     if: always()
     steps:
       - name: Verify
@@ -153,6 +185,8 @@ jobs:
             "${{ needs.frontend.result }}"
             "${{ needs.backend.result }}"
             "${{ needs.pip-audit.result }}"
+            "${{ needs.markdownlint.result }}"
+            "${{ needs.link-check.result }}"
           )
           for result in "${results[@]}"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then

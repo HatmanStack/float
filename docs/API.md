@@ -4,7 +4,7 @@ This document describes the AWS Lambda API endpoints for Float meditation app.
 
 ## Base URL
 
-```
+```text
 https://<your-lambda-function-url>/
 ```
 
@@ -36,7 +36,7 @@ Requests use POST for submissions and GET for job status polling. All POST reque
 
 **Common Headers**:
 
-```
+```text
 Content-Type: application/json
 ```
 
@@ -559,7 +559,7 @@ audioElement.play();
 
 The API includes CORS headers to allow requests from web clients:
 
-```
+```text
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: OPTIONS, POST, GET
 Access-Control-Allow-Headers: Content-Type
@@ -599,4 +599,3 @@ Currently no rate limiting. Future versions may add:
 - [ ] Background music selection UI
 - [ ] Meditation history retrieval
 - [ ] User preferences/settings
-
