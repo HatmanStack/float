@@ -1,4 +1,3 @@
-import logging
 import traceback
 from typing import Iterator
 
@@ -9,8 +8,9 @@ from ..config.settings import settings
 from ..exceptions import TTSError
 from ..services.tts_service import TTSService
 from ..utils.circuit_breaker import gemini_tts_circuit
+from ..utils.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class GeminiTTSProvider(TTSService):

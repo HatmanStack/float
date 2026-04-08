@@ -1,4 +1,3 @@
-import logging
 import traceback
 from typing import Iterator
 
@@ -8,8 +7,9 @@ from ..config.settings import settings
 from ..exceptions import TTSError
 from ..services.tts_service import TTSService
 from ..utils.circuit_breaker import openai_circuit, with_circuit_breaker
+from ..utils.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Voice instructions for meditation TTS
 MEDITATION_VOICE_INSTRUCTIONS = """Speak in a calm, soothing, and gentle meditation guide voice.
