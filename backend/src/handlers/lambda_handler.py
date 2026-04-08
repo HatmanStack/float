@@ -44,6 +44,20 @@ from .middleware import (
 
 logger = get_logger(__name__)
 
+# Cached boto3 Lambda client at module scope so it is reused across warm
+# invocations instead of being rebuilt per request. `boto3.client` is
+# thread-safe and the connection pool benefits from reuse.
+_lambda_client: Any = None
+
+
+def _get_lambda_client() -> Any:
+    """Return a cached boto3 Lambda client, creating it on first use."""
+    global _lambda_client
+    if _lambda_client is None:
+        _lambda_client = boto3.client("lambda")
+    return _lambda_client
+
+
 # Module-level rate limiter (per Lambda instance, resets on cold start)
 _token_rate_limit: Dict[str, list] = {}
 TOKEN_RATE_LIMIT_MAX = 5  # max tokens per window
@@ -161,7 +175,7 @@ class LambdaHandler:
 
     def _invoke_async_meditation(self, request: MeditationRequestModel, job_id: str):
         """Invoke this Lambda asynchronously to process meditation."""
-        lambda_client = boto3.client("lambda")
+        lambda_client = _get_lambda_client()
         function_name = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "")
 
         async_payload = {
