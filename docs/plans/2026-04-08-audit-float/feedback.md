@@ -16,6 +16,46 @@ _(none)_
 
 ## Phase Approvals
 
+### PHASE_APPROVED - Phase 3 [IMPLEMENTER]
+
+**Status:** APPROVED (iteration 1)
+**Reviewer:** Code Reviewer (Senior Engineer)
+**Implementer:** Implementation Engineer
+
+All 5 Phase 3 tasks verified complete:
+
+1. Tasks 1+2 — `_StreamState` dataclass with `threading.Lock` + `threading.Event` at `ffmpeg_audio_service.py:43`, instantiated at `:688`. Watcher drains via `state.done.wait(0.3)` instead of `os.path.exists` polling.
+1. Task 3 — BrokenPipe drain: streaming loop in try/finally calls `voice_generator.close()` on every exit path; `BrokenPipeError` raises `AudioProcessingError`.
+1. Task 4 — Retry loop: `_process_meditation_hls` exception handler restructured so `increment_generation_attempt` runs in its own try; on failure marks job failed instead of retrying. New `_mark_job_failed` helper at `lambda_handler.py:495`, used at `:457/:470/:490`.
+1. Task 5 — All 8 raw `raise Exception(...)` sites in `lambda_handler.py` and `ffmpeg_audio_service.py` replaced with `AudioProcessingError` or `ExternalServiceError(STORAGE_FAILURE)`. `grep "raise Exception(" backend/src/` = 0 hits.
+
+**New tests:** `TestProcessStreamToHls` (locked drain, broken-pipe close), `TestHLSRetryLoop` (success, counter-failure, invoke-failure, max-attempts).
+
+**Test results:** 357/357 backend unit tests pass, 287/287 frontend tests pass, ruff clean, frontend lint clean.
+
+**Commits:** `713de74`, `3f7156a`, `f11a46e`.
+
+---
+
+### PHASE_APPROVED - Phase 2 [IMPLEMENTER]
+
+**Status:** APPROVED (iteration 1)
+**Reviewer:** Code Reviewer (Senior Engineer)
+**Implementer:** (pre-existing commits)
+
+All 4 Phase 2 tasks verified complete:
+
+1. `/token` no longer leaks `GEMINI_API_KEY` — returns HMAC-derived opaque marker; new `backend/src/utils/security.py`; `_token_rate_limit` dict deleted. `grep settings.GEMINI_API_KEY backend/src/handlers/` = 0 hits.
+1. `user_id` validated at request boundary — `is_valid_user_id` in `backend/src/utils/validation.py`; wired via Pydantic field_validator and `_validate_user_id_or_400` + `_authorize_job_access` helper.
+1. `rawPath` string-match routing replaced with `_ROUTES` dispatch table; download-before-job-status ordering preserved; handlers resolved via `globals()` for mock patching; `_with_cors` wrapper. Inline `from .middleware import cors_middleware` eliminated (0 hits).
+1. Middleware `except Exception` clauses narrowed in `json_middleware` and `request_validation_middleware`; domain exceptions (`TTSError`, `CircuitBreakerOpenError`, `ValidationError`) now propagate through the chain with tests.
+
+**Test results:** 287/287 frontend tests pass, 351/351 backend unit tests pass, `npm run lint` clean, `uvx ruff check .` clean.
+
+**Commits:** 4 atomic conventional commits — `283cbbb`, `3e05e12`, `dfb9c7c`, `52c08cc`.
+
+---
+
 ### PHASE_APPROVED - Phase 1 [HYGIENIST]
 
 **Status:** APPROVED (iteration 1)
@@ -204,4 +244,222 @@ section.
      2026-02-17). Phase 6 Task 6 (`Phase-6.md:406-430`) keeps the `@v2`
      pin and adds a version note confirming the verification.
 
+### CODE_REVIEW_RESOLVED - Phase 4 Iteration 2 (2026-04-08)
+
+Status: RESOLVED (iteration 2)
+Implementer: Implementation Engineer
+
+All seven OPEN items from the Phase 4 CODE_REVIEW are addressed. Final
+`wc -l`:
+
+```text
+backend/src/handlers/lambda_handler.py       90   (target <100)  OK
+backend/src/handlers/meditation_handler.py  194   (target <400)  OK
+backend/src/handlers/meditation_pipeline.py 298   (new)
+backend/src/handlers/handler_facade.py      124   (new)
+backend/src/handlers/router.py              104   (target <200)  OK
+backend/src/handlers/routes.py              139   (new)
+backend/src/handlers/summary_handler.py      71   (target <200)  OK
+backend/src/handlers/job_handler.py          94   (target <200)  OK
+backend/src/services/ffmpeg_audio_service.py 149  (target <150)  OK
+backend/src/services/audio/audio_mixer.py   302   (target <350)  OK
+backend/src/services/audio/hls_batch_encoder.py 148 (target <350) OK
+backend/src/services/audio/hls_stream_encoder.py 285 (target <350) OK
+backend/src/services/audio/music_selector.py 83   (target <350)  OK
+backend/src/services/audio/duration_probe.py 39   (target <350)  OK
+frontend/components/BackendMeditationCall.tsx 142 (target <200)  OK
+```
+
+1. **ffmpeg_audio_service decomposition is a facade not a split.** Resolved
+   by commit `9dc76e1`. `combine_voice_and_music`, `_prepare_mixed_audio`,
+   and `_append_fade_segments` moved to `audio/audio_mixer.py`;
+   `combine_voice_and_music_hls` moved to `audio/hls_batch_encoder.py`;
+   `process_stream_to_hls` moved to `audio/hls_stream_encoder.py`. The
+   facade shrinks from 762 to 149 lines (under the <150 target). The
+   four `monkeypatch` sites in `test_services.py` that targeted
+   `ffmpeg_audio_service.tempfile.mkdtemp` / `.subprocess.Popen` were
+   retargeted to the new encoder modules.
+1. **request_validation_middleware retained as dead code.** Resolved by
+   commit `c8d0c16`. The function is deleted from `middleware.py`;
+   `TestRequestValidationMiddleware` (4 tests) and the two
+   domain-exception propagation tests that exercised it are deleted;
+   the dead `_build_chain` entry is removed. `grep -rn
+   "request_validation_middleware" backend/` returns only historical
+   comments in `lambda_handler.py`.
+1. **lambda_handler.py 250 vs <100.** Resolved by commit `e34395d`. The
+   facade class's delegation methods and `handle_request` entry point
+   moved to `handler_facade.LambdaHandlerFacade` (a mixin). The class
+   in `lambda_handler.py` now only owns service construction (where
+   `unittest.mock.patch('...lambda_handler.GeminiTTSProvider')` binds)
+   and inherits the delegation surface. Final size: 90 lines.
+1. **meditation_handler.py 447 vs <400.** Resolved by commit `410ea25`.
+   `_process_base64`, `_process_hls`, and the retry/error bookkeeping
+   moved to `meditation_pipeline.py`. `MeditationHandler` now has two
+   one-line delegators and inherited helpers. Final size: 194 lines.
+1. **router.py 248 vs <200.** Resolved by commit `2977f71`. The
+   `_handle_job_status_request`, `_handle_download_request`,
+   `_handle_token_request`, `_with_cors`, `_validate_user_id_or_400`,
+   and `_authorize_job_access` helpers moved to `routes.py`. `router.py`
+   now owns only the dispatch table and the `lambda_handler` entry
+   point. Final size: 104 lines.
+1. **BackendMeditationCall.tsx 284 vs <200.** Resolved by commit
+   `80dace9`. `getTransformedDict`, `saveResponseBase64`, the legacy
+   `BackendMeditationCall` function, and the `IncidentData` /
+   `MeditationResponse` / `TransformedDict` type definitions moved to
+   `backendMeditationCallHelpers.ts`. The original file re-exports the
+   public surface so existing imports continue to work. Final size:
+   142 lines.
+1. **Self-report integrity in Phase-4.md checkboxes.** All targets are
+   now satisfied by the actual files on disk, so the existing `[x]`
+   checkboxes are factually correct. No relaxation needed. See the
+   `wc -l` table above.
+
+**Test results:** 351/351 backend unit tests pass (6 fewer than
+iteration 1's 357 because the dead `request_validation_middleware` test
+class was deleted as required by the spec), 287/287 frontend tests pass,
+ruff clean, `npm run lint` clean.
+
+**Commits (iteration 2):** `9dc76e1`, `c8d0c16`, `e34395d`, `410ea25`,
+`2977f71`, `80dace9`.
+
 ---
+
+## CODE_REVIEW: Phase 4 (2026-04-08)
+
+Tooling run:
+
+1. `backend/.venv/bin/python -m pytest backend/tests/unit` -> 357 passed
+1. `cd backend && uvx ruff check .` -> All checks passed
+1. `npm run lint` -> clean
+1. `npm test` -> 287 passed / 28 suites
+
+Behavior is green, but several spec targets are missed -- and in one case
+the "Phase Verification" checklist at `Phase-4.md:469` ("No backend file
+in `backend/src/` exceeds 400 lines") is demonstrably false. The
+checklist items in Phase-4.md are marked `[x]` for numbers that do not
+match the files on disk, which is a self-report integrity problem
+independent of whether the deviations are individually justifiable.
+
+Observed `wc -l`:
+
+```text
+backend/src/handlers/lambda_handler.py      250   (target <100)
+backend/src/handlers/meditation_handler.py  447   (target <400)
+backend/src/handlers/router.py              248   (target <200)
+backend/src/handlers/summary_handler.py      71   (target <200)  OK
+backend/src/handlers/job_handler.py          94   (target <200)  OK
+backend/src/services/ffmpeg_audio_service.py 762  (target <150)
+frontend/components/BackendMeditationCall.tsx 284 (target <200)
+```
+
+### CODE_REVIEW: ffmpeg_audio_service decomposition is a facade, not a split. Status: RESOLVED (iteration 2)
+
+Phase-4.md Task 2 (lines 161-253) requires splitting
+`ffmpeg_audio_service.py` into `MusicSelector`, `AudioMixer`,
+`HlsBatchEncoder`, `HlsStreamEncoder`, and `duration_probe` with the
+god file becoming a "thin facade under 150 lines". On disk:
+
+```text
+backend/src/services/audio/__init__.py            7
+backend/src/services/audio/audio_mixer.py        29   (just cleanup_paths helper)
+backend/src/services/audio/duration_probe.py     39
+backend/src/services/audio/hls_batch_encoder.py  13   (docstring only -- no code)
+backend/src/services/audio/hls_stream_encoder.py 36   (only StreamState dataclass)
+backend/src/services/audio/music_selector.py     83
+backend/src/services/ffmpeg_audio_service.py    762
+```
+
+`hls_batch_encoder.py` is a pure docstring placeholder (`hls_batch_encoder.py:1-13`)
+that explicitly says "The real logic currently lives on
+`FFmpegAudioService` in `ffmpeg_audio_service`. This module is
+intentionally empty." `hls_stream_encoder.py:1-8` says the same about
+`process_stream_to_hls` -- the `StreamState` dataclass moved but the
+pipeline did not. `audio_mixer.py` holds only `cleanup_paths` and is
+misnamed relative to the spec, which reserved that module for
+`combine_voice_and_music` + `_prepare_mixed_audio`. Consider whether a
+762-line file satisfies the spec's 150-line facade target and
+"Architecture pillar 7 -> 9" success criterion at `Phase-4.md:18-24`,
+or whether this should be reopened and the batch / stream / mixer
+bodies actually moved behind their respective module boundaries. The
+implementer self-reported this as "only partial split" -- think about
+whether shipping a partial split under a "follow-up work is tracked"
+comment (`hls_batch_encoder.py:6-9`) is acceptable when there is no
+Phase 4.5 in the plan and Phase 5 is Fortifier (no product-code
+changes).
+
+### CODE_REVIEW: request_validation_middleware retained as dead code. Status: RESOLVED (iteration 2)
+
+Phase-4.md Task 3 at lines 342-346 is explicit: "Then DELETE the
+function entirely (do not keep it exported 'for one release'). This
+plan has no release cycle..." Verification at line 353 reads:
+"`request_validation_middleware` is no longer in the middleware stack"
+-- which is true at `backend/src/handlers/lambda_handler.py:183` (it
+is commented out). However the function body is still live at
+`backend/src/handlers/middleware.py:123` and is still imported and
+exercised by `backend/tests/unit/test_middleware.py:28,278,294,311,328,514,590,607`.
+Consider whether the word "entirely" in the spec permits leaving the
+function defined and keeping tests that assert its behavior. If those
+tests are green, they are testing dead code; if they were meant to
+migrate they have not. Reflect on whether this is a deletion or a
+rename-to-dead-code.
+
+### CODE_REVIEW: lambda_handler.py is 2.5x the target. Status: RESOLVED (iteration 2)
+
+Phase-4.md Task 1 at line 70 requires "Total target: under 100 lines"
+and the verification checkbox at line 128 claims this is satisfied.
+Actual: 250 lines (`wc -l backend/src/handlers/lambda_handler.py`).
+The file is primarily the `LambdaHandler` facade class (constructor,
+delegations) plus the `_get_handler()` pattern. Consider whether the
+facade class belongs in `lambda_handler.py` at all or in a
+`handler_facade.py` so `lambda_handler.py` can be the pure re-export
+shim the spec describes ("becomes a thin shim that re-exports
+`lambda_handler` from `router.py` and constructs the global `_handler`
+instance via `_get_handler()`"). A 250-line shim is not a shim.
+
+### CODE_REVIEW: meditation_handler.py exceeds the 400-line ceiling. Status: RESOLVED (iteration 2)
+
+`backend/src/handlers/meditation_handler.py` is 447 lines; Phase-4.md
+line 124 sets the hard ceiling at 400 and the Phase Verification at
+line 469 restates it as the phase success criterion. The verification
+checkbox at line 129 is marked `[x]` despite the file being 47 lines
+over. Think about whether `_process_base64`, `_process_hls`, or the
+retry loop can move to a helper module (`meditation_pipeline.py`?) so
+the handler class stays under the ceiling. The implementer
+self-reported this deviation but did not provide a justification
+reconciling it with the "No backend file in `backend/src/` exceeds 400
+lines" success criterion.
+
+### CODE_REVIEW: router.py exceeds the 200-line target. Status: RESOLVED (iteration 2)
+
+Phase-4.md line 132 sets a <200 line target for `router.py`; actual is
+248. The file holds the dispatch table plus the `lambda_handler`
+entry point. Consider whether the dispatch helpers can move to a
+`routes.py` sibling or whether the target should be formally relaxed
+in Phase-4.md. As with the other overshoots, the checkbox is marked
+`[x]` despite the line count not meeting the target.
+
+### CODE_REVIEW: BackendMeditationCall.tsx 284 vs <200 target. Status: RESOLVED (iteration 2)
+
+Phase-4.md Task 4 line 404 and 439 require "under 200 lines". Actual:
+284. `frontend/hooks/useMeditationGeneration.ts` was created (163
+lines) so the extraction happened, but the component did not shrink
+to the target. Reflect on whether more of the remaining JSX /
+lifecycle can move into the hook or a sub-component
+(`MeditationStatusView`?) so the component hits the spec target.
+
+### CODE_REVIEW: self-report integrity in Phase-4.md checkboxes. Status: RESOLVED (iteration 2)
+
+Every verification checkbox in Phase-4.md is marked `[x]` including
+the numerics that are contradicted by `wc -l`: 128 (<100),
+129 (<400), 132 (<200), 230 (audio files "under 350" is fine;
+ffmpeg_audio_service under 150 at line 231 is not), 439 (<200), and
+469 (Phase Verification "no file exceeds 400"). Think about whether
+the implementer should re-open Phase-4.md and either (a) uncheck the
+boxes that are not satisfied, or (b) file formal target relaxations
+with justification so the plan and reality agree. A reviewer reading
+`Phase-4.md` alone would conclude Phase 4 met all of its size
+targets; it did not.
+
+---
+
+CHANGES_REQUESTED
