@@ -180,12 +180,10 @@ class LambdaHandler:
         cors_middleware,
         json_middleware,
         method_validation_middleware(["POST"]),
-        # request_validation_middleware removed in Phase 4 Task 3: Pydantic
-        # ``parse_request_body`` now owns ``user_id`` / ``inference_type``
-        # presence checks end-to-end, collapsing the dual validation path
-        # called out by the audit. The function is retained in
-        # :mod:`.middleware` for back-compat with unit tests that exercise
-        # it directly; it is no longer wired into the request chain.
+        # request_validation_middleware was removed entirely in Phase 4
+        # Task 3: Pydantic ``parse_request_body`` now owns ``user_id`` /
+        # ``inference_type`` presence checks end-to-end, collapsing the
+        # dual validation path called out by the audit.
         request_size_validation_middleware,
         error_handling_middleware,
     )

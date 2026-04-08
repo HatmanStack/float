@@ -25,7 +25,6 @@ from src.handlers.middleware import (
     json_middleware,
     method_validation_middleware,
     request_size_validation_middleware,
-    request_validation_middleware,
 )
 
 
@@ -266,74 +265,6 @@ class TestMethodValidationMiddleware:
 
 
 @pytest.mark.unit
-class TestRequestValidationMiddleware:
-    """Test request validation middleware."""
-
-    def test_valid_request_data_passes_through(self):
-        """Test valid request data passes through."""
-
-        def mock_handler(event, context):
-            return {"statusCode": HTTP_OK, "body": "Success"}
-
-        wrapped = request_validation_middleware(mock_handler)
-
-        event = {
-            "parsed_body": {"user_id": "test-123", "inference_type": "summary"},
-            "requestContext": {"http": {"method": "POST"}},
-        }
-
-        result = wrapped(event, {})
-        assert result["statusCode"] == HTTP_OK
-
-    def test_missing_user_id_returns_400(self):
-        """Test missing user_id returns 400 error."""
-
-        def mock_handler(event, context):
-            return {"statusCode": HTTP_OK, "body": "Success"}
-
-        wrapped = request_validation_middleware(mock_handler)
-
-        event = {
-            "parsed_body": {"inference_type": "summary"},
-            "requestContext": {"http": {"method": "POST"}},
-        }
-
-        result = wrapped(event, {})
-        assert result["statusCode"] == HTTP_BAD_REQUEST
-        assert "user_id" in result["body"].lower()
-
-    def test_missing_inference_type_returns_400(self):
-        """Test missing inference_type returns 400 error."""
-
-        def mock_handler(event, context):
-            return {"statusCode": HTTP_OK, "body": "Success"}
-
-        wrapped = request_validation_middleware(mock_handler)
-
-        event = {
-            "parsed_body": {"user_id": "test-123"},
-            "requestContext": {"http": {"method": "POST"}},
-        }
-
-        result = wrapped(event, {})
-        assert result["statusCode"] == HTTP_BAD_REQUEST
-        assert "inference_type" in result["body"].lower()
-
-    def test_options_request_skips_validation(self):
-        """Test OPTIONS request skips validation."""
-
-        def mock_handler(event, context):
-            return {"statusCode": HTTP_OK, "body": ""}
-
-        wrapped = request_validation_middleware(mock_handler)
-
-        event = {"parsed_body": {}, "requestContext": {"http": {"method": "OPTIONS"}}}
-
-        result = wrapped(event, {})
-        assert result["statusCode"] == HTTP_OK
-
-
-@pytest.mark.unit
 class TestErrorHandlingMiddleware:
     """Test error handling middleware."""
 
@@ -490,10 +421,10 @@ class TestHelperFunctions:
 class TestDomainExceptionPropagation:
     """Test that domain exceptions surface through the middleware chain.
 
-    These tests assert that json_middleware and request_validation_middleware
-    no longer swallow domain exceptions as generic 500s. Instead the
-    exceptions propagate inward to error_handling_middleware which converts
-    them to HTTP responses with the correct taxonomy code.
+    These tests assert that json_middleware no longer swallows domain
+    exceptions as generic 500s. Instead the exceptions propagate inward
+    to error_handling_middleware which converts them to HTTP responses
+    with the correct taxonomy code.
     """
 
     def _valid_event(self):
@@ -511,7 +442,6 @@ class TestDomainExceptionPropagation:
                 cors_middleware,
                 json_middleware,
                 method_validation_middleware(["POST"]),
-                request_validation_middleware,
                 request_size_validation_middleware,
                 error_handling_middleware,
             ]
@@ -576,40 +506,6 @@ class TestDomainExceptionPropagation:
             wrapped(
                 {
                     "body": json.dumps({"user_id": "alice", "inference_type": "summary"}),
-                    "requestContext": {"http": {"method": "POST"}},
-                },
-                {},
-            )
-
-    def test_request_validation_middleware_reraises_domain_exceptions(self):
-        """request_validation_middleware must NOT swallow TTSError into a generic 500."""
-
-        def inner(event, context):
-            raise TTSError("validator-depth")
-
-        wrapped = request_validation_middleware(inner)
-
-        with pytest.raises(TTSError, match="validator-depth"):
-            wrapped(
-                {
-                    "parsed_body": {"user_id": "alice", "inference_type": "summary"},
-                    "requestContext": {"http": {"method": "POST"}},
-                },
-                {},
-            )
-
-    def test_request_validation_middleware_reraises_circuit_breaker(self):
-        """CircuitBreakerOpenError must propagate through request_validation."""
-
-        def inner(event, context):
-            raise CircuitBreakerOpenError("gemini_tts")
-
-        wrapped = request_validation_middleware(inner)
-
-        with pytest.raises(CircuitBreakerOpenError):
-            wrapped(
-                {
-                    "parsed_body": {"user_id": "alice", "inference_type": "summary"},
                     "requestContext": {"http": {"method": "POST"}},
                 },
                 {},

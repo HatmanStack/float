@@ -120,40 +120,6 @@ def method_validation_middleware(
     return decorator
 
 
-def request_validation_middleware(
-    handler: Callable[..., Dict[str, Any]],
-) -> Callable[..., Dict[str, Any]]:
-    """Check that required top-level fields are present.
-
-    The historical ``except Exception`` around the entire wrapper was
-    removed in Phase 2 Task 4 of the audit-remediation plan. It used to
-    swallow domain exceptions raised by the inner handler (TTSError,
-    CircuitBreakerOpenError, ValidationError, etc.) as generic 500s,
-    hiding their taxonomy from HTTP clients. The only exception this
-    middleware can legitimately produce is a ``KeyError`` /
-    ``AttributeError`` from calling ``parsed_body.get`` on an unexpected
-    shape; in practice ``parsed_body`` is always a dict (``json.loads``
-    or ``{}``), so the catch-all was dead code that only served to
-    hide real errors.
-    """
-
-    def wrapper(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-        method = event.get("requestContext", {}).get("http", {}).get("method", "")
-        if method == "OPTIONS":
-            return handler(event, context)
-        parsed_body = event.get("parsed_body", {})
-
-        if not parsed_body.get("user_id"):
-            logger.info("Request validation failed: missing user_id")
-            return create_error_response(HTTP_BAD_REQUEST, "Missing required field: user_id")
-        if not parsed_body.get("inference_type"):
-            logger.info("Request validation failed: missing inference_type")
-            return create_error_response(HTTP_BAD_REQUEST, "Missing required field: inference_type")
-        return handler(event, context)
-
-    return wrapper
-
-
 def request_size_validation_middleware(
     handler: Callable[..., Dict[str, Any]],
 ) -> Callable[..., Dict[str, Any]]:
