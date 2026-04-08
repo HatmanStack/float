@@ -91,7 +91,7 @@ Float is a serverless meditation app with clear separation between frontend and 
 
 | Layer    | Technology                             |
 | -------- | -------------------------------------- |
-| Frontend | React Native 0.74, Expo 52, TypeScript |
+| Frontend | React Native 0.84, Expo 55, React 19, TypeScript |
 | Backend  | Python 3.13, AWS Lambda, Pydantic      |
 | AI       | Google Gemini                          |
 | TTS      | OpenAI                                 |

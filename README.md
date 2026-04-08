@@ -5,7 +5,7 @@
 
 <h4>
 <a href="https://www.apache.org/licenses/LICENSE-2.0.html"><img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="Apache 2.0 license" /></a>
-<a href="https://expo.dev"><img src="https://img.shields.io/badge/Expo-52+-orange" alt="Expo Version" /></a>
+<a href="https://expo.dev"><img src="https://img.shields.io/badge/Expo-55+-orange" alt="Expo Version" /></a>
 <a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/Google-Gemini-violet" alt="Google Gemini" /></a>
 <a href="https://platform.openai.com/docs/guides/text-to-speech"><img src="https://img.shields.io/badge/OpenAI-TTS-yellow" alt="OpenAI TTS" /></a>
 <a href="https://docs.aws.amazon.com/lambda/"><img src="https://img.shields.io/badge/AWS-Lambda-green" alt="AWS Lambda" /></a>
@@ -19,15 +19,16 @@
 ## Structure
 
 ```text
-├── frontend/   # Expo/React Native client
-├── backend/    # AWS Lambda serverless API
-├── docs/       # Documentation
-└── tests/      # Frontend test suites
+├── frontend/          # Expo/React Native client
+│   └── tests/         # Jest unit/integration/e2e suites
+├── backend/           # AWS Lambda serverless API
+│   └── tests/         # pytest unit/integration/e2e suites
+└── docs/              # Documentation
 ```
 
 ## Prerequisites
 
-- **Node.js** v24 LTS
+- **Node.js** 24+
 - **Python** 3.13+
 - **AWS CLI** configured (`aws configure`)
 - **AWS SAM CLI** for deployment
