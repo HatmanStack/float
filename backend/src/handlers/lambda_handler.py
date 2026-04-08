@@ -13,7 +13,13 @@ from ..config.constants import (
     HTTP_NOT_FOUND,
 )
 from ..config.settings import settings
-from ..exceptions import CircuitBreakerOpenError, TTSError
+from ..exceptions import (
+    AudioProcessingError,
+    CircuitBreakerOpenError,
+    ErrorCode,
+    ExternalServiceError,
+    TTSError,
+)
 from ..models.requests import MeditationRequestModel, SummaryRequestModel, parse_request_body
 from ..models.responses import create_meditation_response, create_summary_response
 from ..providers.gemini_tts import GeminiTTSProvider
@@ -259,7 +265,10 @@ class LambdaHandler:
             logger.debug("Audio combination completed")
             base64_audio = encode_audio_to_base64(combined_path)
             if not base64_audio:
-                raise Exception("Failed to encode combined audio")
+                raise AudioProcessingError(
+                    "Failed to encode combined audio",
+                    details=f"job_id={job_id}",
+                )
 
             request_id = generate_request_id()
             response = create_meditation_response(
@@ -312,7 +321,11 @@ class LambdaHandler:
                     extra={"data": {"job_id": job_id, "attempt": generation_attempt}},
                 )
                 if not self.hls_service.download_tts_cache(request.user_id, job_id, voice_path):
-                    raise Exception("Failed to download cached TTS audio")
+                    raise ExternalServiceError(
+                        "Failed to download cached TTS audio",
+                        ErrorCode.STORAGE_FAILURE,
+                        details=f"job_id={job_id}",
+                    )
 
                 # Mark job as streaming
                 self.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
@@ -440,34 +453,64 @@ class LambdaHandler:
             job_data = self.job_service.get_job(request.user_id, job_id)
             current_attempt = job_data.get("generation_attempt", 1) if job_data else 1
 
-            if current_attempt < MAX_GENERATION_ATTEMPTS:
-                # Increment attempt counter
-                self.job_service.increment_generation_attempt(request.user_id, job_id)
-                logger.info(
-                    "Retrying HLS generation",
-                    extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}},
-                )
-                # Self-invoke to retry asynchronously
-                try:
-                    self._invoke_async_meditation(request, job_id)
-                    return
-                except Exception as invoke_error:
-                    logger.error(
-                        "Failed to invoke retry",
-                        extra={"data": {"job_id": job_id, "error": str(invoke_error)}},
-                    )
-                    # Fall through to mark as failed
+            if current_attempt >= MAX_GENERATION_ATTEMPTS:
+                self._mark_job_failed(request, job_id, e, MAX_GENERATION_ATTEMPTS)
+                return
 
-            # Max retries exceeded
-            self.job_service.update_job_status(
-                request.user_id,
-                job_id,
-                JobStatus.FAILED,
-                error=f"Failed after {MAX_GENERATION_ATTEMPTS} attempts: {str(e)}",
+            # Increment the counter FIRST. If the counter write fails we must
+            # not fire a retry: an already-enqueued async invocation plus a
+            # counter-write retry will ping-pong on every handler pass.
+            try:
+                self.job_service.increment_generation_attempt(request.user_id, job_id)
+            except Exception as inc_error:
+                logger.error(
+                    "Failed to increment generation attempt; not retrying",
+                    extra={"data": {"job_id": job_id, "error": str(inc_error)}},
+                )
+                self._mark_job_failed(request, job_id, e, current_attempt)
+                return
+
+            logger.info(
+                "Retrying HLS generation",
+                extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}},
             )
+            # Self-invoke to retry asynchronously. Must be the LAST statement
+            # in the retry branch so a failure cleanly falls through to the
+            # mark-failed path without risking a double invocation.
+            # NOTE: a previously-enqueued async invocation may still run even
+            # after we mark this job failed below; downstream consumers rely
+            # on the idempotent "job already exists" guard in the handler.
+            try:
+                self._invoke_async_meditation(request, job_id)
+            except Exception as invoke_error:
+                logger.error(
+                    "Failed to invoke retry; marking failed",
+                    extra={"data": {"job_id": job_id, "error": str(invoke_error)}},
+                )
+                self._mark_job_failed(request, job_id, e, current_attempt + 1)
         finally:
             if voice_path:
                 cleanup_temp_file(voice_path)
+
+    def _mark_job_failed(
+        self,
+        request: MeditationRequestModel,
+        job_id: str,
+        error: BaseException,
+        attempts: int,
+    ) -> None:
+        """Mark an HLS meditation job as failed.
+
+        Single helper so every failure path -- max-retries-exceeded,
+        counter-increment failure, self-invoke failure -- produces a
+        consistent status update.
+        """
+        self.job_service.update_job_status(
+            request.user_id,
+            job_id,
+            JobStatus.FAILED,
+            error=f"Failed after {attempts} attempts: {str(error)}",
+        )
 
     def handle_job_status(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status with fresh pre-signed URLs."""

@@ -968,3 +968,87 @@ class TestRoutingDispatchTable:
 
             assert mock_download.called
             assert not mock_job_status.called
+
+
+@pytest.mark.unit
+class TestHLSRetryLoop:
+    """Phase 3 Task 4 -- tightened HLS retry self-invoke loop."""
+
+    def _make_request(self) -> MeditationRequestModel:
+        return MeditationRequestModel(
+            user_id="user-123",
+            inference_type="meditation",
+            input_data={"sentiment_label": ["Sad"]},
+            music_list=[],
+        )
+
+    def _make_handler(self, mock_ai_service):
+        handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+        # Force the HLS branch in process_meditation_async via patched job data
+        handler.job_service = MagicMock()
+        handler.hls_service = MagicMock()
+        handler.audio_service = MagicMock()
+        return handler
+
+    def _trigger_retry_path(self, handler, boom: Exception, current_attempt: int):
+        """Drive _process_meditation_hls into its exception handler."""
+        request = self._make_request()
+        handler.job_service.get_job.return_value = {"generation_attempt": current_attempt}
+        handler.job_service.update_job_status.return_value = None
+        # Make the first service call inside _process_meditation_hls raise.
+        handler.job_service.update_job_status.side_effect = [boom]
+        # update_job_status is called to set PROCESSING; after that raises,
+        # the except Exception block runs and re-fetches the job.
+        handler._process_meditation_hls("job-1", request)
+        return request
+
+    def test_retry_fires_when_counter_and_invoke_succeed(self, mock_ai_service):
+        handler = self._make_handler(mock_ai_service)
+        with patch.object(handler, "_invoke_async_meditation") as mock_invoke:
+            # Second get_job call (inside except) returns attempt=1
+            handler.job_service.get_job.return_value = {"generation_attempt": 1}
+            # First update_job_status (PROCESSING) blows up to enter the except
+            handler.job_service.update_job_status.side_effect = [RuntimeError("boom"), None]
+            request = self._make_request()
+            handler._process_meditation_hls("job-1", request)
+            handler.job_service.increment_generation_attempt.assert_called_once_with(
+                "user-123", "job-1"
+            )
+            mock_invoke.assert_called_once()
+
+    def test_retry_does_not_fire_on_increment_failure(self, mock_ai_service):
+        handler = self._make_handler(mock_ai_service)
+        with patch.object(handler, "_invoke_async_meditation") as mock_invoke:
+            handler.job_service.get_job.return_value = {"generation_attempt": 1}
+            handler.job_service.update_job_status.side_effect = [RuntimeError("boom"), None]
+            handler.job_service.increment_generation_attempt.side_effect = RuntimeError(
+                "counter write failed"
+            )
+            request = self._make_request()
+            handler._process_meditation_hls("job-1", request)
+            mock_invoke.assert_not_called()
+            # Second update_job_status call marks the job failed
+            assert handler.job_service.update_job_status.call_count == 2
+
+    def test_retry_marks_failed_on_invoke_failure(self, mock_ai_service):
+        handler = self._make_handler(mock_ai_service)
+        with patch.object(handler, "_invoke_async_meditation") as mock_invoke:
+            handler.job_service.get_job.return_value = {"generation_attempt": 1}
+            handler.job_service.update_job_status.side_effect = [RuntimeError("boom"), None]
+            mock_invoke.side_effect = RuntimeError("lambda invoke failed")
+            request = self._make_request()
+            handler._process_meditation_hls("job-1", request)
+            handler.job_service.increment_generation_attempt.assert_called_once()
+            mock_invoke.assert_called_once()
+            # Mark-failed should still run
+            assert handler.job_service.update_job_status.call_count == 2
+
+    def test_no_retry_when_attempts_exhausted(self, mock_ai_service):
+        handler = self._make_handler(mock_ai_service)
+        with patch.object(handler, "_invoke_async_meditation") as mock_invoke:
+            handler.job_service.get_job.return_value = {"generation_attempt": 3}
+            handler.job_service.update_job_status.side_effect = [RuntimeError("boom"), None]
+            request = self._make_request()
+            handler._process_meditation_hls("job-1", request)
+            handler.job_service.increment_generation_attempt.assert_not_called()
+            mock_invoke.assert_not_called()
