@@ -55,4 +55,4 @@ Quick reference:
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`): frontend-lint, frontend-tests, backend-tests, dockerfile-lint, pip-audit, markdownlint, link-check run on every push/PR. All seven are gated into the `status-check` job that branch protection requires.
+GitHub Actions (`.github/workflows/ci.yml`) defines five aggregate jobs gated into `status-check`: `frontend` (lint + tests), `backend` (lint + tests + file-size guardrail + dockerfile-lint), `pip-audit`, `markdownlint`, and `link-check`. Branch protection requires `status-check` to pass.

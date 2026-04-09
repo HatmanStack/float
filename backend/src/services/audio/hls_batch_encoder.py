@@ -139,7 +139,25 @@ def combine_voice_and_music_hls(
             playlist_content = hls_service.generate_live_playlist(  # type: ignore[attr-defined]
                 user_id, job_id, segments_uploaded, segment_durations, is_complete=False
             )
-            hls_service.upload_playlist(user_id, job_id, playlist_content)  # type: ignore[attr-defined]
+            playlist_uploaded = hls_service.upload_playlist(  # type: ignore[attr-defined]
+                user_id, job_id, playlist_content
+            )
+            if not playlist_uploaded:
+                logger.error(
+                    "Failed to upload live HLS playlist",
+                    extra={
+                        "data": {
+                            "user_id": user_id,
+                            "job_id": job_id,
+                            "segments_uploaded": segments_uploaded,
+                        }
+                    },
+                )
+                raise ExternalServiceError(
+                    "Failed to upload HLS playlist",
+                    ErrorCode.STORAGE_FAILURE,
+                    details=f"user_id={user_id}, job_id={job_id}",
+                )
 
             if progress_callback:
                 progress_callback(segments_uploaded, estimated_segments)
@@ -148,9 +166,25 @@ def combine_voice_and_music_hls(
                 "Uploaded segment", extra={"data": {"segment": i, "duration": seg_duration}}
             )
 
-        hls_service.finalize_playlist(  # type: ignore[attr-defined]
+        finalized = hls_service.finalize_playlist(  # type: ignore[attr-defined]
             user_id, job_id, segments_uploaded, segment_durations
         )
+        if not finalized:
+            logger.error(
+                "Failed to finalize HLS playlist",
+                extra={
+                    "data": {
+                        "user_id": user_id,
+                        "job_id": job_id,
+                        "segments_uploaded": segments_uploaded,
+                    }
+                },
+            )
+            raise ExternalServiceError(
+                "Failed to finalize HLS playlist",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"user_id={user_id}, job_id={job_id}",
+            )
 
         logger.info(
             "HLS generation complete",

@@ -301,6 +301,10 @@ def append_fade_segments(
             logger.info(f"Uploaded fade segment {total_segments + offset}")
 
         return len(segment_durations)
+    except ExternalServiceError:
+        # Storage failures must propagate so the caller's retry path can
+        # decide whether to re-dispatch the job.
+        raise
     except Exception as e:
         logger.error(f"Failed to append fade segments: {e}")
         return total_segments

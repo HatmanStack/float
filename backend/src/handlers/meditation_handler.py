@@ -193,15 +193,25 @@ class MeditationHandler:
         request = MeditationRequestModel.model_validate(request_dict)
         logger.info(
             "Processing async meditation",
-            extra={"data": {"job_id": job_id, "user_id": request.user_id}},
+            extra={"data": {"job_id": job_id, "user_id": _mask_id(request.user_id)}},
         )
 
         job_data = self.job_service.get_job(request.user_id, job_id)
-        use_hls = (
-            ENABLE_HLS_STREAMING
-            and job_data
-            and job_data.get("streaming", {}).get("enabled", False)
-        )
+        if job_data is None:
+            # A missing job record means the job was deleted, expired, or
+            # was never persisted. Generating artifacts for a phantom job
+            # would burn TTS budget and orphan output in S3, so abort.
+            logger.error(
+                "Async meditation invoked for missing job; aborting",
+                extra={"data": {"job_id": job_id, "user_id": _mask_id(request.user_id)}},
+            )
+            raise ExternalServiceError(
+                "Job not found for async meditation",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"job_id={job_id}",
+            )
+
+        use_hls = ENABLE_HLS_STREAMING and job_data.get("streaming", {}).get("enabled", False)
 
         if use_hls:
             self._process_hls(job_id, request)
@@ -247,6 +257,18 @@ class MeditationHandler:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
         suffix = secrets.token_hex(4)
         object_key = f"{request.user_id}/meditation/{timestamp}-{suffix}.json"
-        self.storage_service.upload_json(
+        uploaded = self.storage_service.upload_json(
             bucket=settings.AWS_S3_BUCKET, key=object_key, data=response.to_dict()
         )
+        if not uploaded:
+            # Surface the storage failure so the caller does not mark the
+            # job COMPLETED with no artifact behind it.
+            logger.error(
+                "Failed to upload meditation result",
+                extra={"data": {"object_key": object_key, "uploaded": uploaded}},
+            )
+            raise ExternalServiceError(
+                "Failed to upload meditation result",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"object_key={object_key}",
+            )

@@ -160,7 +160,28 @@ drive-by fixes.
   - Update `docs/API.md` and remove the query-param fallback once all
     clients are updated.
 
-### 14. Sign Gemini Live tokens with `iat`/`exp` timestamps
+### 14. Atomic compare-and-swap for `increment_generation_attempt`
+
+- **Source:** `meditation_pipeline._handle_hls_error` retry path; relates
+  to ADR-3 in `Phase-0.md`
+- **Why deferred:** A clean fix needs S3 conditional writes (`If-Match`
+  ETag) or a DynamoDB migration — both are already tracked as items 1
+  and 2 above.
+- **Risk:** Two concurrent retry callers can both succeed at
+  `increment_generation_attempt` (non-atomic read-modify-write on the S3
+  job blob) and dispatch duplicate `_trigger_retry` calls, doubling TTS
+  cost on flaky failures.
+- **Scope:**
+  - Make `JobService.increment_generation_attempt` perform a conditional
+    write keyed on the prior ETag and return `True` only if the caller
+    won the CAS.
+  - Update `meditation_pipeline._handle_hls_error` to skip
+    `_trigger_retry` when the helper returns `False`, leaving the job
+    in its current state for the winning caller to drive forward.
+  - Subsumed by item 1 (DynamoDB migration) if that lands first, since
+    DynamoDB conditional updates give the same guarantee for free.
+
+### 15. Sign Gemini Live tokens with `iat`/`exp` timestamps
 
 - **Source:** Phase-2.md remediation note; ties into ROADMAP item 12.
 - **Why deferred:** The Phase 2 implementation signed only `user_id`, so

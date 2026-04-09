@@ -8,7 +8,7 @@ music-picking logic.
 import ast
 import random
 import re
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from ...config.settings import settings
 from ...exceptions import AudioProcessingError
@@ -25,8 +25,18 @@ class MusicSelector:
     def __init__(self, storage_service: StorageService) -> None:
         self.storage_service = storage_service
 
-    def select(self, used_music: List[str], duration: float, output_path: str) -> List[str]:
-        """Download a matching track to ``output_path`` and return the updated used list."""
+    def select(
+        self,
+        used_music: Optional[Union[List[str], str]],
+        duration: float,
+        output_path: str,
+    ) -> List[str]:
+        """Download a matching track to ``output_path`` and return the updated used list.
+
+        ``used_music`` accepts ``None``, a single track string, a stringified
+        list (legacy DB shape), or a real list of track names. The
+        normalization branch below collapses all four into ``List[str]``.
+        """
         if used_music is None:
             used_music = []
         else:
@@ -98,7 +108,5 @@ class MusicSelector:
 
     @staticmethod
     def _extract_last_numeric_value(filename: str) -> Optional[int]:
-        matches = re.findall(r"(\d+)(?=\D*$)", filename)
-        if matches:
-            return int(matches[-1])
-        return None
+        match = re.search(r"(\d+)\D*$", filename)
+        return int(match.group(1)) if match else None

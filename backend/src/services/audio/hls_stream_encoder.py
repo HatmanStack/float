@@ -73,6 +73,38 @@ def process_stream_to_hls(
     logger.info("Starting streaming HLS generation", extra={"data": {"job_id": job_id}})
 
     hls_output_dir = tempfile.mkdtemp(prefix="hls_stream_")
+    try:
+        return _process_stream_to_hls_inner(
+            ffmpeg_executable=ffmpeg_executable,
+            hls_service=hls_service,
+            get_duration=get_duration,
+            voice_generator=voice_generator,
+            music_path=music_path,
+            user_id=user_id,
+            job_id=job_id,
+            progress_callback=progress_callback,
+            estimated_voice_duration=estimated_voice_duration,
+            hls_output_dir=hls_output_dir,
+        )
+    finally:
+        # Always clean the temp tree, even if Popen, the watcher startup,
+        # or anything else above the existing try/finally raises before
+        # the inner cleanup can run.
+        shutil.rmtree(hls_output_dir, ignore_errors=True)
+
+
+def _process_stream_to_hls_inner(
+    ffmpeg_executable: str,
+    hls_service: object,
+    get_duration: Callable[[str], float],
+    voice_generator: Iterator[bytes],
+    music_path: str,
+    user_id: str,
+    job_id: str,
+    progress_callback: Optional[Callable[[int, Optional[int]], None]],
+    estimated_voice_duration: float,
+    hls_output_dir: str,
+) -> tuple[int, List[float]]:
     playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
     segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
 
@@ -216,6 +248,14 @@ def process_stream_to_hls(
         try:
             with open(voice_temp_path, "wb") as voice_file:
                 for chunk in voice_generator:
+                    # Honor watcher-side upload failures: if the watcher has
+                    # recorded an error (e.g., S3 upload returned False), stop
+                    # consuming TTS chunks and let the failure propagate via
+                    # the finally block instead of burning more provider time.
+                    with state.lock:
+                        if state.error is not None:
+                            logger.warning("Watcher reported failure; halting FFmpeg producer")
+                            break
                     if process.poll() is not None:
                         stderr = process.stderr.read().decode()
                         logger.error(f"FFmpeg exited early: {stderr}")
@@ -274,29 +314,26 @@ def process_stream_to_hls(
         if watcher_error:
             raise watcher_error
 
-    try:
-        with state.lock:
-            total_streamed_duration = sum(state.segment_durations)
-            current_segments = state.segments_uploaded
-            durations_list = state.segment_durations
-        new_segments = append_fade_segments(
-            ffmpeg_executable,
-            hls_service,
-            get_duration,
-            music_path,
-            total_streamed_duration,
-            user_id,
-            job_id,
-            current_segments,
-            durations_list,
-        )
-        with state.lock:
-            state.segments_uploaded = new_segments
-            final_segments = state.segments_uploaded
-            final_durations = list(state.segment_durations)
+    with state.lock:
+        total_streamed_duration = sum(state.segment_durations)
+        current_segments = state.segments_uploaded
+        durations_list = state.segment_durations
+    new_segments = append_fade_segments(
+        ffmpeg_executable,
+        hls_service,
+        get_duration,
+        music_path,
+        total_streamed_duration,
+        user_id,
+        job_id,
+        current_segments,
+        durations_list,
+    )
+    with state.lock:
+        state.segments_uploaded = new_segments
+        final_segments = state.segments_uploaded
+        final_durations = list(state.segment_durations)
 
-        hls_service.finalize_playlist(user_id, job_id, final_segments, final_durations)  # type: ignore[attr-defined]
-    finally:
-        shutil.rmtree(hls_output_dir, ignore_errors=True)
+    hls_service.finalize_playlist(user_id, job_id, final_segments, final_durations)  # type: ignore[attr-defined]
 
     return (final_segments, final_durations)

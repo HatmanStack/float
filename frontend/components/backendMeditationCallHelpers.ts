@@ -51,7 +51,11 @@ export const getTransformedDict = (
     if (d.intensity !== undefined) {
       const intensityNum =
         typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
-      transformedDict.intensity.push(intensityNum);
+      // Skip non-finite values (NaN, Infinity) so the payload never carries
+      // a malformed intensity that the backend would reject downstream.
+      if (Number.isFinite(intensityNum)) {
+        transformedDict.intensity.push(intensityNum);
+      }
     }
     if (d.speech_to_text) transformedDict.speech_to_text.push(d.speech_to_text);
     if (d.added_text) transformedDict.added_text.push(d.added_text);

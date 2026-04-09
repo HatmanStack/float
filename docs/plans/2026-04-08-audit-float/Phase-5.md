@@ -329,7 +329,7 @@ test rewrite.
 test(frontend): type `any` casts in unit test mocks
 
 - AuthScreen-test, history-test, AudioRecording-test, Notifications-test
-- Use jest.Mock<typeof X> instead of `as any`
+- Use jest.MockedFunction<typeof X> instead of `as any`
 - testUtils.tsx: shared typed mock factory
 ```
 
