@@ -23,6 +23,7 @@ from ...config.constants import (
     DEFAULT_MUSIC_VOLUME_REDUCTION,
     DEFAULT_SILENCE_DURATION,
     DEFAULT_VOICE_BOOST,
+    DURATION_TIER_MINUTES,
     HLS_TRAILING_PAD_BASE_SECONDS,
     HLS_TRAILING_PAD_PER_TIER,
 )
@@ -77,9 +78,8 @@ def process_stream_to_hls(
 
     voice_temp_path = os.path.join(hls_output_dir, "voice.mp3")
 
-    duration_tiers = [3, 5, 10, 15, 20]
     est_minutes = estimated_voice_duration / 60
-    tier = sum(1 for t in duration_tiers if est_minutes >= t) or 1
+    tier = sum(1 for t in DURATION_TIER_MINUTES if est_minutes >= t) or 1
     trailing_pad = HLS_TRAILING_PAD_BASE_SECONDS + (HLS_TRAILING_PAD_PER_TIER * tier)
     logger.info(
         f"Trailing pad: {trailing_pad}s (base={HLS_TRAILING_PAD_BASE_SECONDS} + "
@@ -252,6 +252,11 @@ def process_stream_to_hls(
     finally:
         state.stop()
         watcher_thread.join(timeout=30)
+        if watcher_thread.is_alive():
+            logger.warning(
+                "Upload watcher did not finish within 30s; some segments may be missing",
+                extra={"data": {"job_id": job_id}},
+            )
 
         with state.lock:
             watcher_error = state.error

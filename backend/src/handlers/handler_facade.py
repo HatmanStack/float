@@ -105,20 +105,18 @@ class LambdaHandlerFacade:
         error_handling_middleware,
     )
     def handle_request(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-        try:
-            parsed_body = event.get("parsed_body", {})
-            request = parse_request_body(parsed_body)
-            if isinstance(request, SummaryRequestModel):
-                result = self.handle_summary_request(request)
-            elif isinstance(request, MeditationRequestModel):
-                result = self.handle_meditation_request(request)
-            else:
-                from ..config.constants import HTTP_BAD_REQUEST
+        # Exceptions propagate directly to ``error_handling_middleware`` which
+        # logs and converts them. A redundant try/except here would double-log.
+        parsed_body = event.get("parsed_body", {})
+        request = parse_request_body(parsed_body)
+        if isinstance(request, SummaryRequestModel):
+            result = self.handle_summary_request(request)
+        elif isinstance(request, MeditationRequestModel):
+            result = self.handle_meditation_request(request)
+        else:
+            from ..config.constants import HTTP_BAD_REQUEST
 
-                return create_error_response(
-                    HTTP_BAD_REQUEST, f"Unsupported request type: {type(request)}"
-                )
-            return create_success_response(result)
-        except Exception:
-            logger.error("Error in handle_request", exc_info=True)
-            raise
+            return create_error_response(
+                HTTP_BAD_REQUEST, f"Unsupported request type: {type(request)}"
+            )
+        return create_success_response(result)

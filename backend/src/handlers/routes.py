@@ -39,14 +39,14 @@ def _authorize_job_access(
 ) -> Optional[Dict[str, Any]]:
     """Return a 403 error response if ``user_id`` does not own the job."""
     job_owner = job_data.get("user_id", "")
-    if job_owner and job_owner != user_id:
+    if not job_owner or job_owner != user_id:
         logger.warning(
-            "Mismatched user_id on job access",
+            "Mismatched or missing user_id on job access",
             extra={
                 "data": {
                     "job_id": job_id,
                     "requested_by": user_id,
-                    "owner": job_owner,
+                    "owner": job_owner or "<missing>",
                 }
             },
         )
@@ -108,7 +108,8 @@ def _handle_download_request(handler: Any, event: Dict[str, Any]) -> Dict[str, A
         return _with_cors(create_error_response(HTTP_NOT_FOUND, f"Job {job_id} not found"))
 
     if "error" in result:
-        return _with_cors(create_error_response(HTTP_BAD_REQUEST, result["error"]["message"]))
+        message = result["error"].get("message", "Download failed")
+        return _with_cors(create_error_response(HTTP_BAD_REQUEST, message))
 
     return _with_cors(create_success_response(result))
 

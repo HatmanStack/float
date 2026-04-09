@@ -126,6 +126,40 @@ that justifies the deferral.
   good-first-issue, run `npm run check`, open a PR, what CI gates
   expect.
 
+## Post-Audit Code Review Findings (2026-04-08)
+
+Items raised after the pipeline closed that are too large to land as
+drive-by fixes.
+
+### 12. GEMINI_API_KEY reused as HMAC signing key
+
+- **Source:** `backend/src/utils/security.py:34-38`
+- **Why deferred:** Stop-gap until the native Gemini ephemeral token
+  path is available.
+- **Risk:** If the Gemini key is rotated, all outstanding token markers
+  immediately become unverifiable (no migration window). Acceptable for
+  short-lived advisory markers, but tracked toward replacement.
+- **Scope:** Use a dedicated `TOKEN_SIGNING_KEY` env var (rotated
+  independently from the Gemini key), or migrate to the native Gemini
+  ephemeral token API once available.
+
+### 13. Move `user_id` out of query parameters into a request header
+
+- **Source:** `frontend/hooks/useMeditationGeneration.ts:56` and the
+  matching backend route handlers
+- **Why deferred:** Touches both sides of the contract and every
+  in-flight client; safer as a planned migration than a drive-by edit.
+- **Risk:** Query parameters appear in server access logs, CDN logs,
+  and browser history.
+- **Scope:**
+  - Backend: read `user_id` from `X-User-Id` header in
+    `_handle_job_status_request` / `_handle_download_request`, with
+    fallback to query param during migration.
+  - Frontend: send `X-User-Id` header in `pollJobStatus` and
+    `fetchDownloadUrl` instead of inlining into the URL.
+  - Update `docs/API.md` and remove the query-param fallback once all
+    clients are updated.
+
 ## Score Movements Locked Behind These Items
 
 The following eval scores were intentionally *not* taken to 9/10

@@ -256,7 +256,7 @@ def _handle_hls_error(
         extra={"data": {"job_id": job_id, "attempt": current_attempt + 1}},
     )
     try:
-        handler._parent._invoke_async_meditation(request, job_id)
+        handler._trigger_retry(request, job_id)
     except Exception as invoke_error:
         logger.error(
             "Failed to invoke retry; marking failed",

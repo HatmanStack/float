@@ -171,6 +171,16 @@ class MeditationHandler:
         """Process meditation with HLS streaming output."""
         meditation_pipeline.process_hls(self, job_id, request)
 
+    def _trigger_retry(self, request: MeditationRequestModel, job_id: str) -> None:
+        """Re-invoke async meditation processing for a retry attempt.
+
+        Routed through the parent facade so tests that
+        ``patch.object(handler, "_invoke_async_meditation")`` see the call.
+        Centralizing the indirection here keeps :mod:`meditation_pipeline`
+        from reaching into ``handler._parent`` directly.
+        """
+        self._parent._invoke_async_meditation(request, job_id)
+
     def _mark_job_failed(
         self,
         request: MeditationRequestModel,

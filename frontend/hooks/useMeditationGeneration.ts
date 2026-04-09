@@ -154,7 +154,7 @@ export function toMeditationResult(jobData: JobStatusResponse): MeditationResult
   return {
     jobId: jobData.job_id,
     playlistUrl: jobData.streaming?.playlist_url,
-    isStreaming: jobData.status === 'streaming' || !!jobData.streaming,
+    isStreaming: jobData.status === 'streaming' || !!jobData.streaming?.playlist_url,
     segmentsCompleted: jobData.streaming?.segments_completed ?? 0,
     segmentsTotal: jobData.streaming?.segments_total ?? null,
     isComplete: jobData.status === 'completed',

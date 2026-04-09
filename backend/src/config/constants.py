@@ -68,6 +68,10 @@ HLS_TRAILING_PAD_BASE_SECONDS = 7  # base music-only buffer after voice ends
 HLS_TRAILING_PAD_PER_TIER = 5  # additional padding per duration tier (3, 5, 10, 15, 20 min)
 HLS_FADE_DURATION_SECONDS = 10  # duration of the appended fade-out segments
 
+# Allowed meditation duration tiers in minutes. Must stay in sync with
+# ``MeditationRequestModel.duration_minutes: Literal[3, 5, 10, 15, 20]``.
+DURATION_TIER_MINUTES = [3, 5, 10, 15, 20]
+
 # =============================================================================
 # Request Size Limits
 # =============================================================================

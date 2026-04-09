@@ -10,6 +10,7 @@ redirects dispatch during tests.
 
 import importlib
 import re
+from types import ModuleType
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from ..utils.logging_utils import get_logger
@@ -23,6 +24,12 @@ from .routes import (  # noqa: F401 -- re-exported for test patching shim
 )
 
 logger = get_logger(__name__)
+
+# Cached reference to the ``lambda_handler`` module so route dispatch does not
+# pay the ``importlib.import_module`` lookup on every request. ``getattr`` on
+# the cached module still resolves dynamically, so ``unittest.mock.patch``
+# applied at the lambda_handler module level still redirects dispatch.
+_LAMBDA_HANDLER_MODULE: Optional[ModuleType] = None
 
 
 # -----------------------------------------------------------------------------
@@ -54,8 +61,10 @@ _ROUTES: Tuple[Tuple[str, re.Pattern, str], ...] = (
 
 def _resolve_handler(handler_name: str) -> Callable[..., Dict[str, Any]]:
     """Resolve a route handler by name against :mod:`lambda_handler`."""
-    module = importlib.import_module("src.handlers.lambda_handler")
-    return getattr(module, handler_name)
+    global _LAMBDA_HANDLER_MODULE
+    if _LAMBDA_HANDLER_MODULE is None:
+        _LAMBDA_HANDLER_MODULE = importlib.import_module("src.handlers.lambda_handler")
+    return getattr(_LAMBDA_HANDLER_MODULE, handler_name)
 
 
 def _match_route(method: str, raw_path: str) -> Optional[Tuple[Callable[..., Any], Dict[str, str]]]:
