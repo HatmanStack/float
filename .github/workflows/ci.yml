@@ -188,7 +188,7 @@ jobs:
         with:
           args: >-
             --no-progress
-            --exclude-mail
+            --exclude '^mailto:'
             --exclude '^https://your-lambda-url'
             --exclude '^https://www.apache.org/licenses/LICENSE-2.0.html'
             './**/*.md'
