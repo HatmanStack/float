@@ -198,9 +198,12 @@ def _generate_hls_audio(
         tts_provider = handler.get_tts_provider()
         try:
             voice_generator = tts_provider.stream_speech(meditation_text)
+            input_format_flags = tts_provider.get_stream_format()
         except (TTSError, CircuitBreakerOpenError):
             logger.warning("Primary TTS streaming failed, trying fallback provider")
-            voice_generator = handler.fallback_tts_provider.stream_speech(meditation_text)
+            tts_provider = handler.fallback_tts_provider
+            voice_generator = tts_provider.stream_speech(meditation_text)
+            input_format_flags = tts_provider.get_stream_format()
 
         streaming_started = False
 
@@ -228,6 +231,7 @@ def _generate_hls_audio(
             job_id=job_id,
             progress_callback=progress_callback,
             estimated_voice_duration=estimated_tts_duration,
+            input_format_flags=input_format_flags,
         )
     finally:
         if os.path.exists(music_path):

@@ -135,6 +135,7 @@ class FFmpegAudioService(AudioService):
         job_id: str,
         progress_callback: Optional[Callable[[int, Optional[int]], None]] = None,
         estimated_voice_duration: float = 60.0,
+        input_format_flags: Optional[List[str]] = None,
     ) -> tuple[int, List[float]]:
         return hls_stream_encoder.process_stream_to_hls(
             self.ffmpeg_executable,
@@ -146,4 +147,5 @@ class FFmpegAudioService(AudioService):
             job_id,
             progress_callback,
             estimated_voice_duration,
+            input_format_flags=input_format_flags,
         )

@@ -65,6 +65,7 @@ def process_stream_to_hls(
     job_id: str,
     progress_callback: Optional[Callable[[int, Optional[int]], None]] = None,
     estimated_voice_duration: float = 60.0,
+    input_format_flags: Optional[List[str]] = None,
 ) -> tuple[int, List[float]]:
     """Stream TTS to HLS segments, then append fade-out segments."""
     if not hls_service:
@@ -85,6 +86,7 @@ def process_stream_to_hls(
             progress_callback=progress_callback,
             estimated_voice_duration=estimated_voice_duration,
             hls_output_dir=hls_output_dir,
+            input_format_flags=input_format_flags,
         )
     finally:
         # Always clean the temp tree, even if Popen, the watcher startup,
@@ -104,11 +106,12 @@ def _process_stream_to_hls_inner(
     progress_callback: Optional[Callable[[int, Optional[int]], None]],
     estimated_voice_duration: float,
     hls_output_dir: str,
+    input_format_flags: Optional[List[str]] = None,
 ) -> tuple[int, List[float]]:
     playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
     segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
 
-    voice_temp_path = os.path.join(hls_output_dir, "voice.mp3")
+    voice_temp_path = os.path.join(hls_output_dir, "voice.pcm")
 
     est_minutes = estimated_voice_duration / 60
     tier = sum(1 for t in DURATION_TIER_MINUTES if est_minutes >= t) or 1
@@ -118,10 +121,10 @@ def _process_stream_to_hls_inner(
         f"{HLS_TRAILING_PAD_PER_TIER}s x tier {tier})"
     )
 
+    fmt_flags = input_format_flags or ["-f", "s16le", "-ar", "24000", "-ac", "1"]
     ffmpeg_cmd = [
         ffmpeg_executable,
-        "-f",
-        "mp3",
+        *fmt_flags,
         "-i",
         "pipe:0",
         "-stream_loop",
