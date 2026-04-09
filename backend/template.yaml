@@ -163,6 +163,18 @@ Resources:
             ApiId: !Ref FloatApi
             Path: /job/{job_id}/download
             Method: OPTIONS
+        ApiToken:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /token
+            Method: POST
+        ApiTokenOptions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FloatApi
+            Path: /token
+            Method: OPTIONS
 
   FloatFunctionLogGroup:
     Type: AWS::Logs::LogGroup
