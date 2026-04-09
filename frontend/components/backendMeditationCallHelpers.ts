@@ -77,9 +77,15 @@ export const saveResponseBase64 = async (responsePayload: string): Promise<strin
       return url;
     }
     // Unique filename so concurrent or repeated responses do not clobber
-    // each other on disk.
-    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const filePath = `${FileSystem.documentDirectory}meditation-${uniqueId}.mp3`;
+    // each other on disk. Prefer ``crypto.randomUUID`` (RN >= 0.74, all
+    // modern browsers) and fall back to ``Math.random`` only if it is
+    // unavailable. ``Date.now`` provides the primary uniqueness either
+    // way.
+    const cryptoRef = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+    const randomPart =
+      cryptoRef?.randomUUID?.().replace(/-/g, '').slice(0, 12) ??
+      Math.random().toString(36).slice(2, 10);
+    const filePath = `${FileSystem.documentDirectory}meditation-${Date.now()}-${randomPart}.mp3`;
     await FileSystem.writeAsStringAsync(filePath, responsePayload, {
       encoding: FileSystem.EncodingType.Base64,
     });

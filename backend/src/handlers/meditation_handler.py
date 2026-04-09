@@ -22,7 +22,8 @@ from ..services.hls_service import HLSService
 from ..services.job_service import JobService, JobStatus
 from ..services.s3_storage_service import S3StorageService
 from ..utils.logging_utils import get_logger
-from . import meditation_pipeline
+from . import meditation_pipeline  # noqa: I001
+from .routes import _mask_id
 
 logger = get_logger(__name__)
 
@@ -96,7 +97,10 @@ class MeditationHandler:
         logger.info(
             "Processing meditation request",
             extra={
-                "data": {"user_id": request.user_id, "duration_minutes": request.duration_minutes}
+                "data": {
+                    "user_id": _mask_id(request.user_id),
+                    "duration_minutes": request.duration_minutes,
+                }
             },
         )
 

@@ -160,29 +160,7 @@ drive-by fixes.
   - Update `docs/API.md` and remove the query-param fallback once all
     clients are updated.
 
-### 14. Replace hardcoded music fallback with a real "no music" path
-
-- **Source:** `backend/src/services/audio/music_selector.py:65-70`
-- **Why deferred:** Removing the hardcoded `Hopeful-Elegant-LaidBack_120.wav`
-  sentinel breaks 7 unit tests in `test_services.py` that mock
-  `list_objects` with auto-mocks (truthy `MagicMock` whose `list(...)` is
-  empty). A clean fix needs both the production-code raise and a
-  test-fixture sweep.
-- **Risk:** If the sentinel filename does not exist in the deployed S3
-  bucket, `select_background_music` raises `AudioProcessingError` only at
-  download time instead of failing fast at the selection step.
-- **Scope:**
-  - In `MusicSelector.select`, raise `AudioProcessingError("No background
-    music available")` when both `filtered_keys` and `existing_keys` are
-    empty (or when the cache holds an empty list).
-  - Update the affected `TestFFmpegAudioService` tests to seed
-    `mock_storage_service.list_objects.return_value` with a real list
-    matching the requested duration tier.
-  - Consider adding a startup probe that pre-warms the
-    `music_list_cache` so a missing bucket is caught at cold start
-    instead of first request.
-
-### 15. Sign Gemini Live tokens with `iat`/`exp` timestamps
+### 14. Sign Gemini Live tokens with `iat`/`exp` timestamps
 
 - **Source:** Phase-2.md remediation note; ties into ROADMAP item 12.
 - **Why deferred:** The Phase 2 implementation signed only `user_id`, so

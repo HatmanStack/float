@@ -266,6 +266,9 @@ def process_stream_to_hls(
                 extra={"data": {"job_id": job_id}},
             )
 
+        # ``join`` is a happens-before barrier so this read is safe even
+        # without the lock, but holding it makes the intent explicit for
+        # future readers and is essentially free at this point.
         with state.lock:
             watcher_error = state.error
         if watcher_error:

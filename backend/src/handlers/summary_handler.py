@@ -16,6 +16,7 @@ from ..services.s3_storage_service import S3StorageService
 from ..utils.audio_utils import cleanup_temp_file, decode_audio_base64
 from ..utils.file_utils import generate_request_id
 from ..utils.logging_utils import get_logger
+from .routes import _mask_id
 
 logger = get_logger(__name__)
 
@@ -35,7 +36,10 @@ class SummaryHandler:
         return self._parent.storage_service
 
     def handle(self, request: SummaryRequestModel) -> Dict[str, Any]:
-        logger.info("Processing summary request", extra={"data": {"user_id": request.user_id}})
+        logger.info(
+            "Processing summary request",
+            extra={"data": {"user_id": _mask_id(request.user_id)}},
+        )
         audio_file = None
         has_audio = bool(request.audio) and request.audio != "NotAvailable"
         if has_audio:

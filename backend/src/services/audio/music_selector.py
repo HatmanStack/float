@@ -62,12 +62,30 @@ class MusicSelector:
         available_keys = list(filtered_keys - set(used_music))
         if not available_keys:
             logger.debug("No new music tracks available, reusing from pool")
-            # Hardcoded sentinel: this filename may not exist in S3 in
-            # every deployment. A proper "no music available" error path
-            # is tracked as ROADMAP item 14.
-            available_keys = (
-                list(filtered_keys) if filtered_keys else ["Hopeful-Elegant-LaidBack_120.wav"]
-            )
+            if filtered_keys:
+                available_keys = list(filtered_keys)
+            elif existing_keys:
+                # No duration-matched track exists; reuse any track in the
+                # bucket so the request still succeeds.
+                available_keys = list(existing_keys)
+                logger.warning(
+                    "No duration-matched music found; falling back to full S3 listing",
+                    extra={
+                        "data": {
+                            "requested_duration": duration,
+                            "pool": len(available_keys),
+                        }
+                    },
+                )
+            else:
+                logger.error(
+                    "No music tracks available in S3 bucket",
+                    extra={"data": {"bucket": bucket_name}},
+                )
+                raise AudioProcessingError(
+                    "No background music available",
+                    details=f"bucket={bucket_name}",
+                )
 
         file_key = random.choice(available_keys)
         if self.storage_service.download_file(bucket_name, file_key, output_path):
