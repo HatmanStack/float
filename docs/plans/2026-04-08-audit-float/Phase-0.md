@@ -72,8 +72,8 @@ All commits MUST follow `type(scope): description` per `commitlint.config.js`
 (`@commitlint/config-conventional`). Husky enforces this via `.husky/commit-msg`.
 
 Allowed types: `feat`, `fix`, `chore`, `docs`, `test`, `ci`, `refactor`, `perf`, `style`, `build`.
-Allowed scopes used in this plan: `frontend`, `backend`, `ci`, `docs`, omit for
-repo-wide changes.
+Allowed scopes used in this plan: `frontend`, `backend`, `ci`, `docs`, `api`,
+omit for repo-wide changes.
 
 Examples used in this plan:
 

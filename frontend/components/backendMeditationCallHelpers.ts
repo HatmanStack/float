@@ -76,7 +76,10 @@ export const saveResponseBase64 = async (responsePayload: string): Promise<strin
       const url = URL.createObjectURL(blob);
       return url;
     }
-    const filePath = `${FileSystem.documentDirectory}output.mp3`;
+    // Unique filename so concurrent or repeated responses do not clobber
+    // each other on disk.
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const filePath = `${FileSystem.documentDirectory}meditation-${uniqueId}.mp3`;
     await FileSystem.writeAsStringAsync(filePath, responsePayload, {
       encoding: FileSystem.EncodingType.Base64,
     });

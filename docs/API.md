@@ -437,7 +437,6 @@ raw `GEMINI_API_KEY`; it returns an HMAC-derived opaque marker with a
   "body": {
     "token": "<opaque HMAC marker>",
     "expires_in": 60,
-    "user_id": "user@example.com",
     "endpoint": "wss://generativelanguage.googleapis.com/ws/..."
   }
 }
@@ -514,16 +513,22 @@ async function generateMeditation(userId, floats, musicList) {
   });
   if (!submit.ok) {
     const err = await submit.json();
-    throw new Error(err.body?.details || 'Generation failed');
+    throw new Error(err.body?.details || err.details || 'Generation failed');
   }
-  const { job_id } = (await submit.json()).body;
+  // Lambda Function URL responses are sometimes returned wrapped in
+  // ``{ statusCode, body }`` and sometimes returned as the body directly.
+  // Normalize so the example works in both shapes.
+  const submitParsed = await submit.json();
+  const submitBody = submitParsed.body ?? submitParsed;
+  const { job_id } = submitBody;
 
   // Step 2: poll until completed or failed
   while (true) {
     const res = await fetch(
       `${LAMBDA_URL}/job/${job_id}?user_id=${encodeURIComponent(userId)}`
     );
-    const job = (await res.json()).body;
+    const pollParsed = await res.json();
+    const job = pollParsed.body ?? pollParsed;
 
     if (job.status === 'completed') {
       return job.result; // { base64, music_list, ... }

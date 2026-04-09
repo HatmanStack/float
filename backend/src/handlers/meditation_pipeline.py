@@ -180,49 +180,58 @@ def _generate_hls_audio(
     music_duration = estimated_tts_duration + MUSIC_TRAILING_BUFFER_SECONDS
 
     music_path = f"{settings.TEMP_DIR}/music_{timestamp}.mp3"
-    handler.audio_service.select_background_music(request.music_list, music_duration, music_path)
-    logger.debug(
-        "Music selected based on estimated TTS duration",
-        extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}},
-    )
-
-    tts_provider = handler.get_tts_provider()
     try:
-        voice_generator = tts_provider.stream_speech(meditation_text)
-    except (TTSError, CircuitBreakerOpenError):
-        logger.warning("Primary TTS streaming failed, trying fallback provider")
-        voice_generator = handler.fallback_tts_provider.stream_speech(meditation_text)
-
-    streaming_started = False
-
-    def progress_callback(segments_completed: int, segments_total: Optional[int]) -> None:
-        nonlocal streaming_started
-        if not streaming_started:
-            handler.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
-            streaming_started = True
-            logger.info(
-                "First segment ready, marked as streaming",
-                extra={"data": {"job_id": job_id, "playlist_url": playlist_url}},
-            )
-        handler.job_service.update_streaming_progress(
-            request.user_id,
-            job_id,
-            segments_completed=segments_completed,
-            segments_total=segments_total,
-            playlist_url=playlist_url,
+        handler.audio_service.select_background_music(
+            request.music_list, music_duration, music_path
+        )
+        logger.debug(
+            "Music selected based on estimated TTS duration",
+            extra={"data": {"words": word_count, "est_duration": estimated_tts_duration}},
         )
 
-    total_segments, _ = handler.audio_service.process_stream_to_hls(
-        voice_generator=voice_generator,
-        music_path=music_path,
-        user_id=request.user_id,
-        job_id=job_id,
-        progress_callback=progress_callback,
-        estimated_voice_duration=estimated_tts_duration,
-    )
+        tts_provider = handler.get_tts_provider()
+        try:
+            voice_generator = tts_provider.stream_speech(meditation_text)
+        except (TTSError, CircuitBreakerOpenError):
+            logger.warning("Primary TTS streaming failed, trying fallback provider")
+            voice_generator = handler.fallback_tts_provider.stream_speech(meditation_text)
 
-    if os.path.exists(music_path):
-        os.remove(music_path)
+        streaming_started = False
+
+        def progress_callback(segments_completed: int, segments_total: Optional[int]) -> None:
+            nonlocal streaming_started
+            if not streaming_started:
+                handler.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+                streaming_started = True
+                logger.info(
+                    "First segment ready, marked as streaming",
+                    extra={"data": {"job_id": job_id, "playlist_url": playlist_url}},
+                )
+            handler.job_service.update_streaming_progress(
+                request.user_id,
+                job_id,
+                segments_completed=segments_completed,
+                segments_total=segments_total,
+                playlist_url=playlist_url,
+            )
+
+        total_segments, _ = handler.audio_service.process_stream_to_hls(
+            voice_generator=voice_generator,
+            music_path=music_path,
+            user_id=request.user_id,
+            job_id=job_id,
+            progress_callback=progress_callback,
+            estimated_voice_duration=estimated_tts_duration,
+        )
+    finally:
+        if os.path.exists(music_path):
+            try:
+                os.remove(music_path)
+            except OSError as exc:
+                logger.debug(
+                    "Failed to clean temp music file",
+                    extra={"data": {"path": music_path, "error": str(exc)}},
+                )
 
     return total_segments
 

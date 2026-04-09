@@ -62,6 +62,9 @@ class MusicSelector:
         available_keys = list(filtered_keys - set(used_music))
         if not available_keys:
             logger.debug("No new music tracks available, reusing from pool")
+            # Hardcoded sentinel: this filename may not exist in S3 in
+            # every deployment. A proper "no music available" error path
+            # is tracked as ROADMAP item 14.
             available_keys = (
                 list(filtered_keys) if filtered_keys else ["Hopeful-Elegant-LaidBack_120.wav"]
             )

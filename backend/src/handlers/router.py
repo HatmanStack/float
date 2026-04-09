@@ -43,17 +43,17 @@ _LAMBDA_HANDLER_MODULE: Optional[ModuleType] = None
 _ROUTES: Tuple[Tuple[str, re.Pattern, str], ...] = (
     (
         "POST",
-        re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/download/?$"),
+        re.compile(r"^/?(?:[^/]+/)?job/(?P<job_id>[^/]+)/download/?$"),
         "_handle_download_request",
     ),
     (
         "POST",
-        re.compile(r"^/?(?:[^/]+/)*token/?$"),
+        re.compile(r"^/?(?:[^/]+/)?token/?$"),
         "_handle_token_request",
     ),
     (
         "GET",
-        re.compile(r"^/?(?:[^/]+/)*job/(?P<job_id>[^/]+)/?$"),
+        re.compile(r"^/?(?:[^/]+/)?job/(?P<job_id>[^/]+)/?$"),
         "_handle_job_status_request",
     ),
 )

@@ -393,11 +393,17 @@ refactor(backend): collapse dual validation; add TypedDicts for job state
 
 **Files to Create:**
 
-- `frontend/hooks/useMeditationGeneration.ts` -- new hook that owns:
-  - The polling loop (currently inline in `BackendMeditationCall.tsx`)
-  - Job state transitions
-  - Error handling and retry
-  - Returns `{ status, jobId, playlistUrl, error, start, cancel }`
+- `frontend/hooks/useMeditationGeneration.ts` -- stateless polling helpers
+  extracted from `BackendMeditationCall.tsx`. Exports:
+  - `pollJobStatus(options)` -- adaptive interval polling with abort support
+  - `fetchDownloadUrl(jobId, userId, lambdaUrl)`
+  - `toMeditationResult(jobData)` -- shape adapter
+  - Polling configuration constants (`INITIAL_POLL_INTERVAL_MS`,
+    `MAX_POLL_INTERVAL_MS`, `MAX_TOTAL_WAIT_MS`, `FAST_POLL_WINDOW_MS`,
+    `FAST_POLL_INTERVAL_MS`)
+  - Job state management (start/cancel, status reducer) remains in
+    `BackendMeditationCall.tsx`; promoting this module to a stateful hook
+    is tracked in ROADMAP item 8.
 
 **Files to Modify:**
 

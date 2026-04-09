@@ -40,9 +40,9 @@ class JobHandler:
 
         streaming = job_data.get("streaming", {})
         if streaming.get("enabled") and streaming.get("started_at"):
+            # Always assign so a stale URL is cleared when signing fails.
             fresh_playlist_url = self.hls_service.generate_playlist_url(user_id, job_id)
-            if fresh_playlist_url:
-                job_data["streaming"]["playlist_url"] = fresh_playlist_url
+            job_data["streaming"]["playlist_url"] = fresh_playlist_url
         elif streaming.get("enabled"):
             job_data["streaming"]["playlist_url"] = None
 

@@ -275,6 +275,9 @@ def append_fade_segments(
         )
 
         fade_segments = sorted(glob.glob(os.path.join(fade_output_dir, "segment_*.ts")))
+        # Buffer fade segment durations until every upload succeeds, so a
+        # mid-loop failure cannot leave segment_durations partially mutated.
+        fade_durations: List[float] = []
         for i, fade_segment in enumerate(fade_segments):
             segment_index = total_segments + i
 
@@ -291,8 +294,11 @@ def append_fade_segments(
                     ErrorCode.STORAGE_FAILURE,
                     details=f"user_id={user_id}, job_id={job_id}",
                 )
-            segment_durations.append(seg_duration)
-            logger.info(f"Uploaded fade segment {segment_index}")
+            fade_durations.append(seg_duration)
+
+        segment_durations.extend(fade_durations)
+        for offset, _ in enumerate(fade_durations):
+            logger.info(f"Uploaded fade segment {total_segments + offset}")
 
         return len(segment_durations)
     except Exception as e:

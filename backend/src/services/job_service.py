@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from ..config.settings import settings
-from ..models.job_state import JobData  # noqa: F401  (re-exported for callers)
+from ..models.job_state import JobData
 from ..utils.logging_utils import get_logger
 
 logger = get_logger(__name__)

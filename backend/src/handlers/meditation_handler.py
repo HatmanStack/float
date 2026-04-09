@@ -8,12 +8,13 @@ the retry-loop bookkeeping.
 
 import json
 import os
-from datetime import datetime
+import secrets
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Union
 
 from ..config.constants import ENABLE_HLS_STREAMING
 from ..config.settings import settings
-from ..exceptions import TTSError
+from ..exceptions import ErrorCode, ExternalServiceError, TTSError
 from ..models.requests import MeditationRequestModel
 from ..services.ai_service import AIService
 from ..services.ffmpeg_audio_service import FFmpegAudioService
@@ -126,7 +127,11 @@ class MeditationHandler:
         return response
 
     def _invoke_async_meditation(self, request: MeditationRequestModel, job_id: str) -> None:
-        """Invoke this Lambda asynchronously to process meditation."""
+        """Invoke this Lambda asynchronously to process meditation.
+
+        Marks the job as FAILED if the AWS SDK call raises or the response
+        StatusCode is not 202 so callers do not see a job stuck in PENDING.
+        """
         lambda_client = self._lambda_client_provider()
         function_name = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "")
 
@@ -137,11 +142,47 @@ class MeditationHandler:
         }
 
         logger.info("Invoking async meditation", extra={"data": {"job_id": job_id}})
-        lambda_client.invoke(
-            FunctionName=function_name,
-            InvocationType="Event",
-            Payload=json.dumps(async_payload),
-        )
+        try:
+            response = lambda_client.invoke(
+                FunctionName=function_name,
+                InvocationType="Event",
+                Payload=json.dumps(async_payload),
+            )
+        except Exception as exc:
+            logger.error(
+                "Async Lambda invoke raised; marking job failed",
+                extra={"data": {"job_id": job_id, "error": str(exc)}},
+                exc_info=True,
+            )
+            self.job_service.update_job_status(
+                request.user_id,
+                job_id,
+                JobStatus.FAILED,
+                error=f"Async invoke failed: {exc}",
+            )
+            raise ExternalServiceError(
+                "Failed to dispatch async meditation",
+                ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+                details=f"job_id={job_id}",
+            ) from exc
+
+        status_code = response.get("StatusCode") if isinstance(response, dict) else None
+        if status_code != 202:
+            logger.error(
+                "Async Lambda invoke returned non-202",
+                extra={"data": {"job_id": job_id, "status_code": status_code}},
+            )
+            self.job_service.update_job_status(
+                request.user_id,
+                job_id,
+                JobStatus.FAILED,
+                error=f"Async invoke returned status {status_code}",
+            )
+            raise ExternalServiceError(
+                "Async meditation dispatch returned non-202",
+                ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE,
+                details=f"job_id={job_id}, status={status_code}",
+            )
 
     def process_async(self, job_id: str, request_dict: Dict[str, Any]) -> None:
         """Process meditation in async Lambda invocation."""
@@ -197,8 +238,11 @@ class MeditationHandler:
         )
 
     def _store_meditation_results(self, request: MeditationRequestModel, response: Any) -> None:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        object_key = f"{request.user_id}/meditation/{timestamp}.json"
+        # Microsecond UTC + random suffix prevents key collisions for
+        # concurrent meditations from the same user.
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+        suffix = secrets.token_hex(4)
+        object_key = f"{request.user_id}/meditation/{timestamp}-{suffix}.json"
         self.storage_service.upload_json(
             bucket=settings.AWS_S3_BUCKET, key=object_key, data=response.to_dict()
         )

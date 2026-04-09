@@ -27,7 +27,7 @@ from ...config.constants import (
     HLS_TRAILING_PAD_BASE_SECONDS,
     HLS_TRAILING_PAD_PER_TIER,
 )
-from ...exceptions import AudioProcessingError
+from ...exceptions import AudioProcessingError, ErrorCode, ExternalServiceError
 from ...utils.logging_utils import get_logger
 from .audio_mixer import append_fade_segments
 
@@ -163,30 +163,38 @@ def process_stream_to_hls(
                     state.segment_durations.append(float(HLS_SEGMENT_DURATION))
                 state.segment_durations[segment_index] = seg_duration
 
-            if hls_service.upload_segment_from_file(  # type: ignore[attr-defined]
+            uploaded = hls_service.upload_segment_from_file(  # type: ignore[attr-defined]
                 user_id, job_id, segment_index, segment_file
-            ):
-                with state.lock:
-                    state.uploaded_segments.add(segment_file)
-                    state.segments_uploaded += 1
-                    segments_uploaded_snapshot = state.segments_uploaded
-                    durations_snapshot = list(state.segment_durations[:segments_uploaded_snapshot])
-
-                playlist_content = hls_service.generate_live_playlist(  # type: ignore[attr-defined]
-                    user_id,
-                    job_id,
-                    segments_uploaded_snapshot,
-                    durations_snapshot,
-                    is_complete=False,
+            )
+            if not uploaded:
+                # Treat upload failure as fatal: do not mutate state, do not
+                # publish a partial playlist, do not invoke the progress
+                # callback. Raising propagates to the caller's retry path.
+                raise ExternalServiceError(
+                    f"Failed to upload segment {segment_index}",
+                    ErrorCode.STORAGE_FAILURE,
+                    details=f"user_id={user_id}, job_id={job_id}",
                 )
-                hls_service.upload_playlist(user_id, job_id, playlist_content)  # type: ignore[attr-defined]
 
-                if progress_callback:
-                    progress_callback(segments_uploaded_snapshot, None)
+            with state.lock:
+                state.uploaded_segments.add(segment_file)
+                state.segments_uploaded += 1
+                segments_uploaded_snapshot = state.segments_uploaded
+                durations_snapshot = list(state.segment_durations[:segments_uploaded_snapshot])
 
-                logger.info(f"Uploaded segment {segment_index}")
-            else:
-                logger.error(f"Failed to upload segment {segment_index}")
+            playlist_content = hls_service.generate_live_playlist(  # type: ignore[attr-defined]
+                user_id,
+                job_id,
+                segments_uploaded_snapshot,
+                durations_snapshot,
+                is_complete=False,
+            )
+            hls_service.upload_playlist(user_id, job_id, playlist_content)  # type: ignore[attr-defined]
+
+            if progress_callback:
+                progress_callback(segments_uploaded_snapshot, None)
+
+            logger.info(f"Uploaded segment {segment_index}")
 
     def upload_watcher() -> None:
         while True:
@@ -263,28 +271,29 @@ def process_stream_to_hls(
         if watcher_error:
             raise watcher_error
 
-    with state.lock:
-        total_streamed_duration = sum(state.segment_durations)
-        current_segments = state.segments_uploaded
-        durations_list = state.segment_durations
-    new_segments = append_fade_segments(
-        ffmpeg_executable,
-        hls_service,
-        get_duration,
-        music_path,
-        total_streamed_duration,
-        user_id,
-        job_id,
-        current_segments,
-        durations_list,
-    )
-    with state.lock:
-        state.segments_uploaded = new_segments
-        final_segments = state.segments_uploaded
-        final_durations = list(state.segment_durations)
+    try:
+        with state.lock:
+            total_streamed_duration = sum(state.segment_durations)
+            current_segments = state.segments_uploaded
+            durations_list = state.segment_durations
+        new_segments = append_fade_segments(
+            ffmpeg_executable,
+            hls_service,
+            get_duration,
+            music_path,
+            total_streamed_duration,
+            user_id,
+            job_id,
+            current_segments,
+            durations_list,
+        )
+        with state.lock:
+            state.segments_uploaded = new_segments
+            final_segments = state.segments_uploaded
+            final_durations = list(state.segment_durations)
 
-    hls_service.finalize_playlist(user_id, job_id, final_segments, final_durations)  # type: ignore[attr-defined]
-
-    shutil.rmtree(hls_output_dir, ignore_errors=True)
+        hls_service.finalize_playlist(user_id, job_id, final_segments, final_durations)  # type: ignore[attr-defined]
+    finally:
+        shutil.rmtree(hls_output_dir, ignore_errors=True)
 
     return (final_segments, final_durations)

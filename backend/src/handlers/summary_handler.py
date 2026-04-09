@@ -5,7 +5,7 @@ Extracted from :mod:`lambda_handler` as part of Phase 4 Task 1 of the
 S3 persistence helper.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict  # noqa: I001
 
 from ..config.settings import settings
@@ -37,7 +37,8 @@ class SummaryHandler:
     def handle(self, request: SummaryRequestModel) -> Dict[str, Any]:
         logger.info("Processing summary request", extra={"data": {"user_id": request.user_id}})
         audio_file = None
-        if request.audio and request.audio != "NotAvailable":
+        has_audio = bool(request.audio) and request.audio != "NotAvailable"
+        if has_audio:
             audio_file = decode_audio_base64(request.audio)
         try:
             summary_result = self.ai_service.analyze_sentiment(
@@ -45,7 +46,7 @@ class SummaryHandler:
             )
             request_id = generate_request_id()
             response = create_summary_response(request_id, request.user_id, summary_result)
-            self._store_summary_results(request, response, audio_file is not None)
+            self._store_summary_results(request, response, has_audio)
             return response.to_dict()
         finally:
             if audio_file:
@@ -54,18 +55,21 @@ class SummaryHandler:
     def _store_summary_results(
         self, request: SummaryRequestModel, response: Any, has_audio: bool
     ) -> None:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        object_key = f"{request.user_id}/summary/{timestamp}.json"
+        # Microsecond UTC + request_id avoids collisions for concurrent
+        # summary requests from the same user.
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+        request_id = response.request_id
+        object_key = f"{request.user_id}/summary/{timestamp}-{request_id}.json"
         self.storage_service.upload_json(
             bucket=settings.AWS_S3_BUCKET, key=object_key, data=response.to_dict()
         )
-        if has_audio and request.audio != "NotAvailable":
+        if has_audio:
             audio_data = {
                 "user_audio": request.audio,
                 "user_id": request.user_id,
-                "request_id": response.request_id,
+                "request_id": request_id,
             }
-            audio_key = f"{request.user_id}/audio/{timestamp}.json"
+            audio_key = f"{request.user_id}/audio/{timestamp}-{request_id}.json"
             self.storage_service.upload_json(
                 bucket=settings.AWS_S3_BUCKET, key=audio_key, data=audio_data
             )

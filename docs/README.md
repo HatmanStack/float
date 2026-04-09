@@ -132,7 +132,7 @@ Set these via SAM parameter overrides during deployment:
 | `S3AudioBucket` | S3 bucket for background music |
 | `IncludeDevOrigins` | Set to `true` for local dev (CORS wildcard) |
 | `ProductionOrigins` | Comma-separated production origins for CORS (e.g., `https://float-app.fun`) |
-| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer (auto-created by deploy script) |
+| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer (must be pre-built and supplied; see [ROADMAP](ROADMAP.md) for tracked automation work) |
 
 The following environment variables are set automatically in Lambda via the SAM template but are useful for local development:
 

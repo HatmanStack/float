@@ -99,16 +99,19 @@ export async function pollJobStatus(options: PollOptions): Promise<JobStatusResp
     const elapsed = Date.now() - startTime;
     pollInterval = getNextPollInterval(elapsed);
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(resolve, pollInterval);
+      let timeout: ReturnType<typeof setTimeout>;
+      const onAbort = () => {
+        clearTimeout(timeout);
+        reject(new DOMException('Polling cancelled', 'AbortError'));
+      };
+      timeout = setTimeout(() => {
+        // Explicitly remove the abort listener so it cannot leak across
+        // polling cycles when the timeout completes normally.
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, pollInterval);
       if (signal) {
-        signal.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timeout);
-            reject(new DOMException('Polling cancelled', 'AbortError'));
-          },
-          { once: true }
-        );
+        signal.addEventListener('abort', onAbort, { once: true });
       }
     });
   }

@@ -96,6 +96,23 @@ def combine_voice_and_music_hls(
             raise AudioProcessingError(
                 f"FFmpeg HLS generation timed out after {FFMPEG_HLS_TIMEOUT}s"
             ) from e
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+            stdout = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
+            logger.error(
+                "FFmpeg HLS generation failed",
+                extra={
+                    "data": {
+                        "returncode": e.returncode,
+                        "cmd": " ".join(ffmpeg_cmd),
+                        "stderr": stderr[-1000:],
+                        "stdout": stdout[-1000:],
+                    }
+                },
+            )
+            raise AudioProcessingError(
+                f"FFmpeg HLS generation failed with code {e.returncode}: {stderr[-500:]}"
+            ) from e
 
         segment_files = sorted(glob.glob(os.path.join(hls_output_dir, "segment_*.ts")))
         segment_durations: List[float] = []

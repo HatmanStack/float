@@ -33,8 +33,10 @@ budget. Each phase delivers a coherent slice that can be reviewed in one pass.
 - `npm install --legacy-peer-deps` completed at the repo root
 - Backend deps: `cd backend && pip install -r requirements.txt -r requirements-dev.txt`
 - Local tooling: `uvx ruff` (already used by `npm run lint:backend`)
-- All four CI jobs (`frontend`, `backend`, `dockerfile-lint`, `status-check`)
-  must pass after every phase
+- All required CI jobs (`frontend-lint`, `frontend-tests`, `backend-tests`,
+  `dockerfile-lint`, `pip-audit`, `markdownlint`, `link-check`) must pass
+  after every phase; they are gated into the `status-check` aggregator
+  defined in `.github/workflows/ci.yml`.
 
 ## Phase Summary
 

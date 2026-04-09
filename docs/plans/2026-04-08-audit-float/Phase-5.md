@@ -299,12 +299,16 @@ test rewrite.
 **Implementation Steps:**
 
 - For each file, identify the imports being mocked. Use the actual TypeScript
-  types from those imports as the cast target:
+  types from those imports as the cast target. `jest.MockedFunction<T>` is
+  the correct helper because `jest.Mock<R, A>` expects the return and
+  argument types as separate generics:
   ```typescript
   // before
   (GoogleSignin.signIn as any).mockResolvedValue(fakeUser);
   // after
-  (GoogleSignin.signIn as jest.Mock<typeof GoogleSignin.signIn>).mockResolvedValue(fakeUser);
+  (
+    GoogleSignin.signIn as jest.MockedFunction<typeof GoogleSignin.signIn>
+  ).mockResolvedValue(fakeUser);
   ```
 - The fortifier MUST NOT change test behavior. If a `any` cast cannot be
   cleanly typed in five minutes, leave it and add a `// TODO type` comment.

@@ -7,6 +7,7 @@ support them out of :mod:`router` so that module can become a
 dispatch-only shim under the Phase 4 Task 1 <200-line target.
 """
 
+import hashlib
 from typing import Any, Dict, Optional
 
 from ..config.constants import CORS_HEADERS, HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND
@@ -15,6 +16,17 @@ from ..utils.validation import is_valid_user_id
 from .middleware import create_error_response, create_success_response
 
 logger = get_logger(__name__)
+
+
+def _mask_id(value: str) -> str:
+    """Return a deterministic short hash of ``value`` for log linkage.
+
+    Used so that ``user_id`` and ``job_id`` can appear in warnings without
+    exposing the raw identifier in logs.
+    """
+    if not value:
+        return "<missing>"
+    return "id:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 def _with_cors(response: Dict[str, Any]) -> Dict[str, Any]:
@@ -44,9 +56,9 @@ def _authorize_job_access(
             "Mismatched or missing user_id on job access",
             extra={
                 "data": {
-                    "job_id": job_id,
-                    "requested_by": user_id,
-                    "owner": job_owner or "<missing>",
+                    "job_id": _mask_id(job_id),
+                    "requested_by": _mask_id(user_id),
+                    "owner": _mask_id(job_owner),
                 }
             },
         )
@@ -126,14 +138,13 @@ def _handle_token_request(handler: Any, event: Dict[str, Any]) -> Dict[str, Any]
     if bad_user is not None:
         return _with_cors(bad_user)
 
-    logger.info("Token request received", extra={"data": {"user_id": user_id}})
+    logger.info("Token request received", extra={"data": {"user_id": _mask_id(user_id)}})
 
     token_marker = derive_token_marker(user_id)
     token_response = create_success_response(
         {
             "token": token_marker,
             "expires_in": TOKEN_MARKER_TTL_SECONDS,
-            "user_id": user_id,
             "endpoint": GEMINI_LIVE_WS_ENDPOINT,
         }
     )
