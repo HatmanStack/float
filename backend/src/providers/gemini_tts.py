@@ -246,7 +246,9 @@ class GeminiTTSProvider(TTSService):
                         section_start = time.monotonic()
 
                         # Rotate session if we've hit the limit to avoid
-                        # the ~3-4 min server-side deadline timeout
+                        # the ~3-4 min server-side deadline timeout.
+                        # Note: rotation re-sends the full meditation text for
+                        # context, adding ~1-2s latency per rotation boundary.
                         if sections_in_session >= MAX_SECTIONS_PER_SESSION:
                             logger.info(
                                 f"Rotating Live API session after {sections_in_session} sections"

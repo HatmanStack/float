@@ -108,8 +108,6 @@ def _process_stream_to_hls_inner(
     playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
     segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
 
-    voice_temp_path = os.path.join(hls_output_dir, "voice.pcm")
-
     # Pad the voice to at least est_dur + fade so the music fade timing is
     # deterministic within a single FFmpeg process (no second process = no
     # audio seam). If the voice runs longer than the estimate the music will
@@ -272,30 +270,26 @@ def _process_stream_to_hls_inner(
 
     try:
         try:
-            with open(voice_temp_path, "wb") as voice_file:
-                for chunk in voice_generator:
-                    # Honor watcher-side upload failures: if the watcher has
-                    # recorded an error (e.g., S3 upload returned False), stop
-                    # consuming TTS chunks and let the failure propagate via
-                    # the finally block instead of burning more provider time.
-                    with state.lock:
-                        if state.error is not None:
-                            logger.warning("Watcher reported failure; halting FFmpeg producer")
-                            break
-                    if process.poll() is not None:
-                        stderr = process.stderr.read().decode()
-                        logger.error(f"FFmpeg exited early: {stderr}")
-                        raise AudioProcessingError(f"FFmpeg exited unexpectedly: {stderr}")
-                    try:
-                        process.stdin.write(chunk)
-                        process.stdin.flush()
-                    except BrokenPipeError as bpe:
-                        stderr = process.stderr.read().decode() if process.stderr else "unknown"
-                        logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
-                        raise AudioProcessingError(
-                            f"FFmpeg pipe closed mid-stream: {stderr}"
-                        ) from bpe
-                    voice_file.write(chunk)
+            for chunk in voice_generator:
+                # Honor watcher-side upload failures: if the watcher has
+                # recorded an error (e.g., S3 upload returned False), stop
+                # consuming TTS chunks and let the failure propagate via
+                # the finally block instead of burning more provider time.
+                with state.lock:
+                    if state.error is not None:
+                        logger.warning("Watcher reported failure; halting FFmpeg producer")
+                        break
+                if process.poll() is not None:
+                    stderr = process.stderr.read().decode()
+                    logger.error(f"FFmpeg exited early: {stderr}")
+                    raise AudioProcessingError(f"FFmpeg exited unexpectedly: {stderr}")
+                try:
+                    process.stdin.write(chunk)
+                    process.stdin.flush()
+                except BrokenPipeError as bpe:
+                    stderr = process.stderr.read().decode() if process.stderr else "unknown"
+                    logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
+                    raise AudioProcessingError(f"FFmpeg pipe closed mid-stream: {stderr}") from bpe
         finally:
             close = getattr(voice_generator, "close", None)
             if callable(close):

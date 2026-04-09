@@ -319,7 +319,9 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
     );
   }
 
-  // No content yet: show Q&A or generate button
+  // ROADMAP #16 — unreachable until backend WebSocket proxy is implemented.
+  // qaActive is never set to true; Generate bypasses Q&A. This block will be
+  // restored when voice sentiment analysis is available via the proxy.
   if (qaActive && sentimentData) {
     return (
       <VoiceQA

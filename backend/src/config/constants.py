@@ -15,8 +15,8 @@ ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() ==
 MAX_GENERATION_ATTEMPTS = 3
 
 # Estimated TTS speaking rate for calm meditation voice with pauses.
-# Observation: meditation TTS averages ~80 words/minute (slower than
-# conversational ~150 wpm due to intentional pauses).
+# OpenAI gpt-4o-mini-tts with meditation voice instructions averages
+# ~140 wpm (slower than conversational ~150 wpm due to intentional pauses).
 TTS_WORDS_PER_MINUTE = 140
 
 # Extra seconds of background music after TTS speech ends, allowing the

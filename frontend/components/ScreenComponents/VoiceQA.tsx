@@ -14,6 +14,8 @@ const CHECKIN_PROMPTS = [
   "Thank you for sharing. Let me create a meditation tailored to what you've told me.",
 ];
 
+// sentimentData, userId, and onError are unused in text-only mode but kept
+// in the interface for ROADMAP #16 (backend WebSocket proxy with voice input).
 interface VoiceQAProps {
   sentimentData: TransformedDict;
   userId?: string;
