@@ -465,9 +465,10 @@ class TestDependencyInjection:
 
     def test_handler_uses_default_ai_service_when_not_injected(self):
         """Test handler creates default AI service when not injected."""
-        pytest.importorskip("google.generativeai")
+        pytest.importorskip("google.genai")
         # When no AI service is injected, handler should create a default one
-        handler = LambdaHandler(ai_service=None, validate_config=False)
+        with patch("src.services.gemini_service.genai.Client"):
+            handler = LambdaHandler(ai_service=None, validate_config=False)
 
         # Default AI service should be created
         assert handler.ai_service is not None
