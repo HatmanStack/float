@@ -116,7 +116,5 @@ class LambdaHandlerFacade:
         else:
             from ..config.constants import HTTP_BAD_REQUEST
 
-            return create_error_response(
-                HTTP_BAD_REQUEST, f"Unsupported request type: {type(request)}"
-            )
+            return create_error_response(HTTP_BAD_REQUEST, "Unsupported request type")
         return create_success_response(result)

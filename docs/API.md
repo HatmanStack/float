@@ -251,7 +251,35 @@ The `playlist_url` becomes available once streaming processing begins. Poll `/jo
 }
 ```
 
-**Response (Job Completed)**:
+**Response (Job Completed — Legacy / non-HLS)**:
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "user_id": "user@example.com",
+    "status": "completed",
+    "created_at": "2026-04-08T12:34:56Z",
+    "updated_at": "2026-04-08T12:36:10Z",
+    "generation_attempt": 1,
+    "streaming": { "enabled": false },
+    "download": { "available": false },
+    "result": {
+      "request_id": "req_xyz789abc123",
+      "user_id": "user@example.com",
+      "base64": "SUQzBAAAAAAAI1...(long base64 string)...==",
+      "music_list": ["rain.mp3", "forest.mp3"]
+    }
+  }
+}
+```
+
+**Response (Job Completed — HLS streaming)**:
+
+`result.base64` is **not present** for HLS jobs. The audio is available
+via `streaming.playlist_url` (live HLS playback) or the
+`POST /job/{job_id}/download` endpoint (full MP3 download).
 
 ```json
 {
@@ -270,12 +298,6 @@ The `playlist_url` becomes available once streaming processing begins. Poll `/jo
     },
     "download": {
       "available": true
-    },
-    "result": {
-      "request_id": "req_xyz789abc123",
-      "user_id": "user@example.com",
-      "base64": "SUQzBAAAAAAAI1...(long base64 string)...==",
-      "music_list": ["rain.mp3", "forest.mp3"]
     }
   }
 }

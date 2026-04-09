@@ -58,7 +58,7 @@ try {
   );
 
   fs.writeFileSync(distPath, html);
-  console.warn('SEO tags injected successfully into dist/index.html');
+  console.log('SEO tags injected successfully into dist/index.html');
 } catch (error) {
   console.error('Error injecting SEO tags:', error.message);
   process.exit(1);
