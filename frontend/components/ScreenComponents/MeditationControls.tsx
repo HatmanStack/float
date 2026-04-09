@@ -223,8 +223,29 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           onError={handleHLSError}
           autoPlay={false}
         />
-        <View style={localStyles.playbackControls}>
-          <View style={localStyles.spacer} />
+        <View
+          style={[
+            localStyles.playbackControls,
+            isSmallScreen && localStyles.playbackControlsVertical,
+          ]}
+        >
+          {isSmallScreen && (
+            <Pressable
+              onPress={() => {
+                hlsPlayerRef.current?.pause();
+                setIsHLSPlaying(false);
+                onPlaybackEnd?.();
+              }}
+              style={({ pressed }) => [
+                localStyles.newButton,
+                pressed && localStyles.newButtonPressed,
+              ]}
+              testID="new-meditation-button"
+            >
+              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+            </Pressable>
+          )}
+          {!isSmallScreen && <View style={localStyles.spacer} />}
           {hlsError ? (
             <Pressable
               onPress={() => {
@@ -259,22 +280,24 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
               )}
             </Pressable>
           )}
-          <View style={localStyles.newButtonWrapper}>
-            <Pressable
-              onPress={() => {
-                hlsPlayerRef.current?.pause();
-                setIsHLSPlaying(false);
-                onPlaybackEnd?.();
-              }}
-              style={({ pressed }) => [
-                localStyles.newButton,
-                pressed && localStyles.newButtonPressed,
-              ]}
-              testID="new-meditation-button"
-            >
-              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
-            </Pressable>
-          </View>
+          {!isSmallScreen && (
+            <View style={localStyles.newButtonWrapper}>
+              <Pressable
+                onPress={() => {
+                  hlsPlayerRef.current?.pause();
+                  setIsHLSPlaying(false);
+                  onPlaybackEnd?.();
+                }}
+                style={({ pressed }) => [
+                  localStyles.newButton,
+                  pressed && localStyles.newButtonPressed,
+                ]}
+                testID="new-meditation-button"
+              >
+                <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+              </Pressable>
+            </View>
+          )}
         </View>
       </ThemedView>
     );
@@ -283,8 +306,27 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   // Legacy base64 mode: expo-av Audio
   if (meditationURI) {
     return (
-      <View style={localStyles.playbackControls}>
-        <View style={localStyles.spacer} />
+      <View
+        style={[
+          localStyles.playbackControls,
+          isSmallScreen && localStyles.playbackControlsVertical,
+        ]}
+      >
+        {isSmallScreen && (
+          <Pressable
+            onPress={() => {
+              setMeditationURI('');
+            }}
+            style={({ pressed }) => [
+              localStyles.newButton,
+              pressed && localStyles.newButtonPressed,
+            ]}
+            testID="new-meditation-button-legacy"
+          >
+            <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+          </Pressable>
+        )}
+        {!isSmallScreen && <View style={localStyles.spacer} />}
         <Pressable
           onPress={handlePlayMeditation}
           style={({ pressed }) => [
@@ -301,20 +343,22 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
             </ThemedText>
           )}
         </Pressable>
-        <View style={localStyles.newButtonWrapper}>
-          <Pressable
-            onPress={() => {
-              setMeditationURI('');
-            }}
-            style={({ pressed }) => [
-              localStyles.newButton,
-              pressed && localStyles.newButtonPressed,
-            ]}
-            testID="new-meditation-button-legacy"
-          >
-            <ThemedText style={localStyles.newButtonText}>New</ThemedText>
-          </Pressable>
-        </View>
+        {!isSmallScreen && (
+          <View style={localStyles.newButtonWrapper}>
+            <Pressable
+              onPress={() => {
+                setMeditationURI('');
+              }}
+              style={({ pressed }) => [
+                localStyles.newButton,
+                pressed && localStyles.newButtonPressed,
+              ]}
+              testID="new-meditation-button-legacy"
+            >
+              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   }
@@ -450,6 +494,9 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+  },
+  playbackControlsVertical: {
+    flexDirection: 'column',
   },
   newButtonWrapper: {
     flex: 1,
