@@ -47,19 +47,28 @@ export const getTransformedDict = (
       return;
     }
 
-    if (d.sentiment_label) transformedDict.sentiment_label.push(d.sentiment_label);
-    if (d.intensity !== undefined) {
-      const intensityNum =
-        typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
-      // Skip non-finite values (NaN, Infinity) so the payload never carries
-      // a malformed intensity that the backend would reject downstream.
-      if (Number.isFinite(intensityNum)) {
-        transformedDict.intensity.push(intensityNum);
-      }
+    // Push all five fields together so array indices stay aligned per
+    // incident. If any required field is missing or the intensity is
+    // non-finite, skip the whole incident rather than letting one field
+    // drift ahead of the others.
+    if (
+      !d.sentiment_label ||
+      d.intensity === undefined ||
+      !d.speech_to_text ||
+      !d.added_text ||
+      !d.summary
+    ) {
+      return;
     }
-    if (d.speech_to_text) transformedDict.speech_to_text.push(d.speech_to_text);
-    if (d.added_text) transformedDict.added_text.push(d.added_text);
-    if (d.summary) transformedDict.summary.push(d.summary);
+    const intensityNum = typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
+    if (!Number.isFinite(intensityNum)) {
+      return;
+    }
+    transformedDict.sentiment_label.push(d.sentiment_label);
+    transformedDict.intensity.push(intensityNum);
+    transformedDict.speech_to_text.push(d.speech_to_text);
+    transformedDict.added_text.push(d.added_text);
+    transformedDict.summary.push(d.summary);
   });
   return transformedDict;
 };
@@ -122,12 +131,27 @@ export async function BackendMeditationCall(
     user_id: userId,
   };
 
+  // Submit fetch must not hang forever; the backend acknowledges async
+  // meditation jobs in well under a minute, so a 30s ceiling is generous.
+  const submitController = new AbortController();
+  const submitTimeout = setTimeout(() => submitController.abort(), 30_000);
   try {
-    const httpResponse = await fetch(lambdaUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let httpResponse: Response;
+    try {
+      httpResponse = await fetch(lambdaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: submitController.signal,
+      });
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') {
+        throw new Error('Meditation submit timed out after 30s');
+      }
+      throw err;
+    } finally {
+      clearTimeout(submitTimeout);
+    }
 
     if (!httpResponse.ok) {
       const errorText = await httpResponse.text();
@@ -152,7 +176,9 @@ export async function BackendMeditationCall(
     }
 
     const uri = await saveResponseBase64(jobResult.result.base64);
-    const responseMusicList = jobResult.result.music_list || [];
+    const responseMusicList = Array.isArray(jobResult.result.music_list)
+      ? jobResult.result.music_list
+      : [];
     return { responseMeditationURI: uri, responseMusicList };
   } catch (error) {
     console.error(`An error occurred in BackendMeditationCall:`, error);

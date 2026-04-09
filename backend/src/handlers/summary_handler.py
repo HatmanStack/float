@@ -44,9 +44,12 @@ class SummaryHandler:
         has_audio = bool(request.audio) and request.audio != "NotAvailable"
         if has_audio:
             audio_file = decode_audio_base64(request.audio)
+        # Normalize the "NotAvailable" sentinel to None so downstream
+        # AI prompt construction never embeds the literal string.
+        user_text = request.prompt if request.prompt and request.prompt != "NotAvailable" else None
         try:
             summary_result = self.ai_service.analyze_sentiment(
-                audio_file=audio_file, user_text=request.prompt
+                audio_file=audio_file, user_text=user_text
             )
             request_id = generate_request_id()
             response = create_summary_response(request_id, request.user_id, summary_result)

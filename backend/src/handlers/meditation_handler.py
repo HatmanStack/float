@@ -190,7 +190,43 @@ class MeditationHandler:
 
     def process_async(self, job_id: str, request_dict: Dict[str, Any]) -> None:
         """Process meditation in async Lambda invocation."""
-        request = MeditationRequestModel.model_validate(request_dict)
+        try:
+            request = MeditationRequestModel.model_validate(request_dict)
+        except Exception as exc:
+            # request_dict may be malformed but typically still carries the
+            # user_id the orchestrator wrote, so use it for the best-effort
+            # FAILED transition before re-raising.
+            fallback_user_id = ""
+            if isinstance(request_dict, dict):
+                raw_user_id = request_dict.get("user_id")
+                if isinstance(raw_user_id, str):
+                    fallback_user_id = raw_user_id
+            logger.error(
+                "Async meditation payload failed validation; marking job FAILED",
+                extra={
+                    "data": {
+                        "job_id": job_id,
+                        "user_id": _mask_id(fallback_user_id),
+                        "error": str(exc),
+                    }
+                },
+                exc_info=True,
+            )
+            if fallback_user_id:
+                try:
+                    self.job_service.update_job_status(
+                        fallback_user_id,
+                        job_id,
+                        JobStatus.FAILED,
+                        error=f"Invalid async meditation payload: {exc}",
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to mark job FAILED after validation error",
+                        extra={"data": {"job_id": job_id}},
+                    )
+            raise
+
         logger.info(
             "Processing async meditation",
             extra={"data": {"job_id": job_id, "user_id": _mask_id(request.user_id)}},
