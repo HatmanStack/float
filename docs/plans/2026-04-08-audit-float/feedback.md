@@ -14,7 +14,91 @@ _(none)_
 
 ---
 
+## Verification
+
+### VERIFIED - 2026-04-08
+
+**Reviewer:** Verification Reviewer
+
+All findings from health-audit.md (CRITICAL + HIGH), eval.md (REMEDIATION TARGETS across Hire/Stress/Day2 lenses), and doc-audit.md (DRIFT/GAP/STALE/BROKEN LINK) verified addressed in code. Tests: 351/351 backend unit pass, 287/287 frontend pass, ruff clean, frontend lint clean.
+
+---
+
 ## Phase Approvals
+
+### PHASE_APPROVED - Phase 6 [DOC-ENGINEER]
+
+**Status:** APPROVED (iteration 1)
+**Reviewer:** Doc Reviewer
+**Implementer:** Documentation Engineer
+
+All 6 Phase 6 doc tasks verified:
+
+1. README/CLAUDE/docs version drift fixed (Expo 55, RN 0.84, React 19); `tests/` paths corrected to `frontend/tests/` and `backend/tests/`; "Node.js v24 LTS" dropped; `EXPO_PUBLIC_ANDROID_CLIENT_ID` and `G_KEY` legacy alias documented.
+1. `docs/API.md` rewritten — Download Section 3 documents JSON `{job_id, download_url, expires_in: 3600}`; new Section 4 documents `/token` opaque HMAC marker; `qa_transcript` field added; complete job-status example with `streaming`/`download`/`generation_attempt`; polling Example 3; authorization model; corrected error text.
+1. `docs/ARCHITECTURE.md` — new "Meditation Generation Flow" sequence diagram; HLS streaming pipeline; `_StreamState`/watcher; retry semantics; constants table cross-verified against `backend/src/config/constants.py`.
+1. Root `README.md` deploy table replaced with link to `docs/README.md#deployment`; CLAUDE.md and docs/README.md plans index landed in Task 1.
+1. `.markdownlint.json` config + `markdownlint-cli2-action@v23` CI job; markdownlint-cli2 runs clean (8 files, 0 errors); MD040/MD012/MD032 issues fixed.
+1. `lychee-action@v2` `link-check` CI job added; both new jobs gated into `status-check.needs`.
+
+Excludes: `node_modules`, `.claude`, `backend/.venv`, `backend/.aws-sam`, `CHANGELOG.md`, `docs/plans/**`, `frontend/tests/**/README.md`.
+
+**Commits:** `279693a`, `fc389bf`, `036accd`, `7b55fee`, `9e23b5b`, `2ae5da5`.
+
+---
+
+### PHASE_APPROVED - Phase 5 [FORTIFIER]
+
+**Status:** APPROVED (iteration 1)
+**Reviewer:** Health Reviewer
+**Implementer:** Code Fortifier
+
+All 4 Phase 5 fortifier tasks verified:
+
+1. `pip-audit` job added to `.github/workflows/ci.yml` (lines 122-141), gated into `status-check.needs` (line 147); `pip-audit==2.7.3` pinned in `backend/requirements-dev.txt:9`.
+1. 450-line file-size guardrail step in backend CI job (lines 98-112); 0 offenders locally.
+1. All 9 remaining `UP*` ignores in `backend/pyproject.toml:121-129` annotated with measured violator counts (UP006=152, UP045=83, UP035=49, UP007=4, UP017=3, UP028=3, UP024=2, UP015=1, UP046=1) per Phase 5 Task 3 spec — no rules re-enabled because all still have violators.
+1. 6 `as any` casts in `frontend/tests/unit/AudioRecording-test.tsx` replaced with `as unknown as Audio.Recording`; 0 `as any` remaining.
+
+**Test results:** ruff clean, frontend lint clean, 287/287 frontend tests pass. Backend pytest not run locally (missing deps); CI installs them.
+
+**Commits:** `ea8f2f1`, `da50eac`, `12c436e`, `4ad6a7b`, `52c938d`.
+
+---
+
+### PHASE_APPROVED - Phase 4 [IMPLEMENTER]
+
+**Status:** APPROVED (iteration 2)
+**Reviewer:** Code Reviewer (Senior Engineer)
+**Implementer:** Implementation Engineer
+
+All 4 Phase 4 tasks complete; all 7 iteration-1 CODE_REVIEW items resolved in iteration 2.
+
+Final line counts:
+
+```text
+backend/src/handlers/lambda_handler.py        90  (<100)
+backend/src/handlers/meditation_handler.py   194  (<400)
+backend/src/handlers/router.py               104  (<200)
+backend/src/handlers/handler_facade.py       124
+backend/src/handlers/routes.py               139
+backend/src/handlers/meditation_pipeline.py  298
+backend/src/services/ffmpeg_audio_service.py 149  (<150)
+backend/src/services/audio/audio_mixer.py    302
+backend/src/services/audio/hls_batch_encoder.py 148
+backend/src/services/audio/hls_stream_encoder.py 285
+frontend/components/BackendMeditationCall.tsx 142  (<200)
+frontend/components/backendMeditationCallHelpers.ts 148
+frontend/hooks/useMeditationGeneration.ts    163
+```
+
+`request_validation_middleware` fully deleted from `middleware.py` and tests.
+
+**Test results:** 351/351 backend unit tests pass, 287/287 frontend tests pass, ruff clean, frontend lint clean.
+
+**Commits:** `9dc76e1`, `c8d0c16`, `e34395d`, `410ea25`, `2977f71`, `80dace9`, `dfab535`.
+
+---
 
 ### PHASE_APPROVED - Phase 3 [IMPLEMENTER]
 
