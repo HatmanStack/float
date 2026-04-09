@@ -1,4 +1,3 @@
-import logging
 import traceback
 from typing import Iterator
 
@@ -9,8 +8,9 @@ from ..config.settings import settings
 from ..exceptions import TTSError
 from ..services.tts_service import TTSService
 from ..utils.circuit_breaker import gemini_tts_circuit
+from ..utils.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class GeminiTTSProvider(TTSService):
@@ -128,3 +128,7 @@ class GeminiTTSProvider(TTSService):
 
     def get_provider_name(self) -> str:
         return "gemini"
+
+    def get_stream_format(self) -> list[str]:
+        """Gemini TTS returns raw 16-bit little-endian PCM at 24 kHz mono."""
+        return ["-f", "s16le", "-ar", "24000", "-ac", "1"]

@@ -524,9 +524,8 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            # Mock the model and response
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = """{
@@ -538,22 +537,22 @@ class TestGeminiAIService:
                 "user_summary": "I had a difficult day at work",
                 "user_short_summary": "Bad work day"
             }"""
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             result = service.analyze_sentiment(audio_file=None, user_text="I had a difficult day")
 
             assert result is not None
             assert "sentiment_label" in result.lower()
-            mock_model.generate_content.assert_called_once()
+            mock_client.models.generate_content.assert_called_once()
 
     def test_analyze_sentiment_with_audio_input(self):
         """Test analyze sentiment with audio file."""
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = """{
@@ -565,7 +564,7 @@ class TestGeminiAIService:
                 "user_summary": "I had an amazing day",
                 "user_short_summary": "Great day"
             }"""
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
 
@@ -575,15 +574,15 @@ class TestGeminiAIService:
 
             assert result is not None
             assert "sentiment_label" in result.lower()
-            mock_model.generate_content.assert_called_once()
+            mock_client.models.generate_content.assert_called_once()
 
     def test_analyze_sentiment_with_empty_input_handles_gracefully(self):
         """Test analyze sentiment with empty input handles gracefully."""
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             service = GeminiAIService()
 
@@ -596,15 +595,15 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = """<speak><voice name='en-US-Neural2-J'>
             Let's release this moment. <break time='1000ms'/>
             Breathe deeply and let it go.
             </voice></speak>"""
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             input_data = {
@@ -617,20 +616,20 @@ class TestGeminiAIService:
 
             assert result is not None
             assert "speak" in result.lower()
-            mock_model.generate_content.assert_called_once()
+            mock_client.models.generate_content.assert_called_once()
 
     def test_generate_meditation_with_different_emotion_types(self):
         """Test different emotion types produce appropriate meditations."""
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             for emotion in ["Happy", "Sad", "Angry", "Fearful"]:
                 mock_response = MagicMock()
                 mock_response.text = f"<speak><voice>Meditation for {emotion}</voice></speak>"
-                mock_model.generate_content.return_value = mock_response
+                mock_client.models.generate_content.return_value = mock_response
 
                 service = GeminiAIService()
                 input_data = {
@@ -649,9 +648,9 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
-            mock_model.generate_content.side_effect = TimeoutError("API timeout")
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_client.models.generate_content.side_effect = TimeoutError("API timeout")
 
             service = GeminiAIService()
 
@@ -662,7 +661,7 @@ class TestGeminiAIService:
     def test_invalid_api_key_returns_clear_error(self):
         """Test invalid API key returns clear error."""
         with patch("src.services.gemini_service.genai") as mock_genai:
-            mock_genai.configure.side_effect = Exception("Invalid API key")
+            mock_genai.Client.side_effect = Exception("Invalid API key")
 
             with pytest.raises(Exception, match="Invalid API key"):
                 from src.services.gemini_service import GeminiAIService
@@ -674,12 +673,12 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = "not valid json"
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             result = service.analyze_sentiment(audio_file=None, user_text="Test")
@@ -692,12 +691,12 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = '{"sentiment_label": "Happy", "intensity": 5}'
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             result = service.analyze_sentiment(audio_file=None, user_text="Great day!")
@@ -710,8 +709,8 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = """<speak>
@@ -720,7 +719,7 @@ class TestGeminiAIService:
             Breathe deeply.
             </voice>
             </speak>"""
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             result = service.generate_meditation({"sentiment_label": ["Calm"]})
@@ -734,22 +733,22 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = '{"sentiment_label": "Neutral"}'
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             service.analyze_sentiment(audio_file=None, user_text="Test input")
 
             # Verify the prompt includes necessary instructions
-            call_args = mock_model.generate_content.call_args
+            call_args = mock_client.models.generate_content.call_args
             prompt_content = str(call_args)
 
             # The prompt should include the user text
-            assert "Test input" in prompt_content or len(call_args[0]) > 0
+            assert "Test input" in prompt_content
 
     def test_safety_settings_configured(self):
         """Test safety settings are configured for Gemini."""
@@ -768,12 +767,12 @@ class TestGeminiAIService:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = '{"sentiment_label": "Neutral"}'
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
 
@@ -1159,8 +1158,7 @@ class TestFFmpegAudioServiceHLS:
             patch(
                 "glob.glob", return_value=["/tmp/fade/segment_000.ts", "/tmp/fade/segment_001.ts"]
             ),
-            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
-            patch.object(service, "get_audio_duration", return_value=5.0),
+            patch.object(service, "get_audio_duration", side_effect=[120.0, 5.0, 5.0]),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1201,7 +1199,7 @@ class TestFFmpegAudioServiceHLS:
         with (
             patch("subprocess.run") as mock_run,
             patch("glob.glob", return_value=[]),
-            patch.object(service, "_get_audio_duration_from_file", return_value=60.0),
+            patch.object(service, "get_audio_duration", return_value=60.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1226,7 +1224,7 @@ class TestFFmpegAudioServiceHLS:
 
         segment_durations = [5.0, 5.0]
 
-        with patch.object(service, "_get_audio_duration_from_file", return_value=0.0):
+        with patch.object(service, "get_audio_duration", return_value=0.0):
             result = service._append_fade_segments(
                 music_path="/tmp/music.mp3",
                 total_streamed_duration=10.0,
@@ -1249,7 +1247,7 @@ class TestFFmpegAudioServiceHLS:
 
         with (
             patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ffmpeg")),
-            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch.object(service, "get_audio_duration", return_value=120.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1274,7 +1272,7 @@ class TestFFmpegAudioServiceHLS:
         with (
             patch("subprocess.run") as mock_run,
             patch("glob.glob", return_value=[]),
-            patch.object(service, "_get_audio_duration_from_file", return_value=120.0),
+            patch.object(service, "get_audio_duration", return_value=120.0),
             patch("tempfile.mkdtemp", return_value="/tmp/fade"),
             patch("shutil.rmtree"),
         ):
@@ -1421,12 +1419,12 @@ class TestMeditationPromptTranscript:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = "A calm meditation..."
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             input_data = {
@@ -1441,9 +1439,9 @@ class TestMeditationPromptTranscript:
 
             service.generate_meditation(input_data, qa_transcript=qa_transcript)
 
-            # Capture the prompt passed to generate_content
-            call_args = mock_model.generate_content.call_args
-            prompt = call_args[0][0][0]
+            # Capture the prompt passed to generate_content via keyword args
+            call_args = mock_client.models.generate_content.call_args
+            prompt = call_args.kwargs["contents"]
             assert "Check-in transcript" in prompt
             assert "Stressed about work" in prompt
 
@@ -1452,12 +1450,12 @@ class TestMeditationPromptTranscript:
         with patch("src.services.gemini_service.genai") as mock_genai:
             from src.services.gemini_service import GeminiAIService
 
-            mock_model = MagicMock()
-            mock_genai.GenerativeModel.return_value = mock_model
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
             mock_response.text = "A calm meditation..."
-            mock_model.generate_content.return_value = mock_response
+            mock_client.models.generate_content.return_value = mock_response
 
             service = GeminiAIService()
             input_data = {
@@ -1468,6 +1466,134 @@ class TestMeditationPromptTranscript:
 
             service.generate_meditation(input_data)
 
-            call_args = mock_model.generate_content.call_args
-            prompt = call_args[0][0][0]
+            call_args = mock_client.models.generate_content.call_args
+            prompt = call_args.kwargs["contents"]
             assert "Check-in transcript" not in prompt
+
+
+@pytest.mark.unit
+class TestProcessStreamToHls:
+    """Phase 3 Tasks 1-3 -- thread-safe state, event-based watcher, and
+    generator cleanup on BrokenPipeError in ``process_stream_to_hls``."""
+
+    def _make_service(self, mock_storage_service, tmp_path):
+        mock_hls = MagicMock()
+        mock_hls.upload_segment_from_file.return_value = True
+        mock_hls.generate_live_playlist.return_value = "#EXTM3U\n"
+        mock_hls.upload_playlist.return_value = True
+        mock_hls.finalize_playlist.return_value = True
+        service = FFmpegAudioService(mock_storage_service, hls_service=mock_hls)
+        return service, mock_hls
+
+    def test_process_stream_to_hls_uses_locked_state(
+        self, mock_storage_service, tmp_path, monkeypatch
+    ):
+        """Drive process_stream_to_hls end-to-end with a fake Popen and a
+        fake generator. Assert the thread-safe container, watcher termination
+        on the done event, and successful segment upload counting."""
+        service, mock_hls = self._make_service(mock_storage_service, tmp_path)
+
+        # Patch tempfile.mkdtemp to return a known directory under tmp_path
+        stream_dir = tmp_path / "stream"
+        stream_dir.mkdir()
+        fade_dir = tmp_path / "fade"
+        fade_dir.mkdir()
+        dirs = iter([str(stream_dir), str(fade_dir)])
+        monkeypatch.setattr(
+            "src.services.audio.hls_stream_encoder.tempfile.mkdtemp",
+            lambda prefix="": next(dirs),
+        )
+        monkeypatch.setattr(
+            "src.services.audio.audio_mixer.tempfile.mkdtemp",
+            lambda prefix="": next(dirs),
+        )
+
+        # Pre-create two segment files so the watcher sees them immediately.
+        (stream_dir / "segment_000.ts").write_bytes(b"ts-data-0")
+        (stream_dir / "segment_001.ts").write_bytes(b"ts-data-1")
+
+        # Fake Popen that ignores stdin and reports success.
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None
+        fake_proc.returncode = 0
+        fake_proc.stderr.read.return_value = b""
+        fake_proc.wait.return_value = 0
+        monkeypatch.setattr(
+            "src.services.audio.hls_stream_encoder.subprocess.Popen",
+            lambda *a, **kw: fake_proc,
+        )
+
+        # Fake duration probe (get_audio_duration) so we don't shell out.
+        monkeypatch.setattr(service, "get_audio_duration", lambda p: 5.0)
+
+        # Disable fade segment appending for this test.
+        monkeypatch.setattr(
+            service,
+            "_append_fade_segments",
+            lambda *a, **kw: a[4],  # return current_segments unchanged
+        )
+
+        def generator():
+            yield b"chunk-0"
+            yield b"chunk-1"
+
+        gen = generator()
+        total_segments, durations = service.process_stream_to_hls(
+            voice_generator=gen,
+            music_path=str(tmp_path / "music.mp3"),
+            user_id="user-1",
+            job_id="job-1",
+            estimated_voice_duration=60.0,
+        )
+
+        assert total_segments == 2
+        assert mock_hls.upload_segment_from_file.call_count == 2
+        assert mock_hls.finalize_playlist.called
+
+    def test_process_stream_to_hls_closes_generator_on_broken_pipe(
+        self, mock_storage_service, tmp_path, monkeypatch
+    ):
+        """On BrokenPipeError, voice_generator.close() MUST be called so the
+        TTS provider's HTTP connection is released, and the raised exception
+        MUST be an AudioProcessingError (not a bare Exception)."""
+        from src.exceptions import AudioProcessingError
+
+        service, _ = self._make_service(mock_storage_service, tmp_path)
+
+        stream_dir = tmp_path / "stream"
+        stream_dir.mkdir()
+        monkeypatch.setattr(
+            "src.services.audio.hls_stream_encoder.tempfile.mkdtemp",
+            lambda prefix="": str(stream_dir),
+        )
+
+        fake_proc = MagicMock()
+        fake_proc.poll.return_value = None
+        fake_proc.stdin.write.side_effect = BrokenPipeError("pipe closed")
+        fake_proc.stderr.read.return_value = b"ffmpeg died"
+        monkeypatch.setattr(
+            "src.services.audio.hls_stream_encoder.subprocess.Popen",
+            lambda *a, **kw: fake_proc,
+        )
+        monkeypatch.setattr(service, "get_audio_duration", lambda p: 5.0)
+
+        close_called = {"n": 0}
+
+        def generator():
+            try:
+                yield b"chunk-0"
+                yield b"chunk-1"
+            finally:
+                close_called["n"] += 1
+
+        gen = generator()
+        with pytest.raises(AudioProcessingError):
+            service.process_stream_to_hls(
+                voice_generator=gen,
+                music_path=str(tmp_path / "music.mp3"),
+                user_id="user-1",
+                job_id="job-1",
+                estimated_voice_duration=60.0,
+            )
+
+        assert close_called["n"] == 1

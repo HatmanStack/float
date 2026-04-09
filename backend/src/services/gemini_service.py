@@ -1,30 +1,52 @@
-import logging
 import pathlib
 from typing import Any, Dict
 
-import google.generativeai as genai  # type: ignore
-from google.generativeai.types.safety_types import (  # type: ignore
-    HarmCategory,
-)
-from zenquotespy import random as get_random_quote
+import requests
+from google import genai
+from google.genai import types
 
 from ..config.settings import settings
 from ..exceptions import AIServiceError
 from ..utils.circuit_breaker import gemini_circuit, with_circuit_breaker
+from ..utils.logging_utils import get_logger
 from .ai_service import AIService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+# Map integer safety levels from settings to new SDK thresholds.
+# Old SDK: 0=UNSPECIFIED, 1=BLOCK_LOW_AND_ABOVE, 2=BLOCK_MEDIUM_AND_ABOVE,
+#          3=BLOCK_ONLY_HIGH, 4=BLOCK_NONE
+_SAFETY_THRESHOLD_MAP = {
+    0: "HARM_BLOCK_THRESHOLD_UNSPECIFIED",
+    1: "BLOCK_LOW_AND_ABOVE",
+    2: "BLOCK_MEDIUM_AND_ABOVE",
+    3: "BLOCK_ONLY_HIGH",
+    4: "BLOCK_NONE",
+}
 
 
 class GeminiAIService(AIService):
     def __init__(self):
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.safety_settings = {
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: settings.GEMINI_SAFETY_LEVEL,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: settings.GEMINI_SAFETY_LEVEL,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: settings.GEMINI_SAFETY_LEVEL,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: settings.GEMINI_SAFETY_LEVEL,
-        }
+        self._client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        threshold = _SAFETY_THRESHOLD_MAP.get(settings.GEMINI_SAFETY_LEVEL, "BLOCK_NONE")
+        self.safety_settings = [
+            types.SafetySetting(
+                category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                threshold=threshold,
+            ),
+            types.SafetySetting(
+                category="HARM_CATEGORY_HATE_SPEECH",
+                threshold=threshold,
+            ),
+            types.SafetySetting(
+                category="HARM_CATEGORY_HARASSMENT",
+                threshold=threshold,
+            ),
+            types.SafetySetting(
+                category="HARM_CATEGORY_DANGEROUS_CONTENT",
+                threshold=threshold,
+            ),
+        ]
         self._setup_prompts()
 
     def _setup_prompts(self):
@@ -155,6 +177,14 @@ Return only the plain text meditation script with no markup or tags.
             20: {"words": 3000, "chars": 15000},
         }
 
+    def _generate(self, contents: types.ContentListUnionDict) -> types.GenerateContentResponse:
+        """Call the Gemini API with the configured model and safety settings."""
+        return self._client.models.generate_content(
+            model=settings.GEMINI_AI_MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(safety_settings=self.safety_settings),
+        )
+
     @with_circuit_breaker(gemini_circuit)
     def analyze_sentiment(self, audio_file: str | None = None, user_text: str | None = None) -> str:
         """
@@ -172,9 +202,6 @@ Return only the plain text meditation script with no markup or tags.
             CircuitBreakerOpenError: If circuit breaker is open.
         """
         logger.info("Starting sentiment analysis")
-        model = genai.GenerativeModel(
-            model_name=settings.GEMINI_AI_MODEL, safety_settings=self.safety_settings
-        )
         text_response = None
         audio_response = None
         logger.debug(
@@ -186,7 +213,7 @@ Return only the plain text meditation script with no markup or tags.
             try:
                 prompt = self.prompt_text + user_text
                 logger.debug("Generating sentiment analysis for text input")
-                text_response = model.generate_content([prompt])
+                text_response = self._generate(prompt)
             except Exception as e:
                 logger.error("Error generating text sentiment: %s", str(e))
                 raise AIServiceError(
@@ -196,10 +223,9 @@ Return only the plain text meditation script with no markup or tags.
         if audio_file and "NotAvailable" not in audio_file:
             try:
                 audio_data = pathlib.Path(audio_file).read_bytes()
-                audio_load = {"mime_type": "audio/mp3", "data": audio_data}
-                call = [self.prompt_audio, audio_load]
+                audio_part = types.Part.from_bytes(data=audio_data, mime_type="audio/mp3")
                 logger.debug("Generating sentiment analysis for audio input")
-                audio_response = model.generate_content(call)
+                audio_response = self._generate([self.prompt_audio, audio_part])
             except Exception as e:
                 logger.error("Error generating audio sentiment: %s", str(e))
                 raise AIServiceError(
@@ -215,7 +241,7 @@ Return only the plain text meditation script with no markup or tags.
                     + text_response.text
                 )
                 logger.debug("Synthesizing text and audio sentiment results")
-                response = model.generate_content([prompt])
+                response = self._generate(prompt)
             elif text_response:
                 response = text_response
             else:
@@ -229,15 +255,24 @@ Return only the plain text meditation script with no markup or tags.
         return response.text  # type: ignore[no-any-return]
 
     def _get_inspirational_quote(self) -> tuple[str, str]:
-        """Get a random inspirational quote for the meditation."""
+        """Get a random inspirational quote for the meditation.
+
+        Calls the zenquotes.io public API directly. The previous
+        ``zenquotespy`` wrapper was dropped in favour of an inline
+        ``requests.get`` because it pinned ``requests==2.32.3``, which
+        conflicts with the post-CVE ``requests>=2.33.0`` requirement and
+        broke dependency resolution.
+        """
         try:
-            # zenquotespy returns: '"Quote text" — Author Name'
-            quote_str = get_random_quote()
-            if quote_str and "—" in quote_str:
-                parts = quote_str.rsplit("—", 1)
-                quote = parts[0].strip().strip('"')
-                author = parts[1].strip() if len(parts) > 1 else "Unknown"
-                return quote, author
+            response = requests.get("https://zenquotes.io/api/random", timeout=5)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, list) and payload:
+                entry = payload[0]
+                quote = (entry.get("q") or "").strip()
+                author = (entry.get("a") or "").strip() or "Unknown"
+                if quote:
+                    return quote, author
             return "Peace comes from within. Do not seek it without.", "Buddha"
         except Exception as e:
             logger.warning("Failed to get quote: %s, using fallback", e)
@@ -300,13 +335,9 @@ Return only the plain text meditation script with no markup or tags.
             qa_transcript_section=qa_transcript_section,
         )
 
-        model = genai.GenerativeModel(
-            model_name=settings.GEMINI_AI_MODEL,
-            safety_settings=self.safety_settings,
-        )
         try:
             prompt = prompt_meditation + str(input_data)
-            response = model.generate_content([prompt])
+            response = self._generate(prompt)
             meditation_text = response.text
             logger.info(
                 "Generated meditation: %d words, %d chars (target: %d words for %d min)",

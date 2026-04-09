@@ -4,7 +4,7 @@ This document describes the AWS Lambda API endpoints for Float meditation app.
 
 ## Base URL
 
-```
+```text
 https://<your-lambda-function-url>/
 ```
 
@@ -12,7 +12,23 @@ Set `EXPO_PUBLIC_LAMBDA_FUNCTION_URL` in frontend `.env` with your Lambda URL.
 
 ## Authentication
 
-Currently, the API does not require authentication. Future versions may add API key or JWT validation.
+Float uses a privacy-first authorization model rather than server-issued
+credentials:
+
+- The `user_id` is generated client-side (guest users get a stable
+  anonymous UUID; signed-in users use their Google `sub`).
+- Every endpoint that touches user-scoped state requires `user_id` on the
+  request body or query string and validates it against the path's
+  `job_id` via `_authorize_job_access`. A mismatch returns **403
+  Forbidden**.
+- `user_id` is format-validated at the request boundary (see
+  `backend/src/utils/validation.py::is_valid_user_id`). Path-traversal
+  patterns such as `..`, `/`, and empty strings are rejected with **400**.
+- Guest mode is supported — there is no sign-in requirement.
+
+A future auth plan may add server-minted opaque user identifiers and
+JWTs; the broader identity overhaul is out of scope for the 2026-04-08
+audit remediation.
 
 ## Request Format
 
@@ -20,7 +36,7 @@ Requests use POST for submissions and GET for job status polling. All POST reque
 
 **Common Headers**:
 
-```
+```text
 Content-Type: application/json
 ```
 
@@ -98,7 +114,7 @@ Analyze emotion from audio and/or text input.
 | `user_id` | string | Echo of user ID |
 | `inference_type` | string | Always `"summary"` |
 | `sentiment_label` | string | Detected emotion (Angry, Disgusted, Fearful, Happy, Neutral, Sad, Surprised) |
-| `intensity` | string | Emotion intensity level (e.g., "high", "medium", "low") |
+| `intensity` | string | Summary-inference intensity label: `"high"`, `"medium"`, or `"low"`. Note: the meditation endpoint instead accepts a numeric `intensity` on each float (e.g., `0.8`) — see "Meditation Generation" below. |
 | `speech_to_text` | string | Transcription of audio input, or `"NotAvailable"` |
 | `added_text` | string | Additional text context, or `"NotAvailable"` |
 | `summary` | string | AI-generated summary of the emotional state |
@@ -125,8 +141,8 @@ Invalid request type:
 {
   "statusCode": 400,
   "body": {
-    "error": "Invalid inference_type",
-    "details": "inference_type must be 'summary' or 'meditation'"
+    "error": "Validation error",
+    "details": "Invalid inference_type: foo"
   }
 }
 ```
@@ -172,6 +188,7 @@ Generate a personalized meditation from selected floats (emotions/incidents). Us
 | `input_data`     | object or array | Yes      | Float data (dict or list of dicts)  |
 | `music_list`     | array           | Yes      | List of background music file names |
 | `duration_minutes` | number | No | Meditation length: 3, 5, 10, 15, or 20 (default: 5) |
+| `qa_transcript` | array | No | Q&A turns captured from the onboarding voice flow. Each item is `{ role: "user" \| "assistant", text: string }` (see `QATranscriptItem` in `backend/src/models/requests.py`). Used by the meditation prompt as additional context. |
 
 **Constraints**:
 
@@ -219,13 +236,22 @@ The `playlist_url` becomes available once streaming processing begins. Poll `/jo
     "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
     "user_id": "user@example.com",
     "status": "processing",
-    "created_at": "2024-10-31T12:34:56Z",
-    "updated_at": "2024-10-31T12:35:00Z"
+    "created_at": "2026-04-08T12:34:56Z",
+    "updated_at": "2026-04-08T12:35:00Z",
+    "generation_attempt": 1,
+    "streaming": {
+      "enabled": true,
+      "started_at": "2026-04-08T12:35:02Z",
+      "playlist_url": "https://.../user/<id>/job/<id>/playlist.m3u8?X-Amz-..."
+    },
+    "download": {
+      "available": false
+    }
   }
 }
 ```
 
-**Response (Job Completed)**:
+**Response (Job Completed — Legacy / non-HLS)**:
 
 ```json
 {
@@ -234,6 +260,11 @@ The `playlist_url` becomes available once streaming processing begins. Poll `/jo
     "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
     "user_id": "user@example.com",
     "status": "completed",
+    "created_at": "2026-04-08T12:34:56Z",
+    "updated_at": "2026-04-08T12:36:10Z",
+    "generation_attempt": 1,
+    "streaming": { "enabled": false },
+    "download": { "available": false },
     "result": {
       "request_id": "req_xyz789abc123",
       "user_id": "user@example.com",
@@ -243,6 +274,45 @@ The `playlist_url` becomes available once streaming processing begins. Poll `/jo
   }
 }
 ```
+
+**Response (Job Completed — HLS streaming)**:
+
+`result.base64` is **not present** for HLS jobs. The audio is available
+via `streaming.playlist_url` (live HLS playback) or the
+`POST /job/{job_id}/download` endpoint (full MP3 download).
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "user_id": "user@example.com",
+    "status": "completed",
+    "created_at": "2026-04-08T12:34:56Z",
+    "updated_at": "2026-04-08T12:36:10Z",
+    "generation_attempt": 1,
+    "streaming": {
+      "enabled": true,
+      "started_at": "2026-04-08T12:35:02Z",
+      "playlist_url": "https://.../user/<id>/job/<id>/playlist.m3u8?X-Amz-..."
+    },
+    "download": {
+      "available": true
+    }
+  }
+}
+```
+
+Fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | `pending` \| `processing` \| `completed` \| `failed` |
+| `generation_attempt` | number | 1-based attempt counter, capped at `MAX_GENERATION_ATTEMPTS` (3) |
+| `streaming.enabled` | boolean | Whether HLS streaming is active for this job |
+| `streaming.playlist_url` | string \| null | Pre-signed HLS playlist URL; `null` until the streaming watcher has written the first segment |
+| `download.available` | boolean | `true` once the MP3 has been fully encoded and the `/job/{job_id}/download` endpoint will succeed |
+| `result` | object \| null | Present only on `status: completed`. **Legacy (non-HLS) jobs** include `result.base64` (full MP3, base64-encoded) and `result.music_list`. **HLS streaming jobs** do not include `result.base64`; the audio is available via `streaming.playlist_url` (live HLS) or the `POST /job/{job_id}/download` endpoint (MP3). Check `download.available` before requesting the download. |
 
 **Response (Job Failed)**:
 
@@ -283,12 +353,21 @@ async function generateMeditation(userId, floats, musicList) {
   });
   const { job_id } = await submitResponse.json();
 
-  // Step 2: Poll for completion
+  // Step 2: Poll for completion; start playback as soon as the HLS
+  // playlist URL is available, even before status === 'completed'.
+  let startedStreaming = false;
   while (true) {
     const statusResponse = await fetch(
       `${LAMBDA_URL}/job/${job_id}?user_id=${userId}`
     );
     const job = await statusResponse.json();
+
+    // Start streaming as soon as the playlist URL is published.
+    const playlistUrl = job.streaming?.playlist_url;
+    if (!startedStreaming && playlistUrl) {
+      startedStreaming = true;
+      onStream(playlistUrl); // hand off to your HLS player
+    }
 
     if (job.status === 'completed') {
       return job.result;
@@ -329,15 +408,69 @@ Job not found:
 
 ### 3. Download Meditation
 
-Download a completed meditation as an audio file.
+Request a pre-signed download URL for the MP3 of a completed meditation.
+The endpoint does **not** stream audio bytes; it returns JSON with a
+short-lived S3 pre-signed URL that the client should fetch directly.
 
 **Endpoint**: `POST /job/{job_id}/download?user_id=user@example.com`
 
 The `user_id` is passed as a query parameter. No request body is required.
+The job must already be in `status: completed` and have
+`download.available === true` (see the job-status response above).
 
 **Response (200 OK)**:
 
-Returns the audio file as a downloadable response.
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "job_id": "6723b3ea-a86f-4364-846e-69598adb82aa",
+    "download_url": "https://<bucket>.s3.amazonaws.com/user/<id>/meditation.mp3?X-Amz-...",
+    "expires_in": 3600
+  }
+}
+```
+
+`expires_in` is seconds. The client should fetch `download_url` directly
+(GET, no auth headers); the pre-signed URL embeds the S3 credentials.
+
+**Error Responses**:
+
+- **400** — invalid `user_id` format
+- **403** — `user_id` does not own `job_id`
+- **404** — job not found
+- **409** — job not yet completed, or the MP3 is not available
+
+### 4. Gemini Live Token
+
+Issue an opaque, short-lived marker that the Gemini Live WebSocket hook
+presents when establishing a voice session. As of Phase 2 Task 1 of the
+2026-04-08 audit remediation, this endpoint **no longer** returns the
+raw `GEMINI_API_KEY`; it returns an HMAC-derived opaque marker with a
+60-second TTL (`TOKEN_MARKER_TTL_SECONDS`).
+
+**Endpoint**: `POST /token?user_id=<user_id>`
+
+**Response (200 OK)**:
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "token": "<opaque HMAC marker>",
+    "expires_in": 60,
+    "endpoint": "wss://generativelanguage.googleapis.com/ws/..."
+  }
+}
+```
+
+**Notes**:
+
+- The marker is cryptographically bound to `user_id` and the server's
+  `GEMINI_API_KEY`; clients must treat it as opaque and must not attempt
+  to use it with the raw Gemini REST API.
+- The legacy behaviour (returning the raw API key as the token) is
+  considered a security bug and is removed.
 
 ## Common Error Codes
 
@@ -379,15 +512,20 @@ curl -X POST https://your-lambda-url/ \
   }'
 ```
 
-### Example 3: Generate Meditation (JavaScript)
+### Example 3: Generate Meditation (JavaScript, async + polling)
+
+Meditation generation is asynchronous. `POST /` returns a `job_id`
+immediately; the client must poll `GET /job/{job_id}` until
+`status === "completed"` before reading `result.base64`.
 
 ```javascript
+const LAMBDA_URL = process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL;
+
 async function generateMeditation(userId, floats, musicList) {
-  const response = await fetch(process.env.EXPO_PUBLIC_LAMBDA_FUNCTION_URL, {
+  // Step 1: submit the job
+  const submit = await fetch(LAMBDA_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       user_id: userId,
       inference_type: 'meditation',
@@ -395,13 +533,33 @@ async function generateMeditation(userId, floats, musicList) {
       music_list: musicList,
     }),
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.body?.details || 'Generation failed');
+  if (!submit.ok) {
+    const err = await submit.json();
+    throw new Error(err.body?.details || err.details || 'Generation failed');
   }
+  // Lambda Function URL responses are sometimes returned wrapped in
+  // ``{ statusCode, body }`` and sometimes returned as the body directly.
+  // Normalize so the example works in both shapes.
+  const submitParsed = await submit.json();
+  const submitBody = submitParsed.body ?? submitParsed;
+  const { job_id } = submitBody;
 
-  return response.json();
+  // Step 2: poll until completed or failed
+  while (true) {
+    const res = await fetch(
+      `${LAMBDA_URL}/job/${job_id}?user_id=${encodeURIComponent(userId)}`
+    );
+    const pollParsed = await res.json();
+    const job = pollParsed.body ?? pollParsed;
+
+    if (job.status === 'completed') {
+      return job.result; // { base64, music_list, ... }
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error || 'Meditation generation failed');
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
 }
 
 // Usage
@@ -414,11 +572,11 @@ const result = await generateMeditation(
   ['rain.mp3', 'forest.mp3']
 );
 
-// Decode and play audio
-const audioData = result.body.base64;
-const blob = new Blob([Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0))], {
-  type: 'audio/mp3',
-});
+// Decode and play audio once the job is complete.
+const blob = new Blob(
+  [Uint8Array.from(atob(result.base64), (c) => c.charCodeAt(0))],
+  { type: 'audio/mp3' }
+);
 const audioUrl = URL.createObjectURL(blob);
 audioElement.src = audioUrl;
 audioElement.play();
@@ -428,7 +586,7 @@ audioElement.play();
 
 The API includes CORS headers to allow requests from web clients:
 
-```
+```text
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: OPTIONS, POST, GET
 Access-Control-Allow-Headers: Content-Type
@@ -468,4 +626,3 @@ Currently no rate limiting. Future versions may add:
 - [ ] Background music selection UI
 - [ ] Meditation history retrieval
 - [ ] User preferences/settings
-

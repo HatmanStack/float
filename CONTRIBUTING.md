@@ -58,6 +58,7 @@ npm run test:backend  # pytest
 ## Branch Naming
 
 Use descriptive branch names with a type prefix:
+
 - `feat/add-meditation-timer`
 - `fix/s3-pagination-overflow`
 - `chore/remove-dead-code`
@@ -67,7 +68,7 @@ Use descriptive branch names with a type prefix:
 
 Use [conventional commits](https://www.conventionalcommits.org/):
 
-```
+```text
 type(scope): brief description
 
 Optional body explaining why.

@@ -1,4 +1,38 @@
+import os
 from enum import Enum
+
+# =============================================================================
+# Meditation generation constants (Phase 4 Task 4)
+# =============================================================================
+# Hoisted out of ``src/handlers/lambda_handler.py`` so the handler shim can
+# stay small and so that every module that needs a retry budget or TTS rate
+# estimate shares a single source of truth.
+
+# Feature flag for HLS streaming (environment-driven; opt-out by default-on)
+ENABLE_HLS_STREAMING = os.environ.get("ENABLE_HLS_STREAMING", "true").lower() == "true"
+
+# Maximum retry attempts for HLS generation
+MAX_GENERATION_ATTEMPTS = 3
+
+# Estimated TTS speaking rate for calm meditation voice with pauses.
+# Observation: meditation TTS averages ~80 words/minute (slower than
+# conversational ~150 wpm due to intentional pauses).
+TTS_WORDS_PER_MINUTE = 80
+
+# Extra seconds of background music after TTS speech ends, allowing the
+# meditation to fade out naturally.
+MUSIC_TRAILING_BUFFER_SECONDS = 90
+
+# Short-lived TTL for the opaque token marker returned by POST /token.
+# The marker itself is stateless (HMAC over user_id + GEMINI_API_KEY) so this
+# value is purely advisory to the frontend.
+TOKEN_MARKER_TTL_SECONDS = 60
+
+# Gemini Live BidiGenerateContent WebSocket endpoint.
+GEMINI_LIVE_WS_ENDPOINT = (
+    "wss://generativelanguage.googleapis.com/ws/"
+    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+)
 
 
 class InferenceType(Enum):
@@ -29,10 +63,20 @@ DEFAULT_MUSIC_VOLUME_REDUCTION = -15  # dB - background music should be subtle
 DEFAULT_VOICE_BOOST = 3  # dB - slight boost to ensure voice clarity
 SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
 
+# Base64 path: extra seconds of background music appended after voice ends
+# in the ``prepare_mixed_audio`` pipeline (used by ``combine_voice_and_music``).
+# Distinct from ``MUSIC_TRAILING_BUFFER_SECONDS`` (which estimates total music
+# length for the HLS streaming path via the word-count heuristic).
+BASE64_MUSIC_TAIL_SECONDS = 30
+
 # HLS Streaming Fade Configuration
 HLS_TRAILING_PAD_BASE_SECONDS = 7  # base music-only buffer after voice ends
 HLS_TRAILING_PAD_PER_TIER = 5  # additional padding per duration tier (3, 5, 10, 15, 20 min)
 HLS_FADE_DURATION_SECONDS = 10  # duration of the appended fade-out segments
+
+# Allowed meditation duration tiers in minutes. Must stay in sync with
+# ``MeditationRequestModel.duration_minutes: Literal[3, 5, 10, 15, 20]``.
+DURATION_TIER_MINUTES = [3, 5, 10, 15, 20]
 
 # =============================================================================
 # Request Size Limits

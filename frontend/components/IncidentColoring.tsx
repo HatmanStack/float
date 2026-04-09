@@ -14,20 +14,18 @@ const intensityMapping: Record<number | string, string> = {
 };
 
 const intensityTotalTimes: Record<number, [number, number]> = {
-  1: [40, 600],
-  2: [70, 1050],
-  3: [110, 1650],
-  4: [150, 2250],
-  5: [190, 2850],
+  1: [40, 10],
+  2: [70, 17.5],
+  3: [110, 27.5],
+  4: [150, 37.5],
+  5: [190, 47.5],
 };
 
 function getColorForIncident(incident: Incident): string[] {
   const colorSet =
     Colors[incident.sentiment_label.toLowerCase() as keyof typeof Colors] || Colors.neutral;
   const intensityNum =
-    typeof incident.intensity === 'string'
-      ? parseInt(incident.intensity, 10)
-      : incident.intensity;
+    typeof incident.intensity === 'string' ? parseInt(incident.intensity, 10) : incident.intensity;
   const colorSetKey = intensityMapping[intensityNum] || 'one';
   const result = colorSet[colorSetKey as keyof typeof colorSet];
   return Array.isArray(result) ? result : [];
@@ -64,7 +62,7 @@ export function IncidentColoring() {
           const colorKey =
             timeDifferenceInMinutes > intensityTotalTimes[intensityKey][1]
               ? intensityTotalTimes[intensityKey][0]
-              : timeDifferenceInMinutes / 15;
+              : timeDifferenceInMinutes / 0.25;
 
           const endIndex = Math.min(colorKey + numberOfColorsToTransitionThrough, colorSets.length);
           const incidentBackgroundColorArray = colorSets.slice(colorKey, endIndex);

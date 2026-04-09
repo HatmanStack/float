@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from ..config.settings import settings
+from ..models.job_state import JobData
 from ..utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
@@ -312,7 +313,7 @@ class JobService:
         self._save_job(user_id, job_id, job_data)
         return attempt
 
-    def get_job(self, user_id: str, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(self, user_id: str, job_id: str) -> Optional[JobData]:
         """Get job status. Returns None if job doesn't exist or is expired."""
         key = f"jobs/{user_id}/{job_id}.json"
         try:

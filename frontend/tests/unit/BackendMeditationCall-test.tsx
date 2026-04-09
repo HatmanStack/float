@@ -83,12 +83,13 @@ describe('BackendMeditationCall', () => {
       MOCK_LAMBDA_URL
     );
 
-    expect(webResponse).toEqual({
-      responseMeditationURI: 'mock-directory/output.mp3',
-      responseMusicList: ['music1', 'music2'],
-    });
+    // Filenames are now unique per call to avoid concurrent overwrites.
+    expect(webResponse.responseMusicList).toEqual(['music1', 'music2']);
+    expect(webResponse.responseMeditationURI).toMatch(
+      /^mock-directory\/meditation-\d+-[a-z0-9]+\.mp3$/
+    );
     expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
-      'mock-directory/output.mp3',
+      expect.stringMatching(/^mock-directory\/meditation-\d+-[a-z0-9]+\.mp3$/),
       mockBase64,
       { encoding: 'base64' }
     );
@@ -190,7 +191,7 @@ describe('BackendMeditationCall', () => {
     );
 
     expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
-      'mock-directory/output.mp3',
+      expect.stringMatching(/^mock-directory\/meditation-\d+-[a-z0-9]+\.mp3$/),
       mockBase64,
       { encoding: 'base64' }
     );
@@ -368,7 +369,7 @@ describe('BackendMeditationCallStreaming', () => {
 
     expect(result.isStreaming).toBe(false);
     expect(result.playlistUrl).toBeNull();
-    expect(result.responseMeditationURI).toBe('mock-directory/output.mp3');
+    expect(result.responseMeditationURI).toMatch(/^mock-directory\/meditation-\d+-[a-z0-9]+\.mp3$/);
   });
 
   it('should call onStatusUpdate during polling', async () => {

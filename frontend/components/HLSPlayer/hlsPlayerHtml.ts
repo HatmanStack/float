@@ -161,7 +161,7 @@ export const hlsPlayerHtml = `<!DOCTYPE html>
                   if (networkRetryCount < MAX_NETWORK_RETRIES) {
                     const delay = RETRY_DELAYS[networkRetryCount] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
                     networkRetryCount++;
-                    console.log('Network retry ' + networkRetryCount + ' after ' + delay + 'ms');
+                    console.warn('Network retry ' + networkRetryCount + ' after ' + delay + 'ms');
                     setTimeout(() => {
                       // Verify instance still exists and is current before retrying
                       if (hlsInstance && hlsInstance === hls) {

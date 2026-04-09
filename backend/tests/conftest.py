@@ -37,8 +37,24 @@ def mock_ai_service():
 
 @pytest.fixture
 def mock_storage_service():
-    """Mock storage service for testing."""
+    """Mock storage service for testing.
+
+    Seeds ``list_objects`` with a real list so ``MusicSelector`` can fall
+    back through its three-way ``filtered_keys / existing_keys / raise``
+    chain instead of inheriting an auto-mock that is truthy but yields no
+    items. Also clears the module-level music list cache so test ordering
+    cannot leak a previous run's listing into this one.
+    """
+    from src.utils.cache import music_list_cache
+
+    music_list_cache.clear()
     service = MagicMock()
     service.upload_json.return_value = True
     service.upload_file.return_value = "s3://bucket/path/to/file"
+    service.list_objects.return_value = [
+        "Hopeful-Elegant-LaidBack_120.wav",
+        "Calm-Track_180.wav",
+        "Default-Track_300.wav",
+    ]
+    service.download_file.return_value = True
     return service

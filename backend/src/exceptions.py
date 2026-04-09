@@ -132,15 +132,11 @@ class AudioProcessingError(FloatException):
     """Raised when FFmpeg or audio encoding fails."""
 
     def __init__(self, message: str, details: Optional[str] = None):
-        super().__init__(
-            message, ErrorCode.FFMPEG_FAILURE, retriable=False, details=details
-        )
+        super().__init__(message, ErrorCode.FFMPEG_FAILURE, retriable=False, details=details)
 
 
 class JobError(FloatException):
     """Base class for job-related errors."""
-
-    pass
 
 
 class JobNotFoundError(JobError):

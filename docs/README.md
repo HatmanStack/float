@@ -5,7 +5,7 @@
 
 <h4>
 <a href="https://www.apache.org/licenses/LICENSE-2.0.html"><img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="Apache 2.0 license" /></a>
-<a href="https://expo.dev"><img src="https://img.shields.io/badge/Expo-52+-orange" alt="Expo Version" /></a>
+<a href="https://expo.dev"><img src="https://img.shields.io/badge/Expo-55+-orange" alt="Expo Version" /></a>
 <a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/Google-Gemini-violet" alt="Google Gemini" /></a>
 <a href="https://platform.openai.com/docs/guides/text-to-speech"><img src="https://img.shields.io/badge/OpenAI-TTS-yellow" alt="OpenAI TTS" /></a>
 <a href="https://docs.aws.amazon.com/lambda/"><img src="https://img.shields.io/badge/AWS-Lambda-green" alt="AWS Lambda" /></a>
@@ -22,6 +22,7 @@ Float is a cross-platform meditation app that generates personalized sessions fr
 
 - [API.md](API.md) - Lambda endpoint documentation, request/response formats
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System design and data flows
+- [plans/](plans/) - Remediation plans and audit history
 
 ## Development
 
@@ -42,7 +43,7 @@ pip install -r requirements.txt
 
 Create `frontend/.env` with:
 
-```
+```env
 EXPO_PUBLIC_LAMBDA_FUNCTION_URL=<your-api-url>
 EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
 ```
@@ -51,12 +52,16 @@ EXPO_PUBLIC_WEB_CLIENT_ID=<your-google-oauth-client-id>
 |----------|-------------|
 | `EXPO_PUBLIC_LAMBDA_FUNCTION_URL` | API Gateway URL (set automatically by `npm run deploy`) |
 | `EXPO_PUBLIC_WEB_CLIENT_ID` | Google OAuth Web Client ID for Google Sign-in on web |
+| `EXPO_PUBLIC_ANDROID_CLIENT_ID` | Google OAuth Android Client ID (optional, required for Android builds that use native Google Sign-in) |
+
+See `frontend/.env.example` for the canonical template.
 
 To get `EXPO_PUBLIC_WEB_CLIENT_ID`:
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create OAuth 2.0 Client ID → Web application
-3. Add authorized JavaScript origins (e.g., `http://localhost:8081` for dev)
-4. Copy the Client ID
+1. Create OAuth 2.0 Client ID → Web application
+1. Add authorized JavaScript origins (e.g., `http://localhost:8081` for dev)
+1. Copy the Client ID
 
 ### Running
 
@@ -70,7 +75,7 @@ npm run check       # Run all lint and tests
 | Command | Description |
 |---------|-------------|
 | `npm start` | Start Expo dev server |
-| `npm test` | Run Jest tests |
+| `npm test` | Run Jest (`cd frontend && npx jest --forceExit`, no watch) |
 | `npm run lint` | Run ESLint + TypeScript check |
 | `npm run lint:backend` | Run ruff on backend |
 | `npm run check` | Run all checks |
@@ -81,7 +86,7 @@ npm run check       # Run all lint and tests
 ### Frontend
 
 ```bash
-npm test                    # Run Jest (watch mode)
+npm test                    # Run Jest once (cd frontend && npx jest --forceExit)
 npm run check               # Run lint + tests
 ```
 
@@ -121,13 +126,13 @@ Set these via SAM parameter overrides during deployment:
 
 | Variable | Description |
 |----------|-------------|
-| `GeminiApiKey` | Google Gemini API key |
+| `GeminiApiKey` | Google Gemini API key (read by `settings.py` from env var `GEMINI_API_KEY`; the legacy alias `G_KEY` is still accepted via `AliasChoices`) |
 | `OpenAIApiKey` | OpenAI API key for TTS |
-| `S3DataBucket` | S3 bucket for user data |
+| `S3DataBucket` | S3 bucket for user data (default: `float-cust-data`) |
 | `S3AudioBucket` | S3 bucket for background music |
 | `IncludeDevOrigins` | Set to `true` for local dev (CORS wildcard) |
-| `ProductionOrigins` | Comma-separated production origins for CORS |
-| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer (auto-created by deploy script) |
+| `ProductionOrigins` | Comma-separated production origins for CORS (e.g., `https://float-app.fun`) |
+| `FfmpegLayerArn` | ARN of the FFmpeg Lambda layer (must be pre-built and supplied; see [ROADMAP](ROADMAP.md) for tracked automation work) |
 
 The following environment variables are set automatically in Lambda via the SAM template but are useful for local development:
 
@@ -150,7 +155,8 @@ float/
 │   │   └── navigation/      # Navigation components
 │   ├── context/       # React Context providers
 │   ├── constants/     # App constants
-│   └── hooks/         # Custom React hooks
+│   ├── hooks/         # Custom React hooks
+│   └── tests/         # Jest suites (unit/, integration/, e2e/)
 ├── backend/           # AWS Lambda
 │   ├── src/           # Python source
 │   │   ├── handlers/  # Lambda handlers
@@ -160,15 +166,10 @@ float/
 │   │   ├── models/    # Pydantic request/response models
 │   │   ├── utils/     # Circuit breaker, caching, logging, audio utilities
 │   │   └── exceptions.py  # Custom exception hierarchy
-│   ├── tests/         # Backend tests
+│   ├── tests/         # pytest suites (unit/, integration/, e2e/)
 │   ├── template.yaml  # SAM template
 │   └── samconfig.toml # SAM deployment config (gitignored, create from template)
-├── tests/             # Frontend tests
-│   └── frontend/
-│       ├── unit/
-│       ├── integration/
-│       └── e2e/
-└── docs/              # Documentation
+└── docs/              # Documentation (API.md, ARCHITECTURE.md, plans/)
 ```
 
 ## Troubleshooting

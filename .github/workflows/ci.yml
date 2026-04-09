@@ -4,14 +4,10 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '*.md'
       - '.claude/**'
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '*.md'
       - '.claude/**'
 
 concurrency:
@@ -35,8 +31,10 @@ jobs:
               - 'frontend/**'
               - 'package.json'
               - 'package-lock.json'
+              - '.github/workflows/**'
             backend:
               - 'backend/**'
+              - '.github/workflows/**'
 
   frontend:
     name: Frontend Lint & Tests
@@ -48,7 +46,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: '24'
           cache: 'npm'
@@ -75,39 +73,137 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
-          python-version: '3.13'
-          cache: 'pip'
-          cache-dependency-path: |
+          enable-cache: true
+          cache-dependency-glob: |
             backend/requirements.txt
             backend/requirements-dev.txt
 
+      - name: Setup Python
+        run: uv python install 3.13
+
       - name: Install dependencies
         working-directory: ./backend
+        # uv replaces pip here for two reasons:
+        # 1. Speed: full install drops from 4+ minutes to ~3 seconds.
+        # 2. Resolver: pip's backtracking resolver was hitting
+        #    "resolution-too-deep" on the unconstrained google-* /
+        #    boto3 / pydantic / openai dep tree. uv uses PubGrub and
+        #    completes the same resolution in <1s.
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          uv venv .venv --python 3.13
+          source .venv/bin/activate
+          uv pip install -r requirements.txt -r requirements-dev.txt
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Lint
         working-directory: ./backend
         run: ruff check .
 
+      - name: File-size guardrail
+        working-directory: ./backend
+        run: |
+          # Plan 2026-04-08-audit-float: no backend src file >450 lines.
+          # Phase 4 targets <400 lines; the 50-line slack prevents incidental
+          # growth from firing the guardrail. See Phase 5 Task 2 for the
+          # rationale and Phase 4 Task 1/2 for the underlying targets.
+          offenders=$(find src -name '*.py' -print0 \
+            | xargs -0 wc -l \
+            | awk '$1 > 450 && $2 != "total" { print $2, $1 }')
+          if [ -n "$offenders" ]; then
+            echo "Files exceeding 450 lines:"
+            echo "$offenders"
+            exit 1
+          fi
+
       - name: Tests
         run: pytest backend/tests -v --tb=short
 
       - name: Dockerfile lint
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
           dockerfile: backend/Dockerfile
+
+  pip-audit:
+    name: Backend Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    # pip-audit can be temporarily silenced via `--ignore-vuln <id>` for
+    # documented false positives, but only with a matching CHANGELOG entry.
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/requirements.txt
+
+      - name: Setup Python
+        run: uv python install 3.13
+
+      - name: Compile lockfile
+        working-directory: ./backend
+        # uv resolves the same dep tree pip-audit would resolve, in
+        # under a second. Pinning every transitive into a flat lockfile
+        # lets pip-audit run as a flat scan instead of re-doing pip's
+        # backtracking resolver (which currently times out at 4
+        # minutes on this requirements.txt).
+        run: uv pip compile requirements.txt -o requirements.lock
+
+      - name: Audit
+        working-directory: ./backend
+        # --disable-pip + --no-deps treats the uv-resolved lockfile as
+        # the source of truth instead of re-running pip's resolver.
+        run: uvx pip-audit==2.7.3 -r requirements.lock --disable-pip --no-deps
+
+  markdownlint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DavidAnson/markdownlint-cli2-action@v23
+        with:
+          globs: |
+            **/*.md
+            !node_modules/**
+            !.claude/**
+            !backend/.venv/**
+            !backend/.aws-sam/**
+            !**/CHANGELOG.md
+            !docs/plans/**
+            !frontend/tests/**/README.md
+
+  link-check:
+    name: Link Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --exclude '^mailto:'
+            --exclude '^https://your-lambda-url'
+            --exclude '^https://www.apache.org/licenses/LICENSE-2.0.html'
+            './**/*.md'
+            '!./node_modules/**'
+            '!./backend/.aws-sam/**'
+            '!./docs/plans/**'
+          fail: true
 
   status-check:
     name: All Checks Passed
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [frontend, backend]
+    needs: [frontend, backend, pip-audit, markdownlint, link-check]
     if: always()
     steps:
       - name: Verify
@@ -115,6 +211,9 @@ jobs:
           results=(
             "${{ needs.frontend.result }}"
             "${{ needs.backend.result }}"
+            "${{ needs.pip-audit.result }}"
+            "${{ needs.markdownlint.result }}"
+            "${{ needs.link-check.result }}"
           )
           for result in "${results[@]}"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then

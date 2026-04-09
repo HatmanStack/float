@@ -47,10 +47,10 @@ try {
   let html = fs.readFileSync(distPath, 'utf8');
 
   // Replace the default title and inject SEO tags after viewport meta
-  html = html.replace(
-    /<title>Float<\/title>/,
-    ''
-  );
+  // Strip any existing <title> tag so the injected SEO tags are the
+  // single source of truth. The non-greedy match handles multi-word
+  // titles and avoids leaving a duplicate behind.
+  html = html.replace(/<title>[\s\S]*?<\/title>/i, '');
 
   html = html.replace(
     /<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" \/>/,
