@@ -71,21 +71,31 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.13'
-          cache: 'pip'
-          cache-dependency-path: |
+          enable-cache: true
+          cache-dependency-glob: |
             backend/requirements.txt
             backend/requirements-dev.txt
 
+      - name: Setup Python
+        run: uv python install 3.13
+
       - name: Install dependencies
         working-directory: ./backend
+        # uv replaces pip here for two reasons:
+        # 1. Speed: full install drops from 4+ minutes to ~3 seconds.
+        # 2. Resolver: pip's backtracking resolver was hitting
+        #    "resolution-too-deep" on the unconstrained google-* /
+        #    boto3 / pydantic / openai dep tree. uv uses PubGrub and
+        #    completes the same resolution in <1s.
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          uv venv .venv --python 3.13
+          source .venv/bin/activate
+          uv pip install -r requirements.txt -r requirements-dev.txt
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Lint
         working-directory: ./backend
@@ -125,16 +135,30 @@ jobs:
     # documented false positives, but only with a matching CHANGELOG entry.
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.13'
-          cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
-      - name: Install pip-audit
-        run: pip install pip-audit==2.7.3
+          enable-cache: true
+          cache-dependency-glob: backend/requirements.txt
+
+      - name: Setup Python
+        run: uv python install 3.13
+
+      - name: Compile lockfile
+        working-directory: ./backend
+        # uv resolves the same dep tree pip-audit would resolve, in
+        # under a second. Pinning every transitive into a flat lockfile
+        # lets pip-audit run as a flat scan instead of re-doing pip's
+        # backtracking resolver (which currently times out at 4
+        # minutes on this requirements.txt).
+        run: uv pip compile requirements.txt -o requirements.lock
+
       - name: Audit
         working-directory: ./backend
-        run: pip-audit -r requirements.txt
+        # --disable-pip + --no-deps treats the uv-resolved lockfile as
+        # the source of truth instead of re-running pip's resolver.
+        run: uvx pip-audit==2.7.3 -r requirements.lock --disable-pip --no-deps
 
   markdownlint:
     name: Markdown Lint

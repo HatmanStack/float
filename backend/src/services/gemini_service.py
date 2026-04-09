@@ -2,10 +2,10 @@ import pathlib
 from typing import Any, Dict
 
 import google.generativeai as genai  # type: ignore
+import requests
 from google.generativeai.types.safety_types import (  # type: ignore
     HarmCategory,
 )
-from zenquotespy import random as get_random_quote
 
 from ..config.settings import settings
 from ..exceptions import AIServiceError
@@ -229,15 +229,24 @@ Return only the plain text meditation script with no markup or tags.
         return response.text  # type: ignore[no-any-return]
 
     def _get_inspirational_quote(self) -> tuple[str, str]:
-        """Get a random inspirational quote for the meditation."""
+        """Get a random inspirational quote for the meditation.
+
+        Calls the zenquotes.io public API directly. The previous
+        ``zenquotespy`` wrapper was dropped in favour of an inline
+        ``requests.get`` because it pinned ``requests==2.32.3``, which
+        conflicts with the post-CVE ``requests>=2.33.0`` requirement and
+        broke dependency resolution.
+        """
         try:
-            # zenquotespy returns: '"Quote text" — Author Name'
-            quote_str = get_random_quote()
-            if quote_str and "—" in quote_str:
-                parts = quote_str.rsplit("—", 1)
-                quote = parts[0].strip().strip('"')
-                author = parts[1].strip() if len(parts) > 1 else "Unknown"
-                return quote, author
+            response = requests.get("https://zenquotes.io/api/random", timeout=5)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, list) and payload:
+                entry = payload[0]
+                quote = (entry.get("q") or "").strip()
+                author = (entry.get("a") or "").strip() or "Unknown"
+                if quote:
+                    return quote, author
             return "Peace comes from within. Do not seek it without.", "Buddha"
         except Exception as e:
             logger.warning("Failed to get quote: %s, using fallback", e)
