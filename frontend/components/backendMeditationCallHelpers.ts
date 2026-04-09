@@ -42,8 +42,10 @@ export const getTransformedDict = (
     summary: [],
   };
 
+  // O(1) membership check instead of an O(n*m) ``includes`` per item.
+  const selectedIndexSet = new Set(selectedIndexes);
   dict.forEach((d: IncidentData, index: number) => {
-    if (!d || !selectedIndexes.includes(index)) {
+    if (!d || !selectedIndexSet.has(index)) {
       return;
     }
 
@@ -63,7 +65,18 @@ export const getTransformedDict = (
     // ``Number`` is stricter than ``parseInt``: ``Number("12abc")`` is
     // NaN where ``parseInt("12abc", 10)`` is 12. The downstream
     // ``Number.isFinite`` guard then rejects all malformed values.
-    const intensityNum = typeof d.intensity === 'string' ? Number(d.intensity.trim()) : d.intensity;
+    // ``Number("")`` is 0 (which is finite), so we have to reject blank
+    // and whitespace-only intensity strings explicitly. Trim first,
+    // treat the empty trimmed string as NaN, and let the existing
+    // ``Number.isFinite`` guard reject it like any other malformed
+    // value (e.g., ``"abc"`` -> NaN).
+    let intensityNum: number;
+    if (typeof d.intensity === 'string') {
+      const trimmed = d.intensity.trim();
+      intensityNum = trimmed === '' ? Number.NaN : Number(trimmed);
+    } else {
+      intensityNum = d.intensity;
+    }
     if (!Number.isFinite(intensityNum)) {
       return;
     }
@@ -171,8 +184,10 @@ export async function BackendMeditationCall(
 
     const submitResponse = await httpResponse.json();
 
-    if (!submitResponse.job_id) {
-      throw new Error('No job_id returned from meditation request');
+    if (typeof submitResponse?.job_id !== 'string' || submitResponse.job_id.length === 0) {
+      throw new Error(
+        `Invalid submitResponse.job_id: expected non-empty string, got ${typeof submitResponse?.job_id}`
+      );
     }
 
     const jobResult = await pollJobStatus({
@@ -181,13 +196,21 @@ export async function BackendMeditationCall(
       lambdaUrl,
     });
 
-    if (!jobResult.result?.base64) {
-      throw new Error('Job completed but no audio data returned');
+    if (!jobResult?.result || typeof jobResult.result !== 'object') {
+      throw new Error('Invalid jobResult.result: expected object');
+    }
+    if (typeof jobResult.result.base64 !== 'string' || jobResult.result.base64.length === 0) {
+      throw new Error(
+        `Invalid jobResult.result.base64: expected non-empty string, got ${typeof jobResult.result.base64}`
+      );
     }
 
     const uri = await saveResponseBase64(jobResult.result.base64);
-    const responseMusicList = Array.isArray(jobResult.result.music_list)
-      ? jobResult.result.music_list
+    // jobResult.result.music_list may be missing, a non-array, or an
+    // array containing non-strings; coerce to a clean ``string[]``.
+    const rawMusicList: unknown = jobResult.result.music_list;
+    const responseMusicList: string[] = Array.isArray(rawMusicList)
+      ? rawMusicList.filter((item): item is string => typeof item === 'string')
       : [];
     return { responseMeditationURI: uri, responseMusicList };
   } catch (error) {

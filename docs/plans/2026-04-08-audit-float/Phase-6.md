@@ -256,17 +256,20 @@ Phase 0 ADR-5 and remove duplication.
 - Read both deploy parameter tables and merge into the `docs/README.md` one.
   Confirm against `backend/template.yaml` that every parameter listed
   actually exists.
-- Replace the root `README.md` deploy section with:
-  ```markdown
+- Replace the root `README.md` deploy section with the example below.
+  The outer fence uses four backticks so the inner ```bash block is
+  not interpreted as the outer closer:
+
+  ````markdown
   ## Deployment
 
   ```bash
   npm run deploy
   ```
 
-  See [docs/README.md#deployment](../../README.md#deployment) for the
+  See [docs/README.md#deployment](docs/README.md#deployment) for the
   canonical deploy parameter list.
-  ```
+  ````
 - In `CLAUDE.md`, the "Architecture" block is currently a 30-line duplicate
   of `docs/ARCHITECTURE.md`. Replace it with a one-paragraph summary plus
   a link:
