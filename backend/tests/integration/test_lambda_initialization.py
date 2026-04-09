@@ -2,10 +2,18 @@
 
 import sys
 import time
+from unittest.mock import patch
 
 import pytest
 
 from src.config.settings import settings
+
+
+@pytest.fixture(autouse=True)
+def _mock_genai_client():
+    """Prevent genai.Client from requiring a real API key in CI."""
+    with patch("src.services.gemini_service.genai.Client"):
+        yield
 
 
 @pytest.mark.integration

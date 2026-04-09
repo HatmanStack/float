@@ -281,8 +281,14 @@ class TestEndToEndFlow:
         from src.handlers.lambda_handler import LambdaHandler
 
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "true"}):
-            with patch(
-                "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+            with (
+                patch(
+                    "src.handlers.lambda_handler.S3StorageService",
+                    return_value=mock_storage_service,
+                ),
+                patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+                patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+                patch("src.services.gemini_service.genai.Client"),
             ):
                 with patch("src.handlers.lambda_handler.boto3.client") as mock_boto:
                     mock_lambda = MagicMock()
@@ -337,8 +343,13 @@ class TestEndToEndFlow:
             "https://fresh-url/playlist.m3u8?new-sig=xyz"
         )
 
-        with patch(
-            "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+        with (
+            patch(
+                "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+            ),
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.services.gemini_service.genai.Client"),
         ):
             handler = LambdaHandler(validate_config=False)
             result = handler.handle_job_status("user123", "test-job")
@@ -362,8 +373,13 @@ class TestEndToEndFlow:
             "download": {"available": False},
         }
 
-        with patch(
-            "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+        with (
+            patch(
+                "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+            ),
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.services.gemini_service.genai.Client"),
         ):
             handler = LambdaHandler(validate_config=False)
             result = handler.handle_download_request("user123", "test-job")
@@ -385,8 +401,13 @@ class TestEndToEndFlow:
             "download": {"available": False},  # Not available
         }
 
-        with patch(
-            "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+        with (
+            patch(
+                "src.handlers.lambda_handler.S3StorageService", return_value=mock_storage_service
+            ),
+            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+            patch("src.services.gemini_service.genai.Client"),
         ):
             handler = LambdaHandler(validate_config=False)
             result = handler.handle_download_request("user123", "test-job")
