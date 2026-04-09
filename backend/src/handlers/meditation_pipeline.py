@@ -136,9 +136,15 @@ def _generate_hls_audio(
                 details=f"job_id={job_id}",
             )
 
-        handler.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+        # Defer mark_streaming_started until the first segment is produced
+        # so clients don't poll a non-existent playlist.
+        streaming_started = False
 
         def progress_callback(segments_completed: int, segments_total: Optional[int]) -> None:
+            nonlocal streaming_started
+            if not streaming_started:
+                handler.job_service.mark_streaming_started(request.user_id, job_id, playlist_url)
+                streaming_started = True
             handler.job_service.update_streaming_progress(
                 request.user_id,
                 job_id,

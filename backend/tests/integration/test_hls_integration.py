@@ -277,6 +277,7 @@ class TestEndToEndFlow:
         """Test meditation request returns job with streaming info."""
         from unittest.mock import MagicMock, patch
 
+        import src.handlers.lambda_handler as lh_mod
         from src.handlers.lambda_handler import LambdaHandler
 
         with patch.dict(os.environ, {"ENABLE_HLS_STREAMING": "true"}):
@@ -290,6 +291,10 @@ class TestEndToEndFlow:
                     # asserts on this so the mock must mirror it.
                     mock_lambda.invoke.return_value = {"StatusCode": 202}
                     mock_boto.return_value = mock_lambda
+                    # Reset the module-level _lambda_client cache so
+                    # _get_lambda_client() creates a new client from the
+                    # patched boto3.client instead of returning a stale one.
+                    lh_mod._lambda_client = None
 
                     handler = LambdaHandler(validate_config=False)
 

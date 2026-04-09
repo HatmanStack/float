@@ -31,8 +31,10 @@ jobs:
               - 'frontend/**'
               - 'package.json'
               - 'package-lock.json'
+              - '.github/workflows/**'
             backend:
               - 'backend/**'
+              - '.github/workflows/**'
 
   frontend:
     name: Frontend Lint & Tests

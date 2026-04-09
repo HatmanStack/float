@@ -67,11 +67,18 @@ def json_middleware(
 
         if "body" in event and event["body"]:
             try:
-                event["parsed_body"] = json.loads(event["body"])
-                logger.debug("Parsed JSON body successfully")
+                parsed = json.loads(event["body"])
             except json.JSONDecodeError as e:
                 logger.warning("JSON decode error", extra={"data": {"error": str(e)}})
                 return create_error_response(HTTP_BAD_REQUEST, f"Invalid JSON: {str(e)}")
+            if not isinstance(parsed, dict):
+                logger.warning(
+                    "JSON body is not an object",
+                    extra={"data": {"type": type(parsed).__name__}},
+                )
+                return create_error_response(HTTP_BAD_REQUEST, "Invalid JSON: expected object")
+            event["parsed_body"] = parsed
+            logger.debug("Parsed JSON body successfully")
         elif any(key in event for key in ["user_id", "inference_type"]):
             event["parsed_body"] = {
                 k: v

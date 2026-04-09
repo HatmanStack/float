@@ -290,7 +290,7 @@ Fields:
 | `streaming.enabled` | boolean | Whether HLS streaming is active for this job |
 | `streaming.playlist_url` | string \| null | Pre-signed HLS playlist URL; `null` until the streaming watcher has written the first segment |
 | `download.available` | boolean | `true` once the MP3 has been fully encoded and the `/job/{job_id}/download` endpoint will succeed |
-| `result.base64` | string | Full MP3 bytes, base64-encoded, only present on `status: completed` |
+| `result` | object \| null | Present only on `status: completed`. **Legacy (non-HLS) jobs** include `result.base64` (full MP3, base64-encoded) and `result.music_list`. **HLS streaming jobs** do not include `result.base64`; the audio is available via `streaming.playlist_url` (live HLS) or the `POST /job/{job_id}/download` endpoint (MP3). Check `download.available` before requesting the download. |
 
 **Response (Job Failed)**:
 

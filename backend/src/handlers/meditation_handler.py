@@ -83,7 +83,11 @@ class MeditationHandler:
         voice_path = f"{settings.TEMP_DIR}/voice_{timestamp}.mp3"
         combined_path = f"{settings.TEMP_DIR}/combined_{timestamp}.mp3"
         tts_provider = self.get_tts_provider()
-        success = tts_provider.synthesize_speech(meditation_text, voice_path)
+        try:
+            success = tts_provider.synthesize_speech(meditation_text, voice_path)
+        except (TTSError, Exception) as exc:
+            logger.warning("Primary TTS provider raised; trying fallback", exc_info=exc)
+            success = False
         if not success:
             logger.warning("Primary TTS provider failed, trying fallback")
             success = self.fallback_tts_provider.synthesize_speech(meditation_text, voice_path)

@@ -49,6 +49,9 @@ class MusicSelector:
                     used_music = [used_music]
             elif not isinstance(used_music, list):
                 used_music = [used_music]
+        # Coerce all elements to str so set(used_music) never fails on
+        # unhashable items (e.g., dicts from ast.literal_eval).
+        used_music = [str(item) for item in used_music]
 
         bucket_name = settings.AWS_AUDIO_BUCKET
 
