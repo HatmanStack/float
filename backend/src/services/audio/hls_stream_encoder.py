@@ -221,7 +221,18 @@ def _process_stream_to_hls_inner(
                 durations_snapshot,
                 is_complete=False,
             )
-            hls_service.upload_playlist(user_id, job_id, playlist_content)  # type: ignore[attr-defined]
+            playlist_uploaded = hls_service.upload_playlist(  # type: ignore[attr-defined]
+                user_id, job_id, playlist_content
+            )
+            if not playlist_uploaded:
+                raise ExternalServiceError(
+                    "Failed to upload live HLS playlist",
+                    ErrorCode.STORAGE_FAILURE,
+                    details=(
+                        f"user_id={user_id}, job_id={job_id}, "
+                        f"segments_uploaded={segments_uploaded_snapshot}"
+                    ),
+                )
 
             if progress_callback:
                 progress_callback(segments_uploaded_snapshot, None)
@@ -334,6 +345,14 @@ def _process_stream_to_hls_inner(
         final_segments = state.segments_uploaded
         final_durations = list(state.segment_durations)
 
-    hls_service.finalize_playlist(user_id, job_id, final_segments, final_durations)  # type: ignore[attr-defined]
+    finalized = hls_service.finalize_playlist(  # type: ignore[attr-defined]
+        user_id, job_id, final_segments, final_durations
+    )
+    if not finalized:
+        raise ExternalServiceError(
+            "Failed to finalize HLS playlist",
+            ErrorCode.STORAGE_FAILURE,
+            details=f"user_id={user_id}, job_id={job_id}, segments={final_segments}",
+        )
 
     return (final_segments, final_durations)
