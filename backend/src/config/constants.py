@@ -63,6 +63,12 @@ DEFAULT_MUSIC_VOLUME_REDUCTION = -15  # dB - background music should be subtle
 DEFAULT_VOICE_BOOST = 3  # dB - slight boost to ensure voice clarity
 SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
 
+# Base64 path: extra seconds of background music appended after voice ends
+# in the ``prepare_mixed_audio`` pipeline (used by ``combine_voice_and_music``).
+# Distinct from ``MUSIC_TRAILING_BUFFER_SECONDS`` (which estimates total music
+# length for the HLS streaming path via the word-count heuristic).
+BASE64_MUSIC_TAIL_SECONDS = 30
+
 # HLS Streaming Fade Configuration
 HLS_TRAILING_PAD_BASE_SECONDS = 7  # base music-only buffer after voice ends
 HLS_TRAILING_PAD_PER_TIER = 5  # additional padding per duration tier (3, 5, 10, 15, 20 min)

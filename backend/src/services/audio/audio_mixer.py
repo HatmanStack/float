@@ -15,6 +15,7 @@ import tempfile
 from typing import Callable, List, Optional
 
 from ...config.constants import (
+    BASE64_MUSIC_TAIL_SECONDS,
     DEFAULT_MUSIC_VOLUME_REDUCTION,
     DEFAULT_SILENCE_DURATION,
     HLS_FADE_DURATION_SECONDS,
@@ -80,7 +81,7 @@ def prepare_mixed_audio(
 
     try:
         voice_duration = get_duration(voice_path)
-        total_duration = voice_duration + 30
+        total_duration = voice_duration + BASE64_MUSIC_TAIL_SECONDS
 
         updated_music_list = select_music(music_list, total_duration, music_path)
 

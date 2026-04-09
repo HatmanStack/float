@@ -97,7 +97,8 @@ export async function BackendMeditationCallStreaming(
       returnOnStreaming: true,
     });
 
-    const isStreaming = initialStatus.status === 'streaming' || !!initialStatus.streaming;
+    const isStreaming =
+      initialStatus.status === 'streaming' || !!initialStatus.streaming?.playlist_url;
     const playlistUrl = initialStatus.streaming?.playlist_url || null;
 
     const waitForCompletion = async (): Promise<MeditationResult> => {

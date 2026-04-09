@@ -22,7 +22,7 @@ from ..services.hls_service import HLSService
 from ..services.job_service import JobService, JobStatus
 from ..services.s3_storage_service import S3StorageService
 from ..utils.logging_utils import get_logger
-from . import meditation_pipeline  # noqa: I001
+from . import meditation_pipeline
 from .routes import _mask_id
 
 logger = get_logger(__name__)
@@ -293,8 +293,14 @@ class MeditationHandler:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
         suffix = secrets.token_hex(4)
         object_key = f"{request.user_id}/meditation/{timestamp}-{suffix}.json"
+        # Strip the multi-MB base64 audio from the archival copy.
+        # The same payload is already stored in the job state via
+        # ``update_job_status(result=response.to_dict())``, so the
+        # archival copy only needs the metadata.
+        archive_data = response.to_dict()
+        archive_data.pop("base64", None)
         uploaded = self.storage_service.upload_json(
-            bucket=settings.AWS_S3_BUCKET, key=object_key, data=response.to_dict()
+            bucket=settings.AWS_S3_BUCKET, key=object_key, data=archive_data
         )
         if not uploaded:
             # Surface the storage failure so the caller does not mark the

@@ -790,6 +790,28 @@ class TestUserIdValidationInHandlers:
 
 
 @pytest.mark.unit
+class TestRouteHandlerNameValidation:
+    """Validate that every handler name in the _ROUTES table resolves
+    against the lambda_handler module at import time.
+
+    A typo (e.g., ``_handle_dowload_request``) would otherwise surface as
+    a runtime ``AttributeError`` only at request-dispatch time.
+    """
+
+    def test_all_route_handler_names_resolve(self):
+        """Every handler_name in _ROUTES must be a callable attribute
+        of the lambda_handler module."""
+        from src.handlers.router import _ROUTES, _resolve_handler
+
+        for method, pattern, handler_name in _ROUTES:
+            handler = _resolve_handler(handler_name)
+            assert callable(handler), (
+                f"Route ({method}, {pattern.pattern}) maps to "
+                f"{handler_name!r} which is not callable"
+            )
+
+
+@pytest.mark.unit
 class TestRoutingDispatchTable:
     """Test the dispatch-table routing in lambda_handler."""
 
