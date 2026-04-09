@@ -285,6 +285,10 @@ class TestEndToEndFlow:
             ):
                 with patch("src.handlers.lambda_handler.boto3.client") as mock_boto:
                     mock_lambda = MagicMock()
+                    # Real boto3 lambda.invoke returns StatusCode=202 for an
+                    # async InvocationType="Event" call. _invoke_async_meditation
+                    # asserts on this so the mock must mirror it.
+                    mock_lambda.invoke.return_value = {"StatusCode": 202}
                     mock_boto.return_value = mock_lambda
 
                     handler = LambdaHandler(validate_config=False)

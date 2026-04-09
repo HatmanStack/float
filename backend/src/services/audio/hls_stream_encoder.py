@@ -190,11 +190,6 @@ def _process_stream_to_hls_inner(
             if seg_duration == 0:
                 seg_duration = float(HLS_SEGMENT_DURATION)
 
-            with state.lock:
-                while len(state.segment_durations) <= segment_index:
-                    state.segment_durations.append(float(HLS_SEGMENT_DURATION))
-                state.segment_durations[segment_index] = seg_duration
-
             uploaded = hls_service.upload_segment_from_file(  # type: ignore[attr-defined]
                 user_id, job_id, segment_index, segment_file
             )
@@ -209,8 +204,22 @@ def _process_stream_to_hls_inner(
                 )
 
             with state.lock:
+                # Only mutate the durations array AFTER a successful upload
+                # so a failed retry cannot leave a stale duration in the
+                # slot. Then advance ``segments_uploaded`` to the longest
+                # contiguous prefix of the uploaded set so the published
+                # playlist only references segments that are actually in S3.
+                while len(state.segment_durations) <= segment_index:
+                    state.segment_durations.append(float(HLS_SEGMENT_DURATION))
+                state.segment_durations[segment_index] = seg_duration
                 state.uploaded_segments.add(segment_file)
-                state.segments_uploaded += 1
+                while True:
+                    next_name = f"segment_{state.segments_uploaded:03d}.ts"
+                    next_path = os.path.join(hls_output_dir, next_name)
+                    if next_path in state.uploaded_segments:
+                        state.segments_uploaded += 1
+                        continue
+                    break
                 segments_uploaded_snapshot = state.segments_uploaded
                 durations_snapshot = list(state.segment_durations[:segments_uploaded_snapshot])
 
@@ -312,9 +321,17 @@ def _process_stream_to_hls_inner(
         state.stop()
         watcher_thread.join(timeout=30)
         if watcher_thread.is_alive():
-            logger.warning(
-                "Upload watcher did not finish within 30s; some segments may be missing",
+            # The watcher is still draining/uploading after the join
+            # timeout. Continuing to ``finalize_playlist`` would race with
+            # those uploads, so treat this as fatal.
+            logger.error(
+                "Upload watcher did not finish within 30s; aborting finalization",
                 extra={"data": {"job_id": job_id}},
+            )
+            raise ExternalServiceError(
+                "Upload watcher did not finish before timeout",
+                ErrorCode.STORAGE_FAILURE,
+                details=f"job_id={job_id}",
             )
 
         # ``join`` is a happens-before barrier so this read is safe even

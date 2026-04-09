@@ -60,7 +60,10 @@ export const getTransformedDict = (
     ) {
       return;
     }
-    const intensityNum = typeof d.intensity === 'string' ? parseInt(d.intensity, 10) : d.intensity;
+    // ``Number`` is stricter than ``parseInt``: ``Number("12abc")`` is
+    // NaN where ``parseInt("12abc", 10)`` is 12. The downstream
+    // ``Number.isFinite`` guard then rejects all malformed values.
+    const intensityNum = typeof d.intensity === 'string' ? Number(d.intensity.trim()) : d.intensity;
     if (!Number.isFinite(intensityNum)) {
       return;
     }
@@ -98,7 +101,14 @@ export const saveResponseBase64 = async (responsePayload: string): Promise<strin
     const randomPart =
       cryptoRef?.randomUUID?.().replace(/-/g, '').slice(0, 12) ??
       Math.random().toString(36).slice(2, 10);
-    const filePath = `${FileSystem.documentDirectory}meditation-${Date.now()}-${randomPart}.mp3`;
+    // FileSystem.documentDirectory is typed `string | null` in expo-file-system;
+    // fall back to cacheDirectory and finally throw so we never produce
+    // a literal "nullmeditation-..." path on devices that expose neither.
+    const dir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+    if (!dir) {
+      throw new Error('No writable filesystem directory available for audio output');
+    }
+    const filePath = `${dir}meditation-${Date.now()}-${randomPart}.mp3`;
     await FileSystem.writeAsStringAsync(filePath, responsePayload, {
       encoding: FileSystem.EncodingType.Base64,
     });

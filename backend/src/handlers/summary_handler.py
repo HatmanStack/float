@@ -5,10 +5,12 @@ Extracted from :mod:`lambda_handler` as part of Phase 4 Task 1 of the
 S3 persistence helper.
 """
 
+import binascii
 from datetime import datetime, timezone
 from typing import Any, Dict  # noqa: I001
 
 from ..config.settings import settings
+from ..exceptions import ErrorCode, ValidationError
 from ..models.requests import SummaryRequestModel
 from ..models.responses import create_summary_response
 from ..services.ai_service import AIService
@@ -43,7 +45,16 @@ class SummaryHandler:
         audio_file = None
         has_audio = bool(request.audio) and request.audio != "NotAvailable"
         if has_audio:
-            audio_file = decode_audio_base64(request.audio)
+            try:
+                audio_file = decode_audio_base64(request.audio)
+            except (binascii.Error, ValueError) as exc:
+                # Convert decode failures into a 400 via the existing
+                # error-handling middleware instead of a generic 500.
+                raise ValidationError(
+                    "Invalid or incomplete base64 audio",
+                    ErrorCode.INVALID_REQUEST,
+                    details=str(exc),
+                ) from exc
         # Normalize the "NotAvailable" sentinel to None so downstream
         # AI prompt construction never embeds the literal string.
         user_text = request.prompt if request.prompt and request.prompt != "NotAvailable" else None

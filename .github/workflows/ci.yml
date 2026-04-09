@@ -194,6 +194,7 @@ jobs:
             './**/*.md'
             '!./node_modules/**'
             '!./backend/.aws-sam/**'
+            '!./docs/plans/**'
           fail: true
 
   status-check:

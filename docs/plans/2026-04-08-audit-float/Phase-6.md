@@ -264,7 +264,7 @@ Phase 0 ADR-5 and remove duplication.
   npm run deploy
   ```
 
-  See [docs/README.md#deployment](docs/README.md#deployment) for the
+  See [docs/README.md#deployment](../../README.md#deployment) for the
   canonical deploy parameter list.
   ```
 - In `CLAUDE.md`, the "Architecture" block is currently a 30-line duplicate
