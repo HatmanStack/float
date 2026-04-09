@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     TEMP_DIR: str = "/tmp"
     AUDIO_SAMPLE_RATE: int = 44100
     GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
+    GEMINI_LIVE_TTS_MODEL: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     GEMINI_AI_MODEL: str = "gemini-2.5-flash"
     GEMINI_SAFETY_LEVEL: int = 4
 

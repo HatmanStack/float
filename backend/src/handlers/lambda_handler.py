@@ -65,8 +65,12 @@ class LambdaHandler(LambdaHandlerFacade):
         self.audio_service = FFmpegAudioService(self.storage_service, hls_service=self.hls_service)
         if validate_config:
             settings.validate_keys()
-        self.tts_provider = GeminiTTSProvider()
-        self.fallback_tts_provider = OpenAITTSProvider()
+        # OpenAI primary: true HTTP streaming, no session timeouts, no
+        # quality degradation on long-form text. Gemini Live API is kept as
+        # fallback but has known limitations with long meditations (session
+        # deadline ~3-4 min, audio quality degrades after ~45s).
+        self.tts_provider = OpenAITTSProvider()
+        self.fallback_tts_provider = GeminiTTSProvider()
         self.job_service = JobService(self.storage_service)
 
         self.summary = SummaryHandler(self)

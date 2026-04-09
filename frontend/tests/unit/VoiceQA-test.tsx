@@ -1,48 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
-import type { QATranscript, QAState, QAExchange } from '@/types/api';
-
-// Mock useGeminiLiveAPI hook
-const mockStartSession = jest.fn().mockResolvedValue(undefined);
-const mockEndSession = jest.fn();
-const mockSendAudioChunk = jest.fn();
-const mockSendTextMessage = jest.fn();
-
-let mockHookReturn: {
-  state: QAState;
-  transcript: QAExchange[];
-  startSession: jest.Mock;
-  endSession: jest.Mock;
-  sendAudioChunk: jest.Mock;
-  sendTextMessage: jest.Mock;
-} = {
-  state: 'idle',
-  transcript: [],
-  startSession: mockStartSession,
-  endSession: mockEndSession,
-  sendAudioChunk: mockSendAudioChunk,
-  sendTextMessage: mockSendTextMessage,
-};
-
-jest.mock('@/hooks/useGeminiLiveAPI', () => ({
-  __esModule: true,
-  default: jest.fn(() => mockHookReturn),
-}));
-
-// Mock expo-av Audio
-const mockRequestPermissionsAsync = jest.fn().mockResolvedValue({ granted: true });
-jest.mock('expo-av', () => {
-  return {
-    __esModule: true,
-    Audio: {
-      requestPermissionsAsync: (...args: unknown[]) => mockRequestPermissionsAsync(...args),
-      Recording: jest.fn(),
-      RecordingOptionsPresets: {
-        HIGH_QUALITY: {},
-      },
-    },
-  };
-});
+import { render, screen, fireEvent } from '@testing-library/react-native';
 
 // Mock MaterialIcons
 jest.mock('@expo/vector-icons/MaterialIcons', () => {
@@ -72,15 +29,6 @@ describe('VoiceQA', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockHookReturn = {
-      state: 'idle',
-      transcript: [],
-      startSession: mockStartSession,
-      endSession: mockEndSession,
-      sendAudioChunk: mockSendAudioChunk,
-      sendTextMessage: mockSendTextMessage,
-    };
-    mockRequestPermissionsAsync.mockResolvedValue({ granted: true });
   });
 
   const renderVoiceQA = () =>
@@ -93,101 +41,83 @@ describe('VoiceQA', () => {
       />
     );
 
-  it('renders connecting state', () => {
-    mockHookReturn = { ...mockHookReturn, state: 'connecting' };
+  it('renders initial check-in prompt', () => {
     renderVoiceQA();
-    expect(screen.getByText(/connecting/i)).toBeTruthy();
+    expect(screen.getByText('Quick check-in')).toBeTruthy();
+    expect(screen.getByText(/how are you feeling/i)).toBeTruthy();
   });
 
-  it('renders listening state with mic icon', () => {
-    mockHookReturn = { ...mockHookReturn, state: 'listening' };
+  it('renders text input', () => {
     renderVoiceQA();
-    expect(screen.getByText(/listening/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/type your response/i)).toBeTruthy();
   });
 
-  it('renders transcript exchanges', () => {
-    mockHookReturn = {
-      ...mockHookReturn,
-      state: 'listening',
-      transcript: [
-        { role: 'assistant', text: 'How are you feeling?' },
-        { role: 'user', text: 'I feel stressed' },
-      ],
-    };
+  it('renders skip button', () => {
     renderVoiceQA();
-    expect(screen.getByText('How are you feeling?')).toBeTruthy();
-    expect(screen.getByText('I feel stressed')).toBeTruthy();
+    expect(screen.getByText(/skip check-in/i)).toBeTruthy();
   });
 
   it('skip button calls onSkip', () => {
-    mockHookReturn = { ...mockHookReturn, state: 'listening' };
     renderVoiceQA();
-    const skipButton = screen.getByText(/skip/i);
-    fireEvent.press(skipButton);
+    fireEvent.press(screen.getByText(/skip check-in/i));
     expect(mockOnSkip).toHaveBeenCalled();
   });
 
-  it('calls onComplete when session completes', async () => {
-    const transcript: QATranscript = [
-      { role: 'assistant', text: 'How are you feeling?' },
-      { role: 'user', text: 'Stressed' },
-    ];
-    mockHookReturn = { ...mockHookReturn, state: 'complete', transcript };
+  it('sends text and shows next prompt', () => {
     renderVoiceQA();
+    const input = screen.getByPlaceholderText(/type your response/i);
+    fireEvent.changeText(input, 'I feel stressed');
+    fireEvent(input, 'submitEditing');
 
-    await waitFor(() => {
-      expect(mockOnComplete).toHaveBeenCalledWith(transcript);
-    });
+    // User response should appear
+    expect(screen.getByText('I feel stressed')).toBeTruthy();
+    // Next prompt should appear
+    expect(screen.getByText(/anything specific weighing/i)).toBeTruthy();
   });
 
-  // Text mode is default until audio modality is fully wired
-  it('shows text input in text mode (default)', async () => {
-    mockHookReturn = { ...mockHookReturn, state: 'listening' };
+  it('calls onComplete after max exchanges', () => {
     renderVoiceQA();
+    const input = screen.getByPlaceholderText(/type your response/i);
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your response/i)).toBeTruthy();
-    });
+    // Exchange 1
+    fireEvent.changeText(input, 'Stressed about work');
+    fireEvent(input, 'submitEditing');
+
+    // Exchange 2
+    fireEvent.changeText(input, 'My boss was difficult');
+    fireEvent(input, 'submitEditing');
+
+    // Exchange 3 — triggers completion
+    fireEvent.changeText(input, 'Just need to relax');
+    fireEvent(input, 'submitEditing');
+
+    expect(mockOnComplete).toHaveBeenCalledTimes(1);
+    const transcript = mockOnComplete.mock.calls[0][0];
+    expect(transcript.length).toBeGreaterThan(0);
+    // Should contain user responses
+    expect(transcript.some((e: { text: string }) => e.text === 'Stressed about work')).toBe(true);
   });
 
-  it('sends text message via send button in text mode', async () => {
-    mockHookReturn = { ...mockHookReturn, state: 'listening' };
+  it('does not send empty text', () => {
     renderVoiceQA();
+    const input = screen.getByPlaceholderText(/type your response/i);
+    fireEvent.changeText(input, '   ');
+    fireEvent(input, 'submitEditing');
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your response/i)).toBeTruthy();
-    });
+    // Should still only have the initial prompt, no user exchange
+    expect(screen.queryByText('You')).toBeNull();
+  });
+
+  it('shows Guide and You labels in transcript', () => {
+    renderVoiceQA();
+    // Initial prompt has Guide label
+    expect(screen.getByText('Guide')).toBeTruthy();
 
     const input = screen.getByPlaceholderText(/type your response/i);
-    fireEvent.changeText(input, 'I feel overwhelmed');
-    fireEvent.press(screen.getByText(/send/i));
+    fireEvent.changeText(input, 'Feeling anxious');
+    fireEvent(input, 'submitEditing');
 
-    expect(mockSendTextMessage).toHaveBeenCalledWith('I feel overwhelmed');
-  });
-
-  it('shows mic not available message in text mode', async () => {
-    mockHookReturn = { ...mockHookReturn, state: 'listening' };
-    renderVoiceQA();
-
-    await waitFor(() => {
-      expect(screen.getByText(/microphone not available/i)).toBeTruthy();
-    });
-  });
-
-  it('shows transcript correctly in text mode', async () => {
-    mockHookReturn = {
-      ...mockHookReturn,
-      state: 'listening',
-      transcript: [
-        { role: 'assistant', text: 'Tell me more.' },
-        { role: 'user', text: 'Work was tough.' },
-      ],
-    };
-    renderVoiceQA();
-
-    await waitFor(() => {
-      expect(screen.getByText('Tell me more.')).toBeTruthy();
-      expect(screen.getByText('Work was tough.')).toBeTruthy();
-    });
+    expect(screen.getAllByText('Guide').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('You')).toBeTruthy();
   });
 });

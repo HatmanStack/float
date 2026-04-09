@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-  Animated,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import useGeminiLiveAPI from '@/hooks/useGeminiLiveAPI';
 import type { TransformedDict } from '@/components/BackendMeditationCall';
-import type { QATranscript } from '@/types/api';
+import type { QATranscript, QAExchange } from '@/types/api';
 
+const MAX_EXCHANGES = 3;
+
+const CHECKIN_PROMPTS = [
+  'How are you feeling right now, in this moment?',
+  'Is there anything specific weighing on your mind?',
+  "Thank you for sharing. Let me create a meditation tailored to what you've told me.",
+];
+
+// sentimentData, userId, and onError are unused in text-only mode but kept
+// in the interface for ROADMAP #16 (backend WebSocket proxy with voice input).
 interface VoiceQAProps {
   sentimentData: TransformedDict;
   userId?: string;
@@ -24,101 +25,51 @@ interface VoiceQAProps {
 }
 
 /**
- * Inline voice Q&A component that replaces the Generate button during conversation.
- * Falls back to text input when microphone permission is denied.
+ * Text-based Q&A check-in before meditation generation.
+ * Collects user responses and passes them as transcript context
+ * for a more personalized meditation. Voice proxy is on the roadmap.
  */
-const VoiceQA: React.FC<VoiceQAProps> = ({
-  sentimentData,
-  userId,
-  onComplete,
-  onSkip,
-  onError,
-}) => {
-  // Text-only mode until audio response modality is fully wired (voice input
-  // is captured but Gemini session uses TEXT responseModalities for now).
-  const textMode = true; // Text-only until audio response modality is wired
+const VoiceQA: React.FC<VoiceQAProps> = ({ onComplete, onSkip }) => {
   const [textInput, setTextInput] = useState('');
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const hasCalledComplete = useRef(false);
-
-  const { state, transcript, startSession, sendTextMessage } = useGeminiLiveAPI({
-    sentimentData,
-    userId,
-    onTranscriptComplete: (t) => {
-      if (!hasCalledComplete.current) {
-        hasCalledComplete.current = true;
-        onComplete(t);
-      }
-    },
-    onError,
-  });
-
-  // Start session on mount (text mode by default until audio is fully wired)
-  useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      try {
-        if (mounted) {
-          await startSession();
-        }
-      } catch (error) {
-        if (mounted) {
-          onError(error instanceof Error ? error : new Error(String(error)));
-        }
-      }
-    };
-
-    init();
-
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Pulsing animation for listening state
-  useEffect(() => {
-    if (state === 'listening' && !textMode) {
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 0.4,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      animation.start();
-      return () => animation.stop();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [state, textMode, pulseAnim]);
-
-  // Call onComplete when state becomes complete
-  useEffect(() => {
-    if (state === 'complete' && !hasCalledComplete.current) {
-      hasCalledComplete.current = true;
-      onComplete(transcript);
-    }
-  }, [state, transcript, onComplete]);
+  const [transcript, setTranscript] = useState<QAExchange[]>([
+    { role: 'assistant', text: CHECKIN_PROMPTS[0] },
+  ]);
+  const [exchangeCount, setExchangeCount] = useState(0);
 
   const handleSendText = useCallback(() => {
-    if (textInput.trim()) {
-      sendTextMessage(textInput.trim());
+    if (!textInput.trim()) return;
+
+    const userExchange: QAExchange = { role: 'user', text: textInput.trim() };
+    const nextCount = exchangeCount + 1;
+
+    if (nextCount >= MAX_EXCHANGES) {
+      // Final exchange — complete with full transcript
+      const finalTranscript = [
+        ...transcript,
+        userExchange,
+        { role: 'assistant' as const, text: CHECKIN_PROMPTS[CHECKIN_PROMPTS.length - 1] },
+      ];
+      setTranscript(finalTranscript);
+      setTextInput('');
+      onComplete(finalTranscript);
+    } else {
+      // Add user response and next prompt
+      const nextPrompt = CHECKIN_PROMPTS[Math.min(nextCount, CHECKIN_PROMPTS.length - 1)];
+      const updated = [
+        ...transcript,
+        userExchange,
+        { role: 'assistant' as const, text: nextPrompt },
+      ];
+      setTranscript(updated);
+      setExchangeCount(nextCount);
       setTextInput('');
     }
-  }, [textInput, sendTextMessage]);
+  }, [textInput, exchangeCount, transcript, onComplete]);
 
-  const renderTranscript = () => {
-    if (transcript.length === 0) return null;
-    return (
+  return (
+    <View style={localStyles.container}>
+      <ThemedText style={localStyles.headerText}>Quick check-in</ThemedText>
+
       <ScrollView style={localStyles.transcriptContainer}>
         {transcript.map((exchange, index) => (
           <View
@@ -135,100 +86,31 @@ const VoiceQA: React.FC<VoiceQAProps> = ({
           </View>
         ))}
       </ScrollView>
-    );
-  };
 
-  const renderStateIndicator = () => {
-    switch (state) {
-      case 'connecting':
-        return (
-          <View style={localStyles.stateRow}>
-            <ActivityIndicator size="small" color={Colors['activityIndicator']} />
-            <ThemedText style={localStyles.stateText}>Connecting...</ThemedText>
-          </View>
-        );
-      case 'listening':
-        if (textMode) {
-          return (
-            <View style={localStyles.stateRow}>
-              <MaterialIcons name="keyboard" size={24} color={Colors['buttonPressed']} />
-              <ThemedText style={localStyles.stateText}>Listening...</ThemedText>
-            </View>
-          );
-        }
-        return (
-          <Animated.View style={[localStyles.stateRow, { opacity: pulseAnim }]}>
-            <MaterialIcons name="mic" size={28} color={Colors['buttonPressed']} />
-            <ThemedText style={localStyles.stateText}>Listening...</ThemedText>
-          </Animated.View>
-        );
-      case 'processing':
-        return (
-          <View style={localStyles.stateRow}>
-            <ActivityIndicator size="small" color={Colors['activityIndicator']} />
-            <ThemedText style={localStyles.stateText}>Thinking...</ThemedText>
-          </View>
-        );
-      case 'responding':
-        return (
-          <View style={localStyles.stateRow}>
-            <MaterialIcons name="volume-up" size={24} color={Colors['buttonPressed']} />
-            <ThemedText style={localStyles.stateText}>Speaking...</ThemedText>
-          </View>
-        );
-      case 'complete':
-        return (
-          <View style={localStyles.stateRow}>
-            <ThemedText style={localStyles.stateText}>Starting meditation...</ThemedText>
-          </View>
-        );
-      default:
-        return null;
-    }
-  };
+      <View style={localStyles.textInputRow}>
+        <TextInput
+          style={localStyles.textInput}
+          value={textInput}
+          onChangeText={setTextInput}
+          placeholder="Type your response..."
+          placeholderTextColor="#999"
+          returnKeyType="send"
+          onSubmitEditing={handleSendText}
+          autoFocus
+        />
+        <Pressable
+          onPress={handleSendText}
+          style={({ pressed }) => [
+            localStyles.sendButton,
+            { backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'] },
+          ]}
+        >
+          <MaterialIcons name="send" size={20} color="#fff" />
+        </Pressable>
+      </View>
 
-  return (
-    <View style={localStyles.container}>
-      {textMode && (
-        <ThemedText style={localStyles.textModeMessage}>
-          Microphone not available. You can type your responses instead.
-        </ThemedText>
-      )}
-
-      {renderTranscript()}
-      {renderStateIndicator()}
-
-      {textMode && state === 'listening' && (
-        <View style={localStyles.textInputRow}>
-          <TextInput
-            style={localStyles.textInput}
-            value={textInput}
-            onChangeText={setTextInput}
-            placeholder="Type your response..."
-            placeholderTextColor="#999"
-            returnKeyType="send"
-            onSubmitEditing={handleSendText}
-          />
-          <Pressable
-            onPress={handleSendText}
-            style={({ pressed }) => [
-              localStyles.sendButton,
-              { backgroundColor: pressed ? Colors['buttonPressed'] : Colors['buttonUnpressed'] },
-            ]}
-          >
-            <ThemedText style={localStyles.sendButtonText}>Send</ThemedText>
-          </Pressable>
-        </View>
-      )}
-
-      <Pressable
-        onPress={() => {
-          onSkip();
-        }}
-        style={localStyles.skipButton}
-        testID="skip-qa-button"
-      >
-        <ThemedText style={localStyles.skipText}>Skip</ThemedText>
+      <Pressable onPress={onSkip} style={localStyles.skipButton} testID="skip-qa-button">
+        <ThemedText style={localStyles.skipText}>Skip check-in</ThemedText>
       </Pressable>
     </View>
   );
@@ -239,10 +121,9 @@ const localStyles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
-  textModeMessage: {
-    fontSize: 13,
-    opacity: 0.7,
-    textAlign: 'center',
+  headerText: {
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 12,
   },
   transcriptContainer: {
@@ -275,15 +156,6 @@ const localStyles = StyleSheet.create({
   exchangeText: {
     fontSize: 14,
   },
-  stateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginVertical: 12,
-  },
-  stateText: {
-    fontSize: 15,
-  },
   textInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -302,13 +174,8 @@ const localStyles = StyleSheet.create({
     color: '#333',
   },
   sendButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    padding: 10,
     borderRadius: 8,
-  },
-  sendButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   skipButton: {
     marginTop: 16,

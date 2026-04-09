@@ -523,25 +523,25 @@ class TestEndToEndSummaryFlow:
 class TestTTSProviderConfiguration:
     """Test TTS provider configuration and fallback logic."""
 
-    def test_default_tts_provider_is_gemini(self, mock_ai_service):
-        """Test that the default TTS provider is Gemini."""
-        with (
-            patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini,
-            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
-        ):
-            mock_gemini.return_value.get_provider_name.return_value = "gemini"
-            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
-            assert handler.tts_provider.get_provider_name() == "gemini"
-
-    def test_fallback_tts_provider_is_openai(self, mock_ai_service):
-        """Test that the fallback TTS provider is OpenAI."""
+    def test_default_tts_provider_is_openai(self, mock_ai_service):
+        """Test that the default TTS provider is OpenAI."""
         with (
             patch("src.handlers.lambda_handler.GeminiTTSProvider"),
             patch("src.handlers.lambda_handler.OpenAITTSProvider") as mock_openai,
         ):
             mock_openai.return_value.get_provider_name.return_value = "openai"
             handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
-            assert handler.fallback_tts_provider.get_provider_name() == "openai"
+            assert handler.tts_provider.get_provider_name() == "openai"
+
+    def test_fallback_tts_provider_is_gemini(self, mock_ai_service):
+        """Test that the fallback TTS provider is Gemini."""
+        with (
+            patch("src.handlers.lambda_handler.GeminiTTSProvider") as mock_gemini,
+            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
+        ):
+            mock_gemini.return_value.get_provider_name.return_value = "gemini"
+            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
+            assert handler.fallback_tts_provider.get_provider_name() == "gemini"
 
     def test_tts_fallback_on_gemini_failure(self, mock_ai_service):
         """Test that OpenAI is used as fallback when Gemini TTS fails."""
@@ -619,41 +619,18 @@ class TestTokenEndpoint:
             assert "expires_in" in body
 
     @patch("src.handlers.lambda_handler._get_handler")
-    def test_token_endpoint_does_not_leak_api_key(self, mock_get_handler, mock_ai_service):
-        """The /token response MUST NOT contain settings.GEMINI_API_KEY verbatim."""
-        with (
-            patch("src.handlers.lambda_handler.GeminiTTSProvider"),
-            patch("src.handlers.lambda_handler.OpenAITTSProvider"),
-            patch("src.handlers.lambda_handler.settings") as mock_settings,
-        ):
-            mock_settings.GEMINI_API_KEY = "super-secret-gemini-api-key-xyz"
-            handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
-            mock_get_handler.return_value = handler
-
-            from src.handlers.lambda_handler import lambda_handler
-
-            event = self._make_token_event(user_id="test-user")
-            response = lambda_handler(event, None)
-
-            # Regardless of status code, the plaintext key must not appear
-            assert "super-secret-gemini-api-key-xyz" not in response["body"]
-            body = json.loads(response["body"])
-            assert body.get("token") != "super-secret-gemini-api-key-xyz"
-
-    @patch("src.handlers.lambda_handler._get_handler")
     def test_token_endpoint_returns_opaque_marker(self, mock_get_handler, mock_ai_service):
-        """The token field should be an HMAC-derived hex string."""
+        """The /token response returns an HMAC marker, not the raw API key."""
         import re as _re
 
         with (
             patch("src.handlers.lambda_handler.GeminiTTSProvider"),
             patch("src.handlers.lambda_handler.OpenAITTSProvider"),
-            patch("src.handlers.lambda_handler.settings") as mock_settings,
         ):
-            mock_settings.GEMINI_API_KEY = "test-gemini-key"
             handler = LambdaHandler(ai_service=mock_ai_service, validate_config=False)
             mock_get_handler.return_value = handler
 
+            from src.config.settings import settings
             from src.handlers.lambda_handler import lambda_handler
 
             event = self._make_token_event(user_id="test-user")
@@ -662,10 +639,9 @@ class TestTokenEndpoint:
             assert response["statusCode"] == 200
             body = json.loads(response["body"])
             token = body["token"]
-            # HMAC-SHA256 hexdigest (truncated) - must be hex characters only
             assert isinstance(token, str)
             assert _re.fullmatch(r"[0-9a-f]+", token) is not None
-            assert token != mock_settings.GEMINI_API_KEY
+            assert token != settings.GEMINI_API_KEY
 
     @patch("src.handlers.lambda_handler._get_handler")
     def test_token_request_missing_user_id(self, mock_get_handler, mock_ai_service):

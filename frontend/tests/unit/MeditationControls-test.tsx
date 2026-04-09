@@ -282,107 +282,112 @@ describe('MeditationControls', () => {
     });
   });
 
-  describe('Voice Q&A integration', () => {
-    const mockSentimentData = {
-      sentiment_label: ['Anxious'],
-      intensity: [4],
-      speech_to_text: ['stressed'],
-      added_text: ['work'],
-      summary: ['workplace stress'],
-    };
+  // Voice Q&A integration tests are disabled until the backend WebSocket
+  // proxy is implemented (ROADMAP item 16). The Q&A step is bypassed in
+  // MeditationControls — Generate now goes straight to meditation. These
+  // tests will be re-enabled once voice sentiment analysis is available.
+  //
+  // describe('Voice Q&A integration', () => {
+  //   const mockSentimentData = {
+  //     sentiment_label: ['Anxious'],
+  //     intensity: [4],
+  //     speech_to_text: ['stressed'],
+  //     added_text: ['work'],
+  //     summary: ['workplace stress'],
+  //   };
+  //
+  //   it('shows VoiceQA component when Generate is pressed with sentimentData', () => {
+  //     render(
+  //       <MeditationControls
+  //         isCalling={false}
+  //         meditationURI={''}
+  //         setMeditationURI={mockSetMeditationURI}
+  //         handleMeditationCall={mockHandleMeditationCall}
+  //         sentimentData={mockSentimentData}
+  //       />
+  //     );
+  //
+  //     fireEvent.press(screen.getByText('Generate'));
+  //     expect(screen.getByTestId('voice-qa')).toBeTruthy();
+  //   });
+  //
+  //   it('calls handleMeditationCall when Q&A completes', () => {
+  //     render(
+  //       <MeditationControls
+  //         isCalling={false}
+  //         meditationURI={''}
+  //         setMeditationURI={mockSetMeditationURI}
+  //         handleMeditationCall={mockHandleMeditationCall}
+  //         sentimentData={mockSentimentData}
+  //       />
+  //     );
+  //
+  //     fireEvent.press(screen.getByText('Generate'));
+  //
+  //     // Simulate Q&A completing via the captured props
+  //     const transcript = [{ role: 'assistant' as const, text: 'test' }];
+  //     act(() => {
+  //       (mockVoiceQAProps.onComplete as (t: unknown) => void)(transcript);
+  //     });
+  //
+  //     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5, transcript);
+  //   });
+  //
+  //   it('calls handleMeditationCall without transcript when Q&A is skipped', () => {
+  //     render(
+  //       <MeditationControls
+  //         isCalling={false}
+  //         meditationURI={''}
+  //         setMeditationURI={mockSetMeditationURI}
+  //         handleMeditationCall={mockHandleMeditationCall}
+  //         sentimentData={mockSentimentData}
+  //       />
+  //     );
+  //
+  //     fireEvent.press(screen.getByText('Generate'));
+  //
+  //     // Simulate skip
+  //     act(() => {
+  //       (mockVoiceQAProps.onSkip as () => void)();
+  //     });
+  //
+  //     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+  //   });
+  //
+  //   it('calls handleMeditationCall without transcript on Q&A error', () => {
+  //     render(
+  //       <MeditationControls
+  //         isCalling={false}
+  //         meditationURI={''}
+  //         setMeditationURI={mockSetMeditationURI}
+  //         handleMeditationCall={mockHandleMeditationCall}
+  //         sentimentData={mockSentimentData}
+  //       />
+  //     );
+  //
+  //     fireEvent.press(screen.getByText('Generate'));
+  //
+  //     // Simulate error
+  //     act(() => {
+  //       (mockVoiceQAProps.onError as (e: Error) => void)(new Error('test error'));
+  //     });
+  //
+  //     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+  //   });
 
-    it('shows VoiceQA component when Generate is pressed with sentimentData', () => {
-      render(
-        <MeditationControls
-          isCalling={false}
-          meditationURI={''}
-          setMeditationURI={mockSetMeditationURI}
-          handleMeditationCall={mockHandleMeditationCall}
-          sentimentData={mockSentimentData}
-        />
-      );
-
-      fireEvent.press(screen.getByText('Generate'));
-      expect(screen.getByTestId('voice-qa')).toBeTruthy();
-    });
-
-    it('calls handleMeditationCall when Q&A completes', () => {
-      render(
-        <MeditationControls
-          isCalling={false}
-          meditationURI={''}
-          setMeditationURI={mockSetMeditationURI}
-          handleMeditationCall={mockHandleMeditationCall}
-          sentimentData={mockSentimentData}
-        />
-      );
-
-      fireEvent.press(screen.getByText('Generate'));
-
-      // Simulate Q&A completing via the captured props
-      const transcript = [{ role: 'assistant' as const, text: 'test' }];
-      act(() => {
-        (mockVoiceQAProps.onComplete as (t: unknown) => void)(transcript);
-      });
-
-      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5, transcript);
-    });
-
-    it('calls handleMeditationCall without transcript when Q&A is skipped', () => {
-      render(
-        <MeditationControls
-          isCalling={false}
-          meditationURI={''}
-          setMeditationURI={mockSetMeditationURI}
-          handleMeditationCall={mockHandleMeditationCall}
-          sentimentData={mockSentimentData}
-        />
-      );
-
-      fireEvent.press(screen.getByText('Generate'));
-
-      // Simulate skip
-      act(() => {
-        (mockVoiceQAProps.onSkip as () => void)();
-      });
-
-      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
-    });
-
-    it('calls handleMeditationCall without transcript on Q&A error', () => {
-      render(
-        <MeditationControls
-          isCalling={false}
-          meditationURI={''}
-          setMeditationURI={mockSetMeditationURI}
-          handleMeditationCall={mockHandleMeditationCall}
-          sentimentData={mockSentimentData}
-        />
-      );
-
-      fireEvent.press(screen.getByText('Generate'));
-
-      // Simulate error
-      act(() => {
-        (mockVoiceQAProps.onError as (e: Error) => void)(new Error('test error'));
-      });
-
-      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
-    });
-
-    it('falls back to direct meditation when no sentimentData', () => {
-      render(
-        <MeditationControls
-          isCalling={false}
-          meditationURI={''}
-          setMeditationURI={mockSetMeditationURI}
-          handleMeditationCall={mockHandleMeditationCall}
-        />
-      );
-
-      fireEvent.press(screen.getByText('Generate'));
-      // Should call meditation directly without Q&A
-      expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
-    });
-  });
+  //   it('falls back to direct meditation when no sentimentData', () => {
+  //     render(
+  //       <MeditationControls
+  //         isCalling={false}
+  //         meditationURI={''}
+  //         setMeditationURI={mockSetMeditationURI}
+  //         handleMeditationCall={mockHandleMeditationCall}
+  //       />
+  //     );
+  //
+  //     fireEvent.press(screen.getByText('Generate'));
+  //     // Should call meditation directly without Q&A
+  //     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+  //   });
+  // });
 });

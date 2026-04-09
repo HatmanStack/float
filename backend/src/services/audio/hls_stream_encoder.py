@@ -23,13 +23,10 @@ from ...config.constants import (
     DEFAULT_MUSIC_VOLUME_REDUCTION,
     DEFAULT_SILENCE_DURATION,
     DEFAULT_VOICE_BOOST,
-    DURATION_TIER_MINUTES,
-    HLS_TRAILING_PAD_BASE_SECONDS,
-    HLS_TRAILING_PAD_PER_TIER,
+    HLS_FADE_DURATION_SECONDS,
 )
 from ...exceptions import AudioProcessingError, ErrorCode, ExternalServiceError
 from ...utils.logging_utils import get_logger
-from .audio_mixer import append_fade_segments
 
 logger = get_logger(__name__)
 
@@ -111,14 +108,18 @@ def _process_stream_to_hls_inner(
     playlist_path = os.path.join(hls_output_dir, "playlist.m3u8")
     segment_pattern = os.path.join(hls_output_dir, "segment_%03d.ts")
 
-    voice_temp_path = os.path.join(hls_output_dir, "voice.pcm")
+    # Pad the voice to at least est_dur + fade so the music fade timing is
+    # deterministic within a single FFmpeg process (no second process = no
+    # audio seam). If the voice runs longer than the estimate the music will
+    # have already faded and the voice finishes over silence — acceptable.
+    fade_duration = HLS_FADE_DURATION_SECONDS
+    padded_duration = estimated_voice_duration + fade_duration
+    fade_start = estimated_voice_duration
+    delay_ms = int(DEFAULT_SILENCE_DURATION * 1000)
 
-    est_minutes = estimated_voice_duration / 60
-    tier = sum(1 for t in DURATION_TIER_MINUTES if est_minutes >= t) or 1
-    trailing_pad = HLS_TRAILING_PAD_BASE_SECONDS + (HLS_TRAILING_PAD_PER_TIER * tier)
     logger.info(
-        f"Trailing pad: {trailing_pad}s (base={HLS_TRAILING_PAD_BASE_SECONDS} + "
-        f"{HLS_TRAILING_PAD_PER_TIER}s x tier {tier})"
+        f"Starting FFmpeg: est_voice={estimated_voice_duration:.0f}s, "
+        f"fade_start={fade_start:.0f}s, padded={padded_duration:.0f}s"
     )
 
     fmt_flags = input_format_flags or ["-f", "s16le", "-ar", "24000", "-ac", "1"]
@@ -133,10 +134,12 @@ def _process_stream_to_hls_inner(
         music_path,
         "-filter_complex",
         f"[0:a]volume={DEFAULT_VOICE_BOOST}dB,"
-        f"adelay={int(DEFAULT_SILENCE_DURATION * 1000)}|{int(DEFAULT_SILENCE_DURATION * 1000)},"
-        f"apad=pad_dur={trailing_pad}[voice_padded];"
-        f"[1:a]volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB[music];"
-        f"[voice_padded][music]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[out]",
+        f"adelay={delay_ms}|{delay_ms},"
+        f"apad=whole_dur={padded_duration}[voice];"
+        f"[1:a]atrim=0:{padded_duration},"
+        f"volume={DEFAULT_MUSIC_VOLUME_REDUCTION}dB,"
+        f"afade=t=out:st={fade_start}:d={fade_duration}[music];"
+        f"[voice][music]amix=inputs=2:duration=first:normalize=0[out]",
         "-map",
         "[out]",
         "-c:a",
@@ -161,8 +164,6 @@ def _process_stream_to_hls_inner(
         "0",
         playlist_path,
     ]
-
-    logger.info("Starting FFmpeg streaming process (fade appended after completion)")
 
     process = subprocess.Popen(
         ffmpeg_cmd,
@@ -269,30 +270,26 @@ def _process_stream_to_hls_inner(
 
     try:
         try:
-            with open(voice_temp_path, "wb") as voice_file:
-                for chunk in voice_generator:
-                    # Honor watcher-side upload failures: if the watcher has
-                    # recorded an error (e.g., S3 upload returned False), stop
-                    # consuming TTS chunks and let the failure propagate via
-                    # the finally block instead of burning more provider time.
-                    with state.lock:
-                        if state.error is not None:
-                            logger.warning("Watcher reported failure; halting FFmpeg producer")
-                            break
-                    if process.poll() is not None:
-                        stderr = process.stderr.read().decode()
-                        logger.error(f"FFmpeg exited early: {stderr}")
-                        raise AudioProcessingError(f"FFmpeg exited unexpectedly: {stderr}")
-                    try:
-                        process.stdin.write(chunk)
-                        process.stdin.flush()
-                    except BrokenPipeError as bpe:
-                        stderr = process.stderr.read().decode() if process.stderr else "unknown"
-                        logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
-                        raise AudioProcessingError(
-                            f"FFmpeg pipe closed mid-stream: {stderr}"
-                        ) from bpe
-                    voice_file.write(chunk)
+            for chunk in voice_generator:
+                # Honor watcher-side upload failures: if the watcher has
+                # recorded an error (e.g., S3 upload returned False), stop
+                # consuming TTS chunks and let the failure propagate via
+                # the finally block instead of burning more provider time.
+                with state.lock:
+                    if state.error is not None:
+                        logger.warning("Watcher reported failure; halting FFmpeg producer")
+                        break
+                if process.poll() is not None:
+                    stderr = process.stderr.read().decode()
+                    logger.error(f"FFmpeg exited early: {stderr}")
+                    raise AudioProcessingError(f"FFmpeg exited unexpectedly: {stderr}")
+                try:
+                    process.stdin.write(chunk)
+                    process.stdin.flush()
+                except BrokenPipeError as bpe:
+                    stderr = process.stderr.read().decode() if process.stderr else "unknown"
+                    logger.error(f"FFmpeg broken pipe - stderr: {stderr}")
+                    raise AudioProcessingError(f"FFmpeg pipe closed mid-stream: {stderr}") from bpe
         finally:
             close = getattr(voice_generator, "close", None)
             if callable(close):
@@ -345,23 +342,9 @@ def _process_stream_to_hls_inner(
         if watcher_error:
             raise watcher_error
 
+    # Music fade is handled within the single FFmpeg process via afade,
+    # so no separate append_fade_segments call is needed.
     with state.lock:
-        total_streamed_duration = sum(state.segment_durations)
-        current_segments = state.segments_uploaded
-        durations_list = state.segment_durations
-    new_segments = append_fade_segments(
-        ffmpeg_executable,
-        hls_service,
-        get_duration,
-        music_path,
-        total_streamed_duration,
-        user_id,
-        job_id,
-        current_segments,
-        durations_list,
-    )
-    with state.lock:
-        state.segments_uploaded = new_segments
         final_segments = state.segments_uploaded
         final_durations = list(state.segment_durations)
 
