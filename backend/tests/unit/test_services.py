@@ -1,7 +1,7 @@
 """Unit tests for service layer implementations."""
 
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -1186,7 +1186,7 @@ class TestFFmpegAudioServiceHLS:
         ss_index = ffmpeg_args.index("-ss")
         assert ffmpeg_args[ss_index + 1] == "15.0"  # 15.0 % 120.0 = 15.0
         assert "-t" in ffmpeg_args
-        assert "afade=t=out:st=0:d=10" in " ".join(ffmpeg_args)
+        assert "afade=t=out:st=0:d=45" in " ".join(ffmpeg_args)
 
     def test_append_fade_segments_music_offset_calculation(self, mock_storage_service):
         """Test music offset uses modular arithmetic correctly."""
@@ -1295,6 +1295,61 @@ class TestFFmpegAudioServiceHLS:
         assert "128k" in ffmpeg_args
 
 
+def _make_live_session_mock(audio_chunks):
+    """Create a mock Live API session for the chunked TTS flow.
+
+    The chunked flow calls session.receive() multiple times:
+    1. Once for the context acknowledgment (turn_complete, no audio)
+    2. Once per text section (audio chunks + turn_complete)
+
+    Returns (mock_client, mock_session).
+    """
+
+    # Build the turns: first an ack turn, then one audio turn
+    # with all the provided chunks
+    turns = []
+
+    # Turn 1: context ack (just turn_complete, no audio)
+    async def _ack_turn():
+        ack = MagicMock()
+        ack.server_content.model_turn = None
+        ack.server_content.turn_complete = True
+        yield ack
+
+    turns.append(_ack_turn())
+
+    # Turn 2: audio section
+    async def _audio_turn():
+        for chunk_data in audio_chunks:
+            mock_part = MagicMock()
+            mock_part.inline_data.data = chunk_data
+            mock_turn = MagicMock()
+            mock_turn.parts = [mock_part]
+            msg = MagicMock()
+            msg.server_content.model_turn = mock_turn
+            msg.server_content.turn_complete = False
+            yield msg
+        done = MagicMock()
+        done.server_content.model_turn = None
+        done.server_content.turn_complete = True
+        yield done
+
+    turns.append(_audio_turn())
+
+    mock_session = MagicMock()
+    mock_session.receive.side_effect = turns
+    mock_session.send_client_content = AsyncMock()
+
+    mock_connect = MagicMock()
+    mock_connect.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_connect.__aexit__ = AsyncMock(return_value=False)
+
+    mock_client = MagicMock()
+    mock_client.aio.live.connect.return_value = mock_connect
+
+    return mock_client, mock_session
+
+
 @pytest.mark.unit
 class TestGeminiTTSProvider:
     """Test Gemini Text-to-Speech provider."""
@@ -1310,17 +1365,8 @@ class TestGeminiTTSProvider:
     def test_synthesize_speech_success(self):
         """Test successful speech synthesis."""
         with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
-            mock_client = MagicMock()
+            mock_client, _ = _make_live_session_mock([b"audio_chunk_data"])
             mock_client_cls.return_value = mock_client
-
-            # Mock the generate_content response
-            mock_part = MagicMock()
-            mock_part.inline_data.data = b"audio_chunk_data"
-            mock_candidate = MagicMock()
-            mock_candidate.content.parts = [mock_part]
-            mock_response = MagicMock()
-            mock_response.candidates = [mock_candidate]
-            mock_client.models.generate_content.return_value = mock_response
 
             with (
                 patch("builtins.open", create=True),
@@ -1333,14 +1379,17 @@ class TestGeminiTTSProvider:
                 result = provider.synthesize_speech("Test text", "/tmp/test.mp3")
 
                 assert result is True
-                mock_client.models.generate_content.assert_called_once()
 
     def test_synthesize_speech_api_error(self):
         """Test error handling when Gemini API fails."""
         with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
             mock_client = MagicMock()
             mock_client_cls.return_value = mock_client
-            mock_client.models.generate_content.side_effect = Exception("API Error")
+
+            mock_cm = MagicMock()
+            mock_cm.__aenter__ = AsyncMock(side_effect=Exception("API Error"))
+            mock_cm.__aexit__ = AsyncMock(return_value=False)
+            mock_client.aio.live.connect.return_value = mock_cm
 
             from src.providers.gemini_tts import GeminiTTSProvider
 
@@ -1350,35 +1399,43 @@ class TestGeminiTTSProvider:
             assert result is False
 
     def test_stream_speech_yields_chunks(self):
-        """Test stream_speech yields audio bytes."""
+        """Test stream_speech yields audio bytes via Live API."""
         with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
-            mock_client = MagicMock()
+            mock_client, _ = _make_live_session_mock([b"audio_chunk_data"])
             mock_client_cls.return_value = mock_client
-
-            # Mock the generate_content response
-            mock_part = MagicMock()
-            mock_part.inline_data.data = b"audio_chunk_data"
-            mock_candidate = MagicMock()
-            mock_candidate.content.parts = [mock_part]
-            mock_response = MagicMock()
-            mock_response.candidates = [mock_candidate]
-            mock_client.models.generate_content.return_value = mock_response
 
             from src.providers.gemini_tts import GeminiTTSProvider
 
             provider = GeminiTTSProvider()
-            # Use _stream_speech_internal to avoid circuit breaker
             chunks = list(provider._stream_speech_internal("Test text"))
 
             assert len(chunks) == 1
             assert chunks[0] == b"audio_chunk_data"
+
+    def test_stream_speech_multiple_chunks(self):
+        """Test stream_speech yields multiple audio chunks."""
+        with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
+            chunk_data = [b"chunk1", b"chunk2", b"chunk3"]
+            mock_client, _ = _make_live_session_mock(chunk_data)
+            mock_client_cls.return_value = mock_client
+
+            from src.providers.gemini_tts import GeminiTTSProvider
+
+            provider = GeminiTTSProvider()
+            chunks = list(provider._stream_speech_internal("Test text"))
+
+            assert chunks == chunk_data
 
     def test_stream_speech_raises_tts_error(self):
         """Test stream_speech raises TTSError on failure."""
         with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
             mock_client = MagicMock()
             mock_client_cls.return_value = mock_client
-            mock_client.models.generate_content.side_effect = Exception("API Error")
+
+            mock_cm = MagicMock()
+            mock_cm.__aenter__ = AsyncMock(side_effect=Exception("API Error"))
+            mock_cm.__aexit__ = AsyncMock(return_value=False)
+            mock_client.aio.live.connect.return_value = mock_cm
 
             from src.exceptions import TTSError
             from src.providers.gemini_tts import GeminiTTSProvider
@@ -1390,17 +1447,8 @@ class TestGeminiTTSProvider:
     def test_stream_speech_raises_on_zero_chunks(self):
         """Test _stream_speech_internal raises TTSError when no audio data returned."""
         with patch("src.providers.gemini_tts.genai.Client") as mock_client_cls:
-            mock_client = MagicMock()
+            mock_client, _ = _make_live_session_mock([])
             mock_client_cls.return_value = mock_client
-
-            # Response with empty parts list
-            mock_response = MagicMock()
-            mock_candidate = MagicMock()
-            mock_content = MagicMock()
-            mock_content.parts = []
-            mock_candidate.content = mock_content
-            mock_response.candidates = [mock_candidate]
-            mock_client.models.generate_content.return_value = mock_response
 
             from src.exceptions import TTSError
             from src.providers.gemini_tts import GeminiTTSProvider

@@ -1,6 +1,6 @@
 import { Audio } from 'expo-av';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Pressable, ActivityIndicator, View, StyleSheet } from 'react-native';
+import { Pressable, ActivityIndicator, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import useStyles from '@/constants/StylesConstants';
 import { ThemedText } from '@/components/ThemedText';
@@ -135,6 +135,8 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
 }: MeditationControlsProps): React.JSX.Element => {
   const styles = useStyles();
   const { isPausing, handlePlayMeditation } = useAudioPlayback(meditationURI, setMeditationURI);
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 700;
 
   // Duration selector state (must be before any early returns)
   const [selectedDuration, setSelectedDuration] = useState(5);
@@ -341,15 +343,49 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   }
 
   return (
-    <View style={localStyles.generateContainer}>
-      <View style={localStyles.spacer} />
+    <View
+      style={[
+        localStyles.generateContainer,
+        isSmallScreen
+          ? localStyles.generateContainerVertical
+          : localStyles.generateContainerHorizontal,
+      ]}
+    >
+      {isSmallScreen && (
+        <View style={localStyles.durationWrapperCenter}>
+          <View style={localStyles.durationSelector}>
+            {DURATION_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                onPress={() => setSelectedDuration(option.value)}
+                style={[
+                  localStyles.durationOption,
+                  selectedDuration === option.value && localStyles.durationOptionSelected,
+                ]}
+                testID={`duration-${option.value}`}
+              >
+                <ThemedText
+                  style={[
+                    localStyles.durationText,
+                    selectedDuration === option.value && localStyles.durationTextSelected,
+                  ]}
+                >
+                  {option.label}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+      {!isSmallScreen && <View style={localStyles.spacer} />}
       <Pressable
         onPress={() => {
-          if (sentimentData) {
-            setQaActive(true);
-          } else {
-            handleMeditationCall(selectedDuration);
-          }
+          // Q&A check-in is bypassed until the backend WebSocket proxy
+          // is implemented (ROADMAP item 16). The text-only Q&A doesn't
+          // add value — the real benefit is Gemini analyzing the user's
+          // voice tone/emotion, which requires proxying audio through
+          // the backend to avoid exposing the API key to the browser.
+          handleMeditationCall(selectedDuration);
         }}
         style={({ pressed }) => [
           {
@@ -364,44 +400,54 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           <ThemedText type="generate">{pressed ? 'GENERATING!' : 'Generate'}</ThemedText>
         )}
       </Pressable>
-      <View style={localStyles.durationWrapper}>
-        <View style={localStyles.durationSelector}>
-          {DURATION_OPTIONS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => setSelectedDuration(option.value)}
-              style={[
-                localStyles.durationOption,
-                selectedDuration === option.value && localStyles.durationOptionSelected,
-              ]}
-              testID={`duration-${option.value}`}
-            >
-              <ThemedText
+      {!isSmallScreen && (
+        <View style={localStyles.durationWrapperEnd}>
+          <View style={localStyles.durationSelector}>
+            {DURATION_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                onPress={() => setSelectedDuration(option.value)}
                 style={[
-                  localStyles.durationText,
-                  selectedDuration === option.value && localStyles.durationTextSelected,
+                  localStyles.durationOption,
+                  selectedDuration === option.value && localStyles.durationOptionSelected,
                 ]}
+                testID={`duration-${option.value}`}
               >
-                {option.label}
-              </ThemedText>
-            </Pressable>
-          ))}
+                <ThemedText
+                  style={[
+                    localStyles.durationText,
+                    selectedDuration === option.value && localStyles.durationTextSelected,
+                  ]}
+                >
+                  {option.label}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };
 
 const localStyles = StyleSheet.create({
   generateContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  generateContainerVertical: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  generateContainerHorizontal: {
+    flexDirection: 'row',
+    gap: 12,
   },
   playbackControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
   },
   newButtonWrapper: {
     flex: 1,
@@ -425,10 +471,13 @@ const localStyles = StyleSheet.create({
     flex: 1,
   },
   generateButton: {
-    flex: 0,
     minWidth: 140,
   },
-  durationWrapper: {
+  durationWrapperCenter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  durationWrapperEnd: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',

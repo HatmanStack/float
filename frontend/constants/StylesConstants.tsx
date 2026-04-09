@@ -20,6 +20,17 @@ const useStyles = () => {
       flexDirection: 'row',
       justifyContent: 'space-between',
     },
+    bannerContainer: {
+      backgroundColor: '#60465a',
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 12,
+    },
+    bannerText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      textAlign: 'center',
+    },
     titleContainer: {
       flexDirection: 'row',
       alignItems: 'center',

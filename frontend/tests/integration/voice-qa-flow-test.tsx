@@ -96,108 +96,116 @@ const mockSentimentData: TransformedDict = {
   summary: ['Workplace conflict', 'Work overload'],
 };
 
+// Voice Q&A integration tests are disabled until the backend WebSocket
+// proxy is implemented (ROADMAP item 16). The Q&A step is bypassed —
+// Generate now goes straight to meditation. These tests will be
+// re-enabled once voice sentiment analysis is available via the proxy.
 describe('Voice Q&A Integration Flow', () => {
-  let mockHandleMeditationCall: jest.Mock;
-  let mockSetMeditationURI: jest.Mock;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    capturedVoiceQAProps = {};
-    mockHandleMeditationCall = jest.fn();
-    mockSetMeditationURI = jest.fn();
-  });
-
-  const renderControls = () =>
-    render(
-      <MeditationControls
-        isCalling={false}
-        meditationURI=""
-        setMeditationURI={mockSetMeditationURI}
-        handleMeditationCall={mockHandleMeditationCall}
-        sentimentData={mockSentimentData}
-      />
-    );
-
-  it('happy path: Q&A completes and meditation request includes transcript', async () => {
-    renderControls();
-
-    // Tap Generate to start Q&A
-    fireEvent.press(screen.getByText('Generate'));
-
-    // VoiceQA should be rendered
-    expect(screen.getByTestId('voice-qa-mock')).toBeTruthy();
-    expect(screen.getByText('VoiceQA Active')).toBeTruthy();
-
-    // Complete Q&A
-    await act(async () => {
-      fireEvent.press(screen.getByText('Complete QA'));
-    });
-
-    // Verify meditation call was made with transcript
-    expect(mockHandleMeditationCall).toHaveBeenCalledWith(5, [
-      { role: 'assistant', text: 'How are you feeling?' },
-      { role: 'user', text: 'Stressed about work' },
-      { role: 'assistant', text: 'Let me create a meditation for you.' },
-    ]);
-  });
-
-  it('skip path: meditation request sent without transcript', async () => {
-    renderControls();
-
-    // Tap Generate to start Q&A
-    fireEvent.press(screen.getByText('Generate'));
-
-    // Skip Q&A
-    await act(async () => {
-      fireEvent.press(screen.getByText('Skip QA'));
-    });
-
-    // Verify meditation call was made without transcript
-    expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
-    // Should NOT have a second argument (transcript)
-    expect(mockHandleMeditationCall.mock.calls[0]).toHaveLength(1);
-  });
-
-  it('error path: Q&A fails and meditation proceeds without transcript', async () => {
-    renderControls();
-
-    // Tap Generate to start Q&A
-    fireEvent.press(screen.getByText('Generate'));
-
-    // Trigger error
-    await act(async () => {
-      fireEvent.press(screen.getByText('Error QA'));
-    });
-
-    // Verify meditation call was made without transcript (fallback)
-    expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
-    expect(mockHandleMeditationCall.mock.calls[0]).toHaveLength(1);
-  });
-
-  it('sentiment data is passed to VoiceQA component', async () => {
-    renderControls();
-
-    // Tap Generate to start Q&A
-    fireEvent.press(screen.getByText('Generate'));
-
-    // Verify sentiment data was passed to VoiceQA
-    expect(capturedVoiceQAProps.sentimentData).toEqual(mockSentimentData);
-  });
-
-  it('no Q&A when sentimentData is not provided', () => {
-    render(
-      <MeditationControls
-        isCalling={false}
-        meditationURI=""
-        setMeditationURI={mockSetMeditationURI}
-        handleMeditationCall={mockHandleMeditationCall}
-      />
-    );
-
-    // Tap Generate should call meditation directly
-    fireEvent.press(screen.getByText('Generate'));
-
-    // Should go directly to meditation without Q&A
-    expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
-  });
+  it.skip('disabled pending backend WebSocket proxy (ROADMAP item 16)', () => {});
 });
+//
+// describe('Voice Q&A Integration Flow', () => {
+//   let mockHandleMeditationCall: jest.Mock;
+//   let mockSetMeditationURI: jest.Mock;
+//
+//   beforeEach(() => {
+//     jest.clearAllMocks();
+//     capturedVoiceQAProps = {};
+//     mockHandleMeditationCall = jest.fn();
+//     mockSetMeditationURI = jest.fn();
+//   });
+//
+//   const renderControls = () =>
+//     render(
+//       <MeditationControls
+//         isCalling={false}
+//         meditationURI=""
+//         setMeditationURI={mockSetMeditationURI}
+//         handleMeditationCall={mockHandleMeditationCall}
+//         sentimentData={mockSentimentData}
+//       />
+//     );
+//
+//   it('happy path: Q&A completes and meditation request includes transcript', async () => {
+//     renderControls();
+//
+//     // Tap Generate to start Q&A
+//     fireEvent.press(screen.getByText('Generate'));
+//
+//     // VoiceQA should be rendered
+//     expect(screen.getByTestId('voice-qa-mock')).toBeTruthy();
+//     expect(screen.getByText('VoiceQA Active')).toBeTruthy();
+//
+//     // Complete Q&A
+//     await act(async () => {
+//       fireEvent.press(screen.getByText('Complete QA'));
+//     });
+//
+//     // Verify meditation call was made with transcript
+//     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5, [
+//       { role: 'assistant', text: 'How are you feeling?' },
+//       { role: 'user', text: 'Stressed about work' },
+//       { role: 'assistant', text: 'Let me create a meditation for you.' },
+//     ]);
+//   });
+//
+//   it('skip path: meditation request sent without transcript', async () => {
+//     renderControls();
+//
+//     // Tap Generate to start Q&A
+//     fireEvent.press(screen.getByText('Generate'));
+//
+//     // Skip Q&A
+//     await act(async () => {
+//       fireEvent.press(screen.getByText('Skip QA'));
+//     });
+//
+//     // Verify meditation call was made without transcript
+//     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+//     // Should NOT have a second argument (transcript)
+//     expect(mockHandleMeditationCall.mock.calls[0]).toHaveLength(1);
+//   });
+//
+//   it('error path: Q&A fails and meditation proceeds without transcript', async () => {
+//     renderControls();
+//
+//     // Tap Generate to start Q&A
+//     fireEvent.press(screen.getByText('Generate'));
+//
+//     // Trigger error
+//     await act(async () => {
+//       fireEvent.press(screen.getByText('Error QA'));
+//     });
+//
+//     // Verify meditation call was made without transcript (fallback)
+//     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+//     expect(mockHandleMeditationCall.mock.calls[0]).toHaveLength(1);
+//   });
+//
+//   it('sentiment data is passed to VoiceQA component', async () => {
+//     renderControls();
+//
+//     // Tap Generate to start Q&A
+//     fireEvent.press(screen.getByText('Generate'));
+//
+//     // Verify sentiment data was passed to VoiceQA
+//     expect(capturedVoiceQAProps.sentimentData).toEqual(mockSentimentData);
+//   });
+//
+//   it('no Q&A when sentimentData is not provided', () => {
+//     render(
+//       <MeditationControls
+//         isCalling={false}
+//         meditationURI=""
+//         setMeditationURI={mockSetMeditationURI}
+//         handleMeditationCall={mockHandleMeditationCall}
+//       />
+//     );
+//
+//     // Tap Generate should call meditation directly
+//     fireEvent.press(screen.getByText('Generate'));
+//
+//     // Should go directly to meditation without Q&A
+//     expect(mockHandleMeditationCall).toHaveBeenCalledWith(5);
+//   });
+// });

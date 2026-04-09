@@ -197,6 +197,24 @@ drive-by fixes.
   - Move the helpers into a dedicated `gemini_token` utility module so
     no handler imports `settings.GEMINI_API_KEY` directly.
 
+### 16. Voice Q&A via backend WebSocket proxy
+
+- **Source:** API key exposure concern from audit; Voice Q&A feature
+  requires bidirectional audio streaming to Gemini Live API.
+- **Why deferred:** Requires API Gateway WebSocket API infrastructure
+  (new SAM resources, connection state management in DynamoDB, Lambda
+  handlers for connect/disconnect/message events). Currently the Q&A
+  check-in uses text-only input to avoid exposing the Gemini API key
+  to the browser.
+- **Scope:**
+  - Add API Gateway WebSocket API resource to `template.yaml`.
+  - Implement Lambda handlers that proxy audio between the frontend
+    and the Gemini Live API WebSocket server-side.
+  - Enable voice sentiment analysis during the pre-meditation check-in
+    (Gemini can detect emotional state from voice tone/pace).
+  - Remove the `/token` endpoint once the proxy handles all Gemini
+    communication.
+
 ## Score Movements Locked Behind These Items
 
 The following eval scores were intentionally *not* taken to 9/10

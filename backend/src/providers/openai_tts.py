@@ -15,7 +15,8 @@ logger = get_logger(__name__)
 MEDITATION_VOICE_INSTRUCTIONS = """Speak in a calm, soothing, and gentle meditation guide voice.
 Use a slow, measured pace with natural pauses for breathing.
 Your tone should be warm, peaceful, and reassuring - like a trusted meditation instructor
-guiding someone through a relaxing session. Emphasize words related to relaxation,
+guiding someone through a relaxing session. Speak clearly and with enough volume to be
+heard easily over soft background music. Emphasize words related to relaxation,
 breathing, and letting go. When you encounter "..." in the text, pause naturally."""
 
 

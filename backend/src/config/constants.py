@@ -17,7 +17,7 @@ MAX_GENERATION_ATTEMPTS = 3
 # Estimated TTS speaking rate for calm meditation voice with pauses.
 # Observation: meditation TTS averages ~80 words/minute (slower than
 # conversational ~150 wpm due to intentional pauses).
-TTS_WORDS_PER_MINUTE = 80
+TTS_WORDS_PER_MINUTE = 140
 
 # Extra seconds of background music after TTS speech ends, allowing the
 # meditation to fade out naturally.
@@ -60,7 +60,7 @@ CHUNK_SIZE = 1024
 MAX_AUDIO_DURATION = 600  # 10 minutes
 DEFAULT_SILENCE_DURATION = 10  # seconds
 DEFAULT_MUSIC_VOLUME_REDUCTION = -15  # dB - background music should be subtle
-DEFAULT_VOICE_BOOST = 3  # dB - slight boost to ensure voice clarity
+DEFAULT_VOICE_BOOST = 6  # dB - boost to ensure voice clarity over background music
 SUPPORTED_AUDIO_FORMATS = [".mp3", ".wav", ".m4a"]
 
 # Base64 path: extra seconds of background music appended after voice ends
@@ -72,7 +72,7 @@ BASE64_MUSIC_TAIL_SECONDS = 30
 # HLS Streaming Fade Configuration
 HLS_TRAILING_PAD_BASE_SECONDS = 7  # base music-only buffer after voice ends
 HLS_TRAILING_PAD_PER_TIER = 5  # additional padding per duration tier (3, 5, 10, 15, 20 min)
-HLS_FADE_DURATION_SECONDS = 10  # duration of the appended fade-out segments
+HLS_FADE_DURATION_SECONDS = 45  # duration of the music fade-out after voice ends
 
 # Allowed meditation duration tiers in minutes. Must stay in sync with
 # ``MeditationRequestModel.duration_minutes: Literal[3, 5, 10, 15, 20]``.
