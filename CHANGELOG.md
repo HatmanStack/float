@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-04-10
+
+### Fixed
+- Race conditions in meditation generation lifecycle: stale polling and completion checks no longer corrupt state when pressing "New" or rapidly re-generating
+- Missing cancel affordance during loading phase: "New" button now appears alongside spinner so users can abort at any stage (loading, streaming, playback)
+- Small screen layout: playback and loading controls stack vertically on narrow viewports
+- Insufficient spacing between Record Audio and Submit Float buttons on small screens
+
+### Added
+- Generation session tracking with AbortController and generation ID to prevent stale async work
+- Centralized `handleNewMeditation` callback for clean abort + state reset across all playback modes
+
 ## [1.2.0] - 2026-03-20
 
 ### Changed
