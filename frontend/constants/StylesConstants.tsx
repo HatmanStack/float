@@ -59,6 +59,7 @@ const useStyles = () => {
       marginBottom: 8,
       flexDirection: 'row',
       justifyContent: 'space-evenly',
+      gap: 12,
       margin: 10,
       marginTop: buttonMarginTop,
     },

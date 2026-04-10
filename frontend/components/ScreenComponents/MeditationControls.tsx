@@ -36,6 +36,8 @@ interface MeditationControlsProps {
   onStreamError?: (error: Error) => void;
   // Callback when playback ends (to reset UI to Generate button)
   onPlaybackEnd?: () => void;
+  // Callback when user presses "New" (aborts generation + resets to idle)
+  onNewMeditation?: () => void;
   // Voice Q&A props
   sentimentData?: TransformedDict;
   userId?: string;
@@ -130,6 +132,7 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   onStreamComplete,
   onStreamError,
   onPlaybackEnd,
+  onNewMeditation,
   sentimentData,
   userId,
 }: MeditationControlsProps): React.JSX.Element => {
@@ -195,16 +198,36 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
   // Determine which mode we're in
   const useStreamingMode = isStreaming && playlistUrl;
 
-  // Show loading indicator while generating
+  // Show loading indicator + New button while generating
   if (isCalling) {
     return (
-      <ThemedView style={{ padding: 50 }}>
+      <View
+        style={[
+          localStyles.playbackControls,
+          isSmallScreen && localStyles.playbackControlsVertical,
+        ]}
+      >
+        {!isSmallScreen && <View style={localStyles.spacer} />}
         <ActivityIndicator
           size="large"
           color={Colors['activityIndicator']}
           testID="activity-indicator"
         />
-      </ThemedView>
+        <View
+          style={isSmallScreen ? localStyles.newButtonWrapperCenter : localStyles.newButtonWrapper}
+        >
+          <Pressable
+            onPress={() => onNewMeditation?.()}
+            style={({ pressed }) => [
+              localStyles.newButton,
+              pressed && localStyles.newButtonPressed,
+            ]}
+            testID="new-meditation-button-loading"
+          >
+            <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+          </Pressable>
+        </View>
+      </View>
     );
   }
 
@@ -229,22 +252,6 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
             isSmallScreen && localStyles.playbackControlsVertical,
           ]}
         >
-          {isSmallScreen && (
-            <Pressable
-              onPress={() => {
-                hlsPlayerRef.current?.pause();
-                setIsHLSPlaying(false);
-                onPlaybackEnd?.();
-              }}
-              style={({ pressed }) => [
-                localStyles.newButton,
-                pressed && localStyles.newButtonPressed,
-              ]}
-              testID="new-meditation-button"
-            >
-              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
-            </Pressable>
-          )}
           {!isSmallScreen && <View style={localStyles.spacer} />}
           {hlsError ? (
             <Pressable
@@ -280,24 +287,26 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
               )}
             </Pressable>
           )}
-          {!isSmallScreen && (
-            <View style={localStyles.newButtonWrapper}>
-              <Pressable
-                onPress={() => {
-                  hlsPlayerRef.current?.pause();
-                  setIsHLSPlaying(false);
-                  onPlaybackEnd?.();
-                }}
-                style={({ pressed }) => [
-                  localStyles.newButton,
-                  pressed && localStyles.newButtonPressed,
-                ]}
-                testID="new-meditation-button"
-              >
-                <ThemedText style={localStyles.newButtonText}>New</ThemedText>
-              </Pressable>
-            </View>
-          )}
+          <View
+            style={
+              isSmallScreen ? localStyles.newButtonWrapperCenter : localStyles.newButtonWrapper
+            }
+          >
+            <Pressable
+              onPress={() => {
+                hlsPlayerRef.current?.pause();
+                setIsHLSPlaying(false);
+                onNewMeditation?.();
+              }}
+              style={({ pressed }) => [
+                localStyles.newButton,
+                pressed && localStyles.newButtonPressed,
+              ]}
+              testID="new-meditation-button"
+            >
+              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+            </Pressable>
+          </View>
         </View>
       </ThemedView>
     );
@@ -312,20 +321,6 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
           isSmallScreen && localStyles.playbackControlsVertical,
         ]}
       >
-        {isSmallScreen && (
-          <Pressable
-            onPress={() => {
-              setMeditationURI('');
-            }}
-            style={({ pressed }) => [
-              localStyles.newButton,
-              pressed && localStyles.newButtonPressed,
-            ]}
-            testID="new-meditation-button-legacy"
-          >
-            <ThemedText style={localStyles.newButtonText}>New</ThemedText>
-          </Pressable>
-        )}
         {!isSmallScreen && <View style={localStyles.spacer} />}
         <Pressable
           onPress={handlePlayMeditation}
@@ -343,22 +338,20 @@ const MeditationControls: React.FC<MeditationControlsProps> = ({
             </ThemedText>
           )}
         </Pressable>
-        {!isSmallScreen && (
-          <View style={localStyles.newButtonWrapper}>
-            <Pressable
-              onPress={() => {
-                setMeditationURI('');
-              }}
-              style={({ pressed }) => [
-                localStyles.newButton,
-                pressed && localStyles.newButtonPressed,
-              ]}
-              testID="new-meditation-button-legacy"
-            >
-              <ThemedText style={localStyles.newButtonText}>New</ThemedText>
-            </Pressable>
-          </View>
-        )}
+        <View
+          style={isSmallScreen ? localStyles.newButtonWrapperCenter : localStyles.newButtonWrapper}
+        >
+          <Pressable
+            onPress={() => onNewMeditation?.()}
+            style={({ pressed }) => [
+              localStyles.newButton,
+              pressed && localStyles.newButtonPressed,
+            ]}
+            testID="new-meditation-button-legacy"
+          >
+            <ThemedText style={localStyles.newButtonText}>New</ThemedText>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -497,11 +490,16 @@ const localStyles = StyleSheet.create({
   },
   playbackControlsVertical: {
     flexDirection: 'column',
+    gap: 12,
   },
   newButtonWrapper: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
+  },
+  newButtonWrapperCenter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   newButton: {
     backgroundColor: Colors['buttonUnpressed'],

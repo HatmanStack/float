@@ -76,6 +76,10 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
   const { setMusicList } = useIncident();
   const { user } = useAuth();
 
+  // Generation session tracking — prevents stale async work from corrupting state
+  const generationIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Streaming state
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -85,7 +89,17 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
   // Download only available after full generation completes
   const [generationComplete, setGenerationComplete] = useState(false);
 
+  // Abort in-flight work when component unmounts (e.g. navigating away)
   useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const thisGenId = generationIdRef.current;
+    const signal = abortControllerRef.current?.signal;
+
     const fetchData = async () => {
       if (isCalling) {
         try {
@@ -96,6 +110,8 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
             user?.id ?? 'guest',
             undefined, // Use default Lambda URL
             (status) => {
+              // Discard status updates from a stale generation
+              if (generationIdRef.current !== thisGenId) return;
               // Handle status updates during polling - only set playlist URL here
               // generationComplete is set by waitForCompletion() to avoid race condition
               if (status.streaming?.playlist_url) {
@@ -104,9 +120,12 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
               }
             },
             durationRef.current,
-            undefined, // signal
+            signal,
             qaTranscriptRef.current
           );
+
+          // Discard results from a stale generation
+          if (generationIdRef.current !== thisGenId) return;
 
           // Store response for download functionality
           setStreamingResponse(response);
@@ -130,9 +149,13 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
             setGenerationComplete(true);
           }
         } catch (error) {
+          // Silently ignore abort — user pressed "New" or navigated away
+          if (error instanceof DOMException && error.name === 'AbortError') return;
           console.error('Error fetching data:', error);
         } finally {
-          setIsCalling(false);
+          if (generationIdRef.current === thisGenId) {
+            setIsCalling(false);
+          }
         }
       }
     };
@@ -147,15 +170,18 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
       return;
     }
 
+    const thisGenId = generationIdRef.current;
     let cancelled = false;
 
     const checkCompletion = async () => {
       try {
         const result = await streamingResponse.waitForCompletion();
-        if (!cancelled && result.isComplete) {
+        if (!cancelled && generationIdRef.current === thisGenId && result.isComplete) {
           setGenerationComplete(true);
         }
-      } catch {
+      } catch (error) {
+        // Silently ignore abort — user pressed "New" or navigated away
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         // Silent fail - download might not be available
       }
     };
@@ -179,6 +205,10 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
       if (selectedIndexes.length === 0) {
         return;
       }
+      // Abort any in-flight generation before starting a new one
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+      generationIdRef.current += 1;
       // Reset state for new meditation
       setMeditationURI('');
       setPlaylistUrl(null);
@@ -204,10 +234,25 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
   }, []);
 
   const handlePlaybackEnd = useCallback(() => {
-    // Playback has finished - reset streaming state so Generate button shows
+    // Playback has finished naturally — abort any in-flight completion polling
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    // Reset streaming state so Generate button shows
     setPlaylistUrl(null);
     setIsStreaming(false);
     // Keep generationComplete true so Download button remains visible
+  }, []);
+
+  const handleNewMeditation = useCallback(() => {
+    // User pressed "New" — abort everything and return to idle
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setMeditationURI('');
+    setPlaylistUrl(null);
+    setIsStreaming(false);
+    setGenerationComplete(false);
+    setStreamingResponse(null);
+    setIsCalling(false);
   }, []);
 
   const getDownloadUrl = useCallback(async (): Promise<string> => {
@@ -228,6 +273,7 @@ function useMeditation(selectedIndexes: number[], incidentList: Incident[], musi
     onStreamComplete: handleStreamComplete,
     onStreamError: handleStreamError,
     onPlaybackEnd: handlePlaybackEnd,
+    onNewMeditation: handleNewMeditation,
     // Download props - only available after generation complete
     downloadAvailable: generationComplete,
     getDownloadUrl,
@@ -293,6 +339,7 @@ export default function TabTwoScreen(): React.ReactNode {
     onStreamComplete,
     onStreamError,
     onPlaybackEnd,
+    onNewMeditation,
     downloadAvailable,
     getDownloadUrl,
   } = useMeditation(selectedIndexes, incidentList, musicList);
@@ -364,6 +411,7 @@ export default function TabTwoScreen(): React.ReactNode {
           onStreamComplete={onStreamComplete}
           onStreamError={onStreamError}
           onPlaybackEnd={onPlaybackEnd}
+          onNewMeditation={onNewMeditation}
           userId={user?.id}
           sentimentData={
             selectedIndexes.length > 0
