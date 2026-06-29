@@ -16,6 +16,20 @@ def _mock_genai_client():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _mock_openai_client():
+    """Prevent openai.OpenAI from requiring a real API key in CI.
+
+    LambdaHandler.__init__ eagerly constructs OpenAITTSProvider, whose
+    constructor builds an openai.OpenAI client. The OpenAI SDK raises
+    OpenAIError at construction time when no key is present, which breaks
+    handler-initialization tests in CI (no OPENAI_API_KEY). Mirror the
+    genai mock above so initialization doesn't require real credentials.
+    """
+    with patch("src.providers.openai_tts.openai.OpenAI"):
+        yield
+
+
 @pytest.mark.integration
 class TestLambdaHandlerInitialization:
     """Integration tests for Lambda handler initialization."""
