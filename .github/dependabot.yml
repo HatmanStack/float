@@ -1,18 +1,12 @@
 version: 2
 updates:
+  # frontend/ and backend/ are npm workspaces of the root package.json and share
+  # the root package-lock.json. Pointing npm entries at those subdirectories
+  # raises PRs that edit frontend/package.json or backend/package.json without
+  # ever touching the lockfile, so `npm ci` rejects them as out of sync. A single
+  # `/` entry covers both workspaces and updates the lockfile with them.
   - package-ecosystem: npm
-    directory: /frontend
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
-    groups:
-      dev-dependencies:
-        dependency-type: development
-      production-dependencies:
-        dependency-type: production
-
-  - package-ecosystem: npm
-    directory: /backend
+    directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
