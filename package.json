@@ -25,17 +25,18 @@
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
     "detox": "^20.51.4",
-    "expo": "~55.0.7",
+    "expo": "~57.0.8",
     "husky": "^9.1.7",
     "lint-staged": "^17.2.0",
     "prettier": "^3.9.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-test-renderer": "19.2.8"
+    "react-test-renderer": "19.2.3"
   },
   "overrides": {
     "jsdom": "^23.0.0",
-    "@types/react": "~19.1"
+    "@types/react": "~19.2",
+    "jest-environment-node": "^30.4.1"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [
