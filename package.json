@@ -22,12 +22,12 @@
     "setup": "npm install --legacy-peer-deps && cd backend && python3 -m pip install -r requirements.txt -r requirements-dev.txt && cd .. && echo 'Setup complete. Copy .env.example files to .env and fill in your API keys.'"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
     "detox": "^20.0.0",
     "expo": "~57.0.8",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.2.0",
     "prettier": "^3.6.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
