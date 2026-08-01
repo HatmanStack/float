@@ -20,7 +20,8 @@ import MeditationControls from '@/components/ScreenComponents/MeditationControls
 import { DownloadButton } from '@/components/DownloadButton';
 import useStyles from '@/constants/StylesConstants';
 
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 /**
  * Custom hook for managing incident selection

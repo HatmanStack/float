@@ -3,7 +3,7 @@
  * Allows users to download completed meditations for offline playback.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Colors } from '@/constants/Colors';
@@ -40,6 +40,11 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
   const [downloadState, setDownloadState] = useState<DownloadState>('idle');
   const [progress, setProgress] = useState(0);
 
+  // The "Retry" alert action re-runs this callback. Referencing `handleDownload`
+  // directly would capture the binding from the render that opened the alert;
+  // going through a ref always retries with the current props.
+  const handleDownloadRef = useRef<(() => void) | undefined>(undefined);
+
   const handleDownload = useCallback(async () => {
     if (!downloadAvailable || downloadState === 'downloading' || downloadState === 'fetching_url') {
       return;
@@ -70,7 +75,8 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
         localPath,
         {},
         (downloadProgress) => {
-          const progressPercent = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+          const progressPercent =
+            downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
           setProgress(Math.round(progressPercent * 100));
         }
       );
@@ -82,11 +88,9 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
         onDownloadComplete?.(result.uri);
 
         // Show success message
-        Alert.alert(
-          'Download Complete',
-          'Your meditation has been downloaded successfully.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Download Complete', 'Your meditation has been downloaded successfully.', [
+          { text: 'OK' },
+        ]);
       } else {
         throw new Error('Download failed - no file URI returned');
       }
@@ -95,16 +99,24 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
       setDownloadState('error');
       onDownloadError?.(error as Error);
 
-      Alert.alert(
-        'Download Failed',
-        'Unable to download meditation. Please try again.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Retry', onPress: handleDownload },
-        ]
-      );
+      Alert.alert('Download Failed', 'Unable to download meditation. Please try again.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Retry', onPress: () => handleDownloadRef.current?.() },
+      ]);
     }
-  }, [downloadAvailable, downloadState, onGetDownloadUrl, onDownloadStart, onDownloadComplete, onDownloadError, fileName]);
+  }, [
+    downloadAvailable,
+    downloadState,
+    onGetDownloadUrl,
+    onDownloadStart,
+    onDownloadComplete,
+    onDownloadError,
+    fileName,
+  ]);
+
+  useEffect(() => {
+    handleDownloadRef.current = handleDownload;
+  }, [handleDownload]);
 
   const getButtonText = useCallback(() => {
     switch (downloadState) {
@@ -124,7 +136,8 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
     return null;
   }
 
-  const isDisabled = disabled || downloadState === 'fetching_url' || downloadState === 'downloading';
+  const isDisabled =
+    disabled || downloadState === 'fetching_url' || downloadState === 'downloading';
 
   return (
     <Pressable
@@ -135,8 +148,8 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
           backgroundColor: isDisabled
             ? Colors['buttonPressed']
             : pressed
-            ? Colors['buttonPressed']
-            : Colors['buttonUnpressed'],
+              ? Colors['buttonPressed']
+              : Colors['buttonUnpressed'],
           opacity: isDisabled ? 0.6 : 1,
         },
         styles.button,
@@ -144,7 +157,15 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
       testID="download-button"
     >
       {() => (
-        <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'transparent' }}>
+        <ThemedView
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            backgroundColor: 'transparent',
+          }}
+        >
           {(downloadState === 'fetching_url' || downloadState === 'downloading') && (
             <ActivityIndicator
               size="small"
