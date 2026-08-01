@@ -48,3 +48,17 @@ if (typeof globalThis.TextDecoderStream === 'undefined') {
 if (typeof globalThis.TextEncoderStream === 'undefined') {
   globalThis.TextEncoderStream = class TextEncoderStream {};
 }
+
+// Expo (SDK 57) installs its WinterCG globals as lazy getters that `require()` on
+// first read. Jest tears the module registry down before those getters are read,
+// so a later read throws "trying to `import` a file outside of the scope of the
+// test code". The `typeof` checks above happen to realize most of them already;
+// read the rest here so every getter collapses to a plain value while the
+// registry is still alive.
+for (const name of ['fetch', 'URL', 'URLSearchParams', 'DOMException']) {
+  try {
+    void globalThis[name];
+  } catch {
+    // Getter unavailable in this environment — nothing to realize.
+  }
+}

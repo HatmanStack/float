@@ -29,13 +29,14 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.6.2",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-test-renderer": "19.2.3"
   },
   "overrides": {
     "jsdom": "^23.0.0",
-    "@types/react": "~19.1"
+    "@types/react": "~19.2",
+    "jest-environment-node": "^30.4.1"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [
