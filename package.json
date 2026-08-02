@@ -31,7 +31,7 @@
     "prettier": "^3.6.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-test-renderer": "19.2.3"
+    "react-test-renderer": "19.2.8"
   },
   "overrides": {
     "jsdom": "^23.0.0",
