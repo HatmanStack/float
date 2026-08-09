@@ -25,12 +25,12 @@
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
     "detox": "^20.0.0",
-    "expo": "~57.0.8",
+    "expo": "~57.0.10",
     "husky": "^9.1.7",
     "lint-staged": "^17.2.0",
     "prettier": "^3.6.2",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "react-test-renderer": "19.2.3"
   },
   "overrides": {
