@@ -27,11 +27,11 @@
     "detox": "^20.0.0",
     "expo": "~57.0.8",
     "husky": "^9.1.7",
-    "lint-staged": "^17.2.0",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.6.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-test-renderer": "19.2.3"
+    "react-test-renderer": "19.2.8"
   },
   "overrides": {
     "jsdom": "^23.0.0",
